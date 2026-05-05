@@ -41,19 +41,19 @@ pub const MenuItem = struct {
 };
 
 fn itemOpts() dvui.Options {
-    const t = tokens.current;
+    const theme = tokens.current;
     return .{
-        .color_text = t.text_secondary,
-        .corner_radius = dvui.Rect.all(t.radius_sm),
-        .padding = .{ .x = t.space_xs, .y = t.space_xs, .w = t.space_xs, .h = t.space_xs },
+        .color_text = theme.text_secondary,
+        .corner_radius = dvui.Rect.all(theme.radius_sm),
+        .padding = .{ .x = theme.space_xs, .y = theme.space_xs, .w = theme.space_xs, .h = theme.space_xs },
     };
 }
 
 fn floatingOpts() dvui.Options {
-    const t = tokens.current;
+    const theme = tokens.current;
     return .{
-        .color_fill = t.bg_elevated,
-        .color_border = t.border_normal,
-        .corner_radius = dvui.Rect.all(t.radius_lg),
+        .color_fill = theme.bg_elevated,
+        .color_border = theme.border_normal,
+        .corner_radius = dvui.Rect.all(theme.radius_lg),
     };
 }

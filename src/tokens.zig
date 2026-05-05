@@ -103,16 +103,3 @@ pub const default_theme: Theme = blk: {
         .border_subtle = .fromHex("#2C2C2C"),
     };
 };
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// SHARED RESOLVERS (used by multiple widget modules)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-pub fn iconSize(size: Size) f32 {
-    const t = current;
-    return switch (size) {
-        .sm => t.icon_sm,
-        .md => t.icon_md,
-        .lg => t.icon_lg,
-    };
-}

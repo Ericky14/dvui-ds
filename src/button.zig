@@ -1,11 +1,13 @@
-/// Button — comptime builder wrapping dvui.button().
+/// Button — unified builder wrapping dvui button APIs.
 ///
 /// Usage:
 ///   if (ds.button(@src(), "Save").variant(.filled).size(.lg).draw()) { ... }
-///   if (ds.button(@src(), "Cancel").draw()) { ... }  // defaults: ghost, sm
+///   if (ds.button(@src(), "").icon("close", bytes).draw()) { ... }
+///   if (ds.button(@src(), "Save").icon("save", bytes).iconFirst().draw()) { ... }
 const std = @import("std");
 const dvui = @import("dvui");
 const tokens = @import("tokens.zig");
+const icon_mod = @import("icon.zig");
 
 pub fn button(src: std.builtin.SourceLocation, label_str: []const u8) Button {
     return .{ .src = src, .label_str = label_str };
@@ -14,72 +16,126 @@ pub fn button(src: std.builtin.SourceLocation, label_str: []const u8) Button {
 pub const Button = struct {
     src: std.builtin.SourceLocation,
     label_str: []const u8,
-    v: tokens.Variant = .ghost,
-    s: tokens.Size = .sm,
+    btn_variant: tokens.Variant = .ghost,
+    btn_size: tokens.Size = .sm,
+    icon_name: ?[:0]const u8 = null,
+    icon_bytes: ?[]const u8 = null,
+    icon_first_flag: bool = false,
 
-    pub fn variant(self: Button, v: tokens.Variant) Button {
-        var b = self;
-        b.v = v;
-        return b;
+    pub fn variant(self: Button, val: tokens.Variant) Button {
+        var btn = self;
+        btn.btn_variant = val;
+        return btn;
     }
 
-    pub fn size(self: Button, s: tokens.Size) Button {
-        var b = self;
-        b.s = s;
-        return b;
+    pub fn size(self: Button, val: tokens.Size) Button {
+        var btn = self;
+        btn.btn_size = val;
+        return btn;
+    }
+
+    pub fn icon(self: Button, name: [:0]const u8, tvg_bytes: []const u8) Button {
+        var btn = self;
+        btn.icon_name = name;
+        btn.icon_bytes = tvg_bytes;
+        return btn;
+    }
+
+    pub fn iconFirst(self: Button) Button {
+        var btn = self;
+        btn.icon_first_flag = true;
+        return btn;
     }
 
     pub fn draw(self: Button) bool {
-        return dvui.button(self.src, self.label_str, .{}, opts(self.v, self.s));
+        const options = opts(self.btn_variant, self.btn_size);
+
+        if (self.icon_bytes) |tvg_bytes| {
+            const name = self.icon_name orelse "";
+            if (self.label_str.len == 0) {
+                // Icon-only button
+                const colors = iconColors(self.btn_variant);
+                const icon_sz = icon_mod.iconSize(self.btn_size);
+                return dvui.buttonIcon(
+                    self.src,
+                    name,
+                    tvg_bytes,
+                    .{},
+                    .{ .fill_color = colors.fill, .stroke_color = colors.stroke },
+                    options.override(.{ .min_size_content = .{ .w = icon_sz, .h = icon_sz } }),
+                );
+            } else {
+                // Icon + text button
+                return dvui.buttonLabelAndIcon(self.src, .{
+                    .button_opts = .{},
+                    .label = self.label_str,
+                    .tvg_bytes = tvg_bytes,
+                    .icon_first = self.icon_first_flag,
+                }, options);
+            }
+        } else {
+            // Text-only button
+            return dvui.button(self.src, self.label_str, .{}, options);
+        }
     }
 };
 
-pub fn opts(v: tokens.Variant, size: tokens.Size) dvui.Options {
-    const t = tokens.current;
-    const padding = switch (size) {
-        .sm => dvui.Rect{ .x = t.space_xs, .y = t.space_3xs, .w = t.space_xs, .h = t.space_3xs },
-        .md => dvui.Rect{ .x = t.space_sm, .y = t.space_xs, .w = t.space_sm, .h = t.space_xs },
-        .lg => dvui.Rect{ .x = t.space_md, .y = t.space_sm, .w = t.space_md, .h = t.space_sm },
+pub fn opts(btn_variant: tokens.Variant, btn_size: tokens.Size) dvui.Options {
+    const theme = tokens.current;
+    const padding = switch (btn_size) {
+        .sm => dvui.Rect{ .x = theme.space_xs, .y = theme.space_3xs, .w = theme.space_xs, .h = theme.space_3xs },
+        .md => dvui.Rect{ .x = theme.space_sm, .y = theme.space_xs, .w = theme.space_sm, .h = theme.space_xs },
+        .lg => dvui.Rect{ .x = theme.space_md, .y = theme.space_sm, .w = theme.space_md, .h = theme.space_sm },
     };
 
-    return switch (v) {
+    return switch (btn_variant) {
         .filled => .{
-            .color_fill = t.accent,
-            .color_fill_hover = t.accent_hover,
-            .color_fill_press = t.accent_press,
-            .color_text = t.text_primary,
-            .color_border = t.accent,
-            .corner_radius = dvui.Rect.all(t.radius_md),
+            .color_fill = theme.accent,
+            .color_fill_hover = theme.accent_hover,
+            .color_fill_press = theme.accent_press,
+            .color_text = theme.text_primary,
+            .color_border = theme.accent,
+            .corner_radius = dvui.Rect.all(theme.radius_md),
             .border = dvui.Rect.all(0),
             .padding = padding,
         },
         .outlined => .{
-            .color_fill = t.bg_elevated,
-            .color_fill_hover = t.fill_subtle,
-            .color_fill_press = t.neutral_press,
-            .color_text = t.text_primary,
-            .color_border = t.border_normal,
-            .corner_radius = dvui.Rect.all(t.radius_md),
+            .color_fill = theme.bg_elevated,
+            .color_fill_hover = theme.fill_subtle,
+            .color_fill_press = theme.neutral_press,
+            .color_text = theme.text_primary,
+            .color_border = theme.border_normal,
+            .corner_radius = dvui.Rect.all(theme.radius_md),
             .border = dvui.Rect.all(1),
             .padding = padding,
         },
         .ghost => .{
             .color_fill = .fromHex("#00000000"),
-            .color_fill_hover = t.neutral_hover,
-            .color_fill_press = t.neutral_press,
-            .color_text = t.text_secondary,
-            .corner_radius = dvui.Rect.all(t.radius_sm),
+            .color_fill_hover = theme.neutral_hover,
+            .color_fill_press = theme.neutral_press,
+            .color_text = theme.text_secondary,
+            .corner_radius = dvui.Rect.all(theme.radius_sm),
             .border = dvui.Rect.all(0),
             .padding = padding,
         },
         .danger => .{
             .color_fill = .fromHex("#00000000"),
-            .color_fill_hover = t.danger_dim,
-            .color_fill_press = t.danger,
-            .color_text = t.danger,
-            .corner_radius = dvui.Rect.all(t.radius_sm),
+            .color_fill_hover = theme.danger_dim,
+            .color_fill_press = theme.danger,
+            .color_text = theme.danger,
+            .corner_radius = dvui.Rect.all(theme.radius_sm),
             .border = dvui.Rect.all(0),
             .padding = padding,
         },
+    };
+}
+
+fn iconColors(btn_variant: tokens.Variant) struct { fill: tokens.Color, stroke: tokens.Color } {
+    const theme = tokens.current;
+    return switch (btn_variant) {
+        .filled => .{ .fill = theme.text_primary, .stroke = theme.text_primary },
+        .outlined => .{ .fill = theme.text_secondary, .stroke = theme.text_secondary },
+        .ghost => .{ .fill = theme.text_secondary, .stroke = theme.text_secondary },
+        .danger => .{ .fill = theme.danger, .stroke = theme.danger },
     };
 }

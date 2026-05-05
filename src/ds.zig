@@ -10,7 +10,6 @@
 /// The theme is a comptime-known struct of color/spacing tokens. Set it once
 /// at app startup; widgets read it automatically.
 pub const button = @import("button.zig").button;
-pub const iconButton = @import("icon_button.zig").iconButton;
 pub const menuBar = @import("menu_bar.zig").menuBar;
 pub const menuItem = @import("menu_item.zig").menuItem;
 pub const floatingMenu = @import("menu_item.zig").floatingMenu;

@@ -13,35 +13,44 @@ pub fn icon(src: std.builtin.SourceLocation, name: [:0]const u8, tvg_bytes: []co
     return .{ .src = src, .name = name, .tvg_bytes = tvg_bytes };
 }
 
+pub fn iconSize(sz: tokens.Size) f32 {
+    const theme = tokens.current;
+    return switch (sz) {
+        .sm => theme.icon_sm,
+        .md => theme.icon_md,
+        .lg => theme.icon_lg,
+    };
+}
+
 pub const Icon = struct {
     src: std.builtin.SourceLocation,
     name: [:0]const u8,
     tvg_bytes: []const u8,
-    is: IconStyle = .muted,
-    s: tokens.Size = .sm,
+    icon_style: IconStyle = .muted,
+    icon_size: tokens.Size = .sm,
 
-    pub fn style(self: Icon, is: IconStyle) Icon {
-        var i = self;
-        i.is = is;
-        return i;
+    pub fn style(self: Icon, val: IconStyle) Icon {
+        var result = self;
+        result.icon_style = val;
+        return result;
     }
 
-    pub fn size(self: Icon, s: tokens.Size) Icon {
-        var i = self;
-        i.s = s;
-        return i;
+    pub fn size(self: Icon, val: tokens.Size) Icon {
+        var result = self;
+        result.icon_size = val;
+        return result;
     }
 
     pub fn draw(self: Icon) void {
-        const t = tokens.current;
-        const color = switch (self.is) {
-            .primary => t.text_primary,
-            .secondary => t.text_secondary,
-            .muted => t.text_muted,
-            .accent => t.accent,
-            .danger => t.danger,
+        const theme = tokens.current;
+        const color = switch (self.icon_style) {
+            .primary => theme.text_primary,
+            .secondary => theme.text_secondary,
+            .muted => theme.text_muted,
+            .accent => theme.accent,
+            .danger => theme.danger,
         };
-        const sz = tokens.iconSize(self.s);
+        const sz = iconSize(self.icon_size);
         dvui.icon(self.src, self.name, self.tvg_bytes, .{
             .fill_color = color,
             .stroke_color = color,

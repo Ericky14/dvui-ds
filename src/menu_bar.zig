@@ -20,13 +20,13 @@ pub const MenuBar = struct {
 };
 
 fn opts() dvui.Options {
-    const t = tokens.current;
+    const theme = tokens.current;
     return .{
         .expand = .horizontal,
-        .color_fill = t.bg_elevated,
+        .color_fill = theme.bg_elevated,
         .background = true,
-        .padding = .{ .x = t.space_xs, .y = t.space_3xs, .w = t.space_xs, .h = t.space_3xs },
+        .padding = .{ .x = theme.space_xs, .y = theme.space_3xs, .w = theme.space_xs, .h = theme.space_3xs },
         .border = .{ .x = 0, .y = 0, .w = 0, .h = 1 },
-        .color_border = t.border_subtle,
+        .color_border = theme.border_subtle,
     };
 }
