@@ -1,16 +1,27 @@
-/// Icon — themed icon display (non-interactive).
+/// Icon — themed icon/image display (non-interactive).
 ///
 /// Usage:
-///   ds.icon(@src(), "outliner", icons.outliner).draw();
-///   ds.icon(@src(), "camera", icons.camera).style(.accent).size(.md).draw();
+///   ds.icon(@src(), Source.tvg("outliner", icons.outliner)).draw();
+///   ds.icon(@src(), Source.tvg("camera", icons.camera)).style(.accent).size(.md).draw();
+///   ds.icon(@src(), Source.imageBytes(logo_png)).size(.lg).draw();
+///
+/// Legacy convenience (TVG shorthand):
+///   ds.iconTvg(@src(), "outliner", icons.outliner).draw();
 const std = @import("std");
 const dvui = @import("dvui");
 const tokens = @import("tokens.zig");
+pub const Source = @import("source.zig");
 
 pub const IconStyle = enum { primary, secondary, muted, accent, danger };
 
-pub fn icon(src: std.builtin.SourceLocation, name: [:0]const u8, tvg_bytes: []const u8) Icon {
-    return .{ .src = src, .name = name, .tvg_bytes = tvg_bytes };
+/// Create an icon from a Source (TVG, raster image, etc.)
+pub fn icon(src: std.builtin.SourceLocation, asset: Source) Icon {
+    return .{ .src = src, .asset = asset };
+}
+
+/// Convenience: create a TVG icon directly from name + bytes.
+pub fn iconTvg(src: std.builtin.SourceLocation, name: [:0]const u8, tvg_bytes: []const u8) Icon {
+    return .{ .src = src, .asset = Source.tvg(name, tvg_bytes) };
 }
 
 pub fn iconSize(sz: tokens.Size) f32 {
@@ -24,8 +35,7 @@ pub fn iconSize(sz: tokens.Size) f32 {
 
 pub const Icon = struct {
     src: std.builtin.SourceLocation,
-    name: [:0]const u8,
-    tvg_bytes: []const u8,
+    asset: Source,
     icon_style: IconStyle = .muted,
     icon_size: tokens.Size = .sm,
 
@@ -51,11 +61,21 @@ pub const Icon = struct {
             .danger => theme.danger,
         };
         const sz = iconSize(self.icon_size);
-        dvui.icon(self.src, self.name, self.tvg_bytes, .{
-            .fill_color = color,
-            .stroke_color = color,
-        }, .{
-            .min_size_content = .{ .w = sz, .h = sz },
-        });
+
+        switch (self.asset.kind) {
+            .tvg => |tvg| {
+                dvui.icon(self.src, tvg.name, tvg.bytes, .{
+                    .fill_color = color,
+                    .stroke_color = color,
+                }, .{
+                    .min_size_content = .{ .w = sz, .h = sz },
+                });
+            },
+            .image => |image_source| {
+                _ = dvui.image(self.src, .{ .source = image_source }, .{
+                    .min_size_content = .{ .w = sz, .h = sz },
+                });
+            },
+        }
     }
 };

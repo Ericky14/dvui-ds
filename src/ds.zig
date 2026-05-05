@@ -19,9 +19,11 @@ pub const label = @import("label.zig").label;
 pub const toolbar = @import("toolbar.zig").toolbar;
 pub const spacer = @import("spacer.zig").spacer;
 pub const icon = @import("icon.zig").icon;
+pub const iconTvg = @import("icon.zig").iconTvg;
 
 pub const Variant = @import("tokens.zig").Variant;
 pub const Size = @import("tokens.zig").Size;
+pub const Source = @import("source.zig");
 pub const LabelStyle = @import("label.zig").LabelStyle;
 pub const IconStyle = @import("icon.zig").IconStyle;
 pub const Theme = @import("tokens.zig").Theme;
