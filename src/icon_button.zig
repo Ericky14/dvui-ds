@@ -6,6 +6,7 @@
 const std = @import("std");
 const dvui = @import("dvui");
 const tokens = @import("tokens.zig");
+const button_mod = @import("button.zig");
 
 pub fn iconButton(src: std.builtin.SourceLocation, name: [:0]const u8, tvg_bytes: []const u8) IconButton {
     return .{ .src = src, .name = name, .tvg_bytes = tvg_bytes };
@@ -31,7 +32,7 @@ pub const IconButton = struct {
     }
 
     pub fn draw(self: IconButton) bool {
-        const colors = tokens.iconColors(self.v);
+        const colors = iconColors(self.v);
         const icon_sz = tokens.iconSize(self.s);
         return dvui.buttonIcon(
             self.src,
@@ -39,9 +40,19 @@ pub const IconButton = struct {
             self.tvg_bytes,
             .{},
             .{ .fill_color = colors.fill, .stroke_color = colors.stroke },
-            tokens.buttonOpts(self.v, self.s).override(.{
+            button_mod.opts(self.v, self.s).override(.{
                 .min_size_content = .{ .w = icon_sz, .h = icon_sz },
             }),
         );
     }
 };
+
+fn iconColors(v: tokens.Variant) struct { fill: tokens.Color, stroke: tokens.Color } {
+    const t = tokens.current;
+    return switch (v) {
+        .filled => .{ .fill = t.text_primary, .stroke = t.text_primary },
+        .outlined => .{ .fill = t.text_secondary, .stroke = t.text_secondary },
+        .ghost => .{ .fill = t.text_secondary, .stroke = t.text_secondary },
+        .danger => .{ .fill = t.danger, .stroke = t.danger },
+    };
+}

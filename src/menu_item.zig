@@ -15,7 +15,7 @@ pub fn menuItem(src: std.builtin.SourceLocation, label_str: []const u8) MenuItem
 }
 
 pub fn floatingMenu(src: std.builtin.SourceLocation, from: dvui.Rect.Natural) *dvui.FloatingMenuWidget {
-    return dvui.floatingMenu(src, .{ .from = from }, tokens.floatingMenuOpts());
+    return dvui.floatingMenu(src, .{ .from = from }, floatingOpts());
 }
 
 pub const MenuItem = struct {
@@ -30,7 +30,7 @@ pub const MenuItem = struct {
     }
 
     pub fn draw(self: MenuItem) ?dvui.Rect.Natural {
-        const base = tokens.menuItemOpts();
+        const base = itemOpts();
         return dvui.menuItemLabel(
             self.src,
             self.label_str,
@@ -39,3 +39,21 @@ pub const MenuItem = struct {
         );
     }
 };
+
+fn itemOpts() dvui.Options {
+    const t = tokens.current;
+    return .{
+        .color_text = t.text_secondary,
+        .corner_radius = dvui.Rect.all(t.radius_sm),
+        .padding = .{ .x = t.space_xs, .y = t.space_xs, .w = t.space_xs, .h = t.space_xs },
+    };
+}
+
+fn floatingOpts() dvui.Options {
+    const t = tokens.current;
+    return .{
+        .color_fill = t.bg_elevated,
+        .color_border = t.border_normal,
+        .corner_radius = dvui.Rect.all(t.radius_lg),
+    };
+}
