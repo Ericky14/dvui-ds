@@ -6,7 +6,13 @@
 
     .dependencies = .{
         .dvui = .{
-            .path = "../dvui",
+            .path = "vendor/dvui",
+        },
+        .sdl3 = .{
+            .path = "vendor/zig-sdl3",
+        },
+        .zwgpu = .{
+            .path = "vendor/zwgpu",
         },
     },
 

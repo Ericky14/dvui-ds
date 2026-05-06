@@ -9,8 +9,8 @@
 ///   ds.iconTvg(@src(), "outliner", icons.outliner).draw();
 const std = @import("std");
 const dvui = @import("dvui");
-const tokens = @import("tokens.zig");
-pub const Source = @import("source.zig");
+const tokens = @import("../tokens.zig");
+pub const Source = @import("../source.zig");
 
 pub const IconStyle = enum { primary, secondary, muted, accent, danger };
 
@@ -58,7 +58,7 @@ pub const Icon = struct {
             .secondary => theme.text_secondary,
             .muted => theme.text_muted,
             .accent => theme.accent,
-            .danger => theme.danger,
+            .danger => theme.destructive,
         };
         const sz = iconSize(self.icon_size);
 

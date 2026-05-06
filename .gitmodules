@@ -1,0 +1,12 @@
+[submodule "vendor/dvui"]
+	path = vendor/dvui
+	url = git@github.com:Ericky14/dvui.git
+	branch = main
+[submodule "vendor/zig-sdl3"]
+	path = vendor/zig-sdl3
+	url = git@github.com:Ericky14/zig-sdl3.git
+	branch = master
+[submodule "vendor/zwgpu"]
+	path = vendor/zwgpu
+	url = git@github.com:Ericky14/zwgpu.git
+	branch = main

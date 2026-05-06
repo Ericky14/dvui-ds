@@ -3,6 +3,7 @@
 /// Consumers create a `Theme` struct with their color/spacing values and
 /// pass it to `ds.init()`. Widgets read `tokens.current` at draw time.
 const dvui = @import("dvui");
+const ds = @import("ds.zig");
 
 pub const Color = dvui.Color;
 
@@ -11,6 +12,7 @@ pub const Variant = enum {
     outlined,
     ghost,
     danger,
+    accent_ghost,
 };
 
 pub const Size = enum {
@@ -20,39 +22,33 @@ pub const Size = enum {
 };
 
 /// Theme token struct — all values required by ds widgets.
+/// Named to match the Design System color tokens.
 pub const Theme = struct {
-    // ── Fill colors ──────────────────────────────────────────────────────────
-    bg_base: Color,
-    bg_surface: Color,
-    bg_elevated: Color,
-    bg_card: Color,
-    bg_card_hover: Color,
-    fill_subtle: Color,
+    // ── Surfaces ─────────────────────────────────────────────────────────────
+    surface_0: Color, // App background
+    surface_1: Color, // Cards, panels
+    surface_2: Color, // Elevated surfaces
+    surface_3: Color, // Borders, dividers
+    surface_4: Color, // Hover states
 
-    // ── Text colors ──────────────────────────────────────────────────────────
-    text_primary: Color,
-    text_secondary: Color,
-    text_muted: Color,
-    text_weak: Color,
+    // ── Text ─────────────────────────────────────────────────────────────────
+    text_primary: Color, // Headings, body
+    text_secondary: Color, // Descriptions
+    text_muted: Color, // Captions, hints
+    text_ghost: Color, // Placeholders
 
     // ── Accent ───────────────────────────────────────────────────────────────
-    accent: Color,
-    accent_hover: Color,
-    accent_press: Color,
-    accent_dim: Color,
-    accent_subtle: Color,
+    accent: Color, // Primary interactive
+    accent_muted: Color, // Hover/pressed accent
 
-    // ── Danger ───────────────────────────────────────────────────────────────
-    danger: Color,
-    danger_dim: Color,
-
-    // ── Neutral (ghost/secondary states) ─────────────────────────────────────
-    neutral_hover: Color,
-    neutral_press: Color,
+    // ── Destructive ──────────────────────────────────────────────────────────
+    destructive: Color, // Dangerous actions
+    destructive_muted: Color, // Hover/pressed destructive
 
     // ── Borders ──────────────────────────────────────────────────────────────
-    border_normal: Color,
-    border_subtle: Color,
+    border: Color, // Default borders (rgba 255,255,255,0.10)
+    border_subtle: Color, // Light dividers (rgba 255,255,255,0.06)
+    border_strong: Color, // Emphasis borders (rgba 255,255,255,0.18)
 
     // ── Spacing ──────────────────────────────────────────────────────────────
     space_3xs: f32 = 2,
@@ -61,45 +57,149 @@ pub const Theme = struct {
     space_sm: f32 = 8,
     space_md: f32 = 12,
     space_lg: f32 = 16,
+    space_xl: f32 = 20,
+    space_2xl: f32 = 24,
 
     // ── Radii ────────────────────────────────────────────────────────────────
-    radius_sm: f32 = 4,
-    radius_md: f32 = 6,
-    radius_lg: f32 = 8,
+    radius_sm: f32 = 6,
+    radius_md: f32 = 8,
+    radius_lg: f32 = 12,
 
     // ── Icon sizes ───────────────────────────────────────────────────────────
     icon_sm: f32 = 11,
     icon_md: f32 = 14,
     icon_lg: f32 = 18,
+
+    // ── Spinner sizes ────────────────────────────────────────────────────────
+    spinner_sm: f32 = 12,
+    spinner_md: f32 = 16,
+    spinner_lg: f32 = 20,
+
+    // ── Border widths ────────────────────────────────────────────────────────
+    border_width: f32 = 1,
+
+    // ── Font ──────────────────────────────────────────────────────────────────
+    font_family: [:0]const u8 = "Geist",
+
+    // ── Font sizes (pixel) ───────────────────────────────────────────────────
+    font_size_sm: u16 = 11,
+    font_size_md: u16 = 13,
+    font_size_lg: u16 = 16,
+    font_size_xl: u16 = 20,
+
+    // ── Opacity ──────────────────────────────────────────────────────────────
+    opacity_disabled: f32 = 0.4,
+    opacity_fill_rest: u8 = 30,
+    opacity_fill_hover: u8 = 64,
+    opacity_fill_press: u8 = 76,
+    opacity_subtle_rest: u8 = 10,
+    opacity_subtle_hover: u8 = 18,
+    opacity_subtle_press: u8 = 25,
+    opacity_ghost_hover: u8 = 15,
+    opacity_ghost_press: u8 = 23,
+    opacity_track: u8 = 5, // divisor: track_alpha = color.a / track_opacity
+
+    // ── Sidebar ──────────────────────────────────────────────────────────────
+    sidebar_min_width: f32 = 160,
+    sidebar_padding_x: f32 = 16,
+    sidebar_padding_y: f32 = 20,
+
+    // ── Animation ────────────────────────────────────────────────────────────
+    spinner_duration: i32 = 700_000,
 };
 
 /// Active theme — set via `ds.init()`.
 pub var current: Theme = default_theme;
 
-/// Fallback dark theme (usable out of the box for testing).
+/// Returns a dvui.Theme that matches our ds tokens so widgets
+/// that fall back to the dvui theme use the correct colors.
+pub fn dvuiTheme() dvui.Theme {
+    const t = current;
+    // Start from Adwaita dark to get embedded fonts, then override colors.
+    var theme = dvui.Theme.builtin.adwaita_dark;
+    theme.name = "dvui-ds";
+    theme.focus = t.accent;
+    theme.fill = t.surface_0;
+    theme.fill_hover = t.surface_3;
+    theme.fill_press = t.surface_4;
+    theme.text = t.text_primary;
+    theme.border = t.border;
+    theme.control = .{
+        .fill = t.surface_2,
+        .fill_hover = t.surface_3,
+        .fill_press = t.surface_4,
+    };
+    theme.window = .{
+        .fill = t.surface_0,
+    };
+    theme.highlight = .{
+        .fill = t.accent,
+        .fill_hover = t.accent_muted,
+        .text = t.text_primary,
+    };
+    theme.err = .{
+        .fill = t.destructive,
+        .fill_hover = t.destructive_muted,
+        .text = t.text_primary,
+    };
+    // Geist font family — using .pixel size_mode for CSS/iced-compatible sizing.
+    // Values match the Desktop text styles:
+    // body = body-sm (13px/18px), heading = heading-sm (16px/24px), title = heading-md (20px/28px)
+    theme.embedded_fonts = &geist_fonts;
+    theme.font_body = ds.font(current.font_size_md);
+    theme.font_heading = ds.fontBold(current.font_size_lg);
+    theme.font_title = ds.fontBold(current.font_size_xl);
+    theme.font_mono = ds.font(current.font_size_md);
+    return theme;
+}
+
+const font_family_default: [:0]const u8 = "Geist";
+
+const geist_fonts: [3]dvui.Font.Source = .{
+    .{
+        .family = dvui.Font.array(font_family_default),
+        .bytes = @embedFile("fonts/Geist-Regular.ttf"),
+    },
+    .{
+        .family = dvui.Font.array(font_family_default),
+        .weight = .medium,
+        .bytes = @embedFile("fonts/Geist-Medium.ttf"),
+    },
+    .{
+        .family = dvui.Font.array(font_family_default),
+        .weight = .bold,
+        .bytes = @embedFile("fonts/Geist-Bold.ttf"),
+    },
+};
+
+/// Fallback dark theme — Cosmic Teal.
 pub const default_theme: Theme = blk: {
     @setEvalBranchQuota(10000);
     break :blk .{
-        .bg_base = .fromHex("#0D0D0D"),
-        .bg_surface = .fromHex("#161616"),
-        .bg_elevated = .fromHex("#222222"),
-        .bg_card = .fromHex("#1E1E1E"),
-        .bg_card_hover = .fromHex("#2A2A2A"),
-        .fill_subtle = .fromHex("#2A2A2A"),
-        .text_primary = .fromHex("#FFFFFF"),
-        .text_secondary = .fromHex("#C6C6C6"),
-        .text_muted = .fromHex("#909090"),
-        .text_weak = .fromHex("#5E5E5E"),
-        .accent = .fromHex("#026EFE"),
-        .accent_hover = .fromHex("#0057CD"),
-        .accent_press = .fromHex("#00419D"),
-        .accent_dim = .fromHex("#0A1E3A"),
-        .accent_subtle = .fromHex("#0E2A4A"),
-        .danger = .fromHex("#DE3730"),
-        .danger_dim = .fromHex("#2A0808"),
-        .neutral_hover = .fromHex("#2A2A2A"),
-        .neutral_press = .fromHex("#333333"),
-        .border_normal = .fromHex("#383838"),
-        .border_subtle = .fromHex("#2C2C2C"),
+        // Surfaces
+        .surface_0 = .fromHex("#0C0E14"), // App background
+        .surface_1 = .fromHex("#12141A"), // Cards, panels
+        .surface_2 = .fromHex("#181B22"), // Elevated surfaces
+        .surface_3 = .fromHex("#1F222A"), // Borders, dividers
+        .surface_4 = .fromHex("#2A2D36"), // Hover states
+
+        // Text
+        .text_primary = .fromHex("#E8EAF0"),
+        .text_secondary = .fromHex("#A0A5B0"),
+        .text_muted = .fromHex("#646A78"),
+        .text_ghost = .fromHex("#3D4250"),
+
+        // Accent (Cosmic Teal)
+        .accent = .fromHex("#6EB5FF"),
+        .accent_muted = .fromHex("#4A96E0"),
+
+        // Destructive
+        .destructive = .fromHex("#E87070"),
+        .destructive_muted = .fromHex("#B85555"),
+
+        // Borders (approximated as solid for dvui — original uses rgba)
+        .border = .fromHex("#2A2C33"), // ~rgba(255,255,255,0.10) on #0C0E14
+        .border_subtle = .fromHex("#1E2028"), // ~rgba(255,255,255,0.06) on #0C0E14
+        .border_strong = .fromHex("#3A3D46"), // ~rgba(255,255,255,0.18) on #0C0E14
     };
 };

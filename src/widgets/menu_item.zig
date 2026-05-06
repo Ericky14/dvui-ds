@@ -8,7 +8,8 @@
 ///   }
 const std = @import("std");
 const dvui = @import("dvui");
-const tokens = @import("tokens.zig");
+const ds = @import("../ds.zig");
+const tokens = @import("../tokens.zig");
 
 pub fn menuItem(src: std.builtin.SourceLocation, label_str: []const u8) MenuItem {
     return .{ .src = src, .label_str = label_str };
@@ -45,15 +46,15 @@ fn itemOpts() dvui.Options {
     return .{
         .color_text = theme.text_secondary,
         .corner_radius = dvui.Rect.all(theme.radius_sm),
-        .padding = .{ .x = theme.space_xs, .y = theme.space_xs, .w = theme.space_xs, .h = theme.space_xs },
+        .padding = ds.padding(theme.space_xs),
     };
 }
 
 fn floatingOpts() dvui.Options {
     const theme = tokens.current;
     return .{
-        .color_fill = theme.bg_elevated,
-        .color_border = theme.border_normal,
+        .color_fill = theme.surface_2,
+        .color_border = theme.border,
         .corner_radius = dvui.Rect.all(theme.radius_lg),
     };
 }

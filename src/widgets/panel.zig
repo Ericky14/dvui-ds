@@ -7,7 +7,8 @@
 ///   defer hdr.deinit();
 const std = @import("std");
 const dvui = @import("dvui");
-const tokens = @import("tokens.zig");
+const ds = @import("../ds.zig");
+const tokens = @import("../tokens.zig");
 
 pub fn panel(src: std.builtin.SourceLocation) Panel {
     return .{ .src = src };
@@ -36,11 +37,11 @@ pub const PanelHeader = struct {
 fn headerOpts() dvui.Options {
     const theme = tokens.current;
     return .{
-        .color_fill = theme.bg_elevated,
+        .color_fill = theme.surface_2,
         .background = true,
-        .padding = .{ .x = theme.space_xs, .y = theme.space_3xs, .w = theme.space_xs, .h = theme.space_3xs },
-        .border = .{ .x = 0, .y = 0, .w = 0, .h = 1 },
-        .color_border = theme.border_normal,
+        .padding = ds.paddingXY(theme.space_xs, theme.space_3xs),
+        .border = ds.paddingEach(0, 0, theme.border_width, 0),
+        .color_border = theme.border,
         .expand = .horizontal,
     };
 }
@@ -48,8 +49,8 @@ fn headerOpts() dvui.Options {
 fn bodyOpts() dvui.Options {
     const theme = tokens.current;
     return .{
-        .color_fill = theme.bg_surface,
-        .color_border = theme.border_normal,
+        .color_fill = theme.surface_1,
+        .color_border = theme.border,
         .border = dvui.Rect.all(1),
         .padding = dvui.Rect.all(0),
         .expand = .both,
