@@ -362,3 +362,26 @@ test "modal" {
     };
     try capture("modal.png", 440, 300, Local.frame);
 }
+
+test "scroll area" {
+    const Local = struct {
+        fn frame() !dvui.App.Result {
+            var bg = background(@src());
+            defer bg.deinit();
+            var sc = ds.scrollArea(@src()).draw();
+            defer sc.deinit();
+            var col = ds.column(@src()).padding(ds.tokens.current.space_lg).gap(ds.tokens.current.space_sm).expand(.horizontal).draw();
+            defer col.deinit();
+            inline for (0..16) |i| {
+                dvui.labelNoFmt(@src(), std.fmt.comptimePrint("Item {d}", .{i + 1}), .{}, .{
+                    .id_extra = i,
+                    .color_text = ds.tokens.current.text_secondary,
+                    .font = ds.font(ds.tokens.current.font_size_md),
+                });
+            }
+            return .ok;
+        }
+    };
+    // Short window so the 16 items overflow and the area scrolls.
+    try capture("scroll_area.png", 220, 200, Local.frame);
+}

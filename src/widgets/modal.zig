@@ -80,10 +80,19 @@ pub const Modal = struct {
         // the handle's deinit, after the body has been drawn.
         const opacity = ds.withOpacity(phase);
 
+        // Slide: the dialog rises into its centered position (and sinks on close)
+        // by `slide` px. We center on the window rect shifted by the animated
+        // offset and force a re-center every frame (auto-position normally only
+        // runs once).
+        const slide: f32 = 16;
+        var center_on = dvui.windowRect();
+        center_on.y += slide * (1.0 - phase);
+
         const floating_window = dvui.floatingWindow(self.src, .{
             .modal = true,
             .window_avoid = .none,
             .resize = .none,
+            .center_on = center_on,
         }, .{
             .color_fill = theme.surface_2,
             .corner_radius = radius,
@@ -99,6 +108,9 @@ pub const Modal = struct {
             },
             .max_size_content = .width(self.width_val),
         });
+        // Re-center every frame so the animated slide offset is applied (the
+        // window otherwise auto-positions only on its first frame).
+        floating_window.autoPosition();
 
         // Dismiss on a click outside the dialog (on the scrim). The modal window
         // receives all mouse events, so a press not inside its rect is a scrim

@@ -39,19 +39,28 @@ pub fn Router(comptime Route: type) type {
         }
 
         /// Begin a sidebar container. Call deinit() when done adding links.
+        ///
+        /// The sidebar scrolls vertically when its links overflow, with an
+        /// overlay scrollbar that fades in on interaction (see `ds.scrollArea`).
         pub fn sidebar(self: *Self, src: std.builtin.SourceLocation) Sidebar {
             _ = self;
             const theme = tokens.current;
-            const sb = dvui.box(src, .{}, .{
+            // Frame (fill + right border + fixed width). Padding lives on the
+            // inner content so the overlay scrollbar hugs the right edge.
+            const frame = dvui.box(src, .{}, .{
                 .min_size_content = .{ .w = theme.sidebar_min_width, .h = 0 },
                 .background = true,
                 .color_fill = theme.surface_1,
                 .border = ds.paddingEach(0, theme.border_width, 0, 0),
                 .color_border = theme.border_subtle,
-                .padding = ds.paddingXY(theme.sidebar_padding_x, theme.sidebar_padding_y),
                 .expand = .vertical,
             });
-            return .{ .box = sb };
+            const scroll = ds.scrollArea(@src()).expand(.both).draw();
+            const content = dvui.box(@src(), .{ .dir = .vertical }, .{
+                .padding = ds.paddingXY(theme.sidebar_padding_x, theme.sidebar_padding_y),
+                .expand = .horizontal,
+            });
+            return .{ .frame = frame, .scroll = scroll, .content = content };
         }
 
         /// Render a non-clickable section heading in the sidebar.
@@ -93,9 +102,13 @@ pub fn Router(comptime Route: type) type {
         }
 
         pub const Sidebar = struct {
-            box: *dvui.BoxWidget,
+            frame: *dvui.BoxWidget,
+            scroll: ds.ScrollAreaHandle,
+            content: *dvui.BoxWidget,
             pub fn deinit(self: *Sidebar) void {
-                self.box.deinit();
+                self.content.deinit();
+                self.scroll.deinit();
+                self.frame.deinit();
             }
         };
     };

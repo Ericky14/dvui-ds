@@ -24,6 +24,7 @@ pub const modal = @import("widgets/modal.zig").modal;
 pub const badge = @import("widgets/badge.zig").badge;
 pub const tooltip = @import("widgets/tooltip.zig").tooltip;
 pub const radio = @import("widgets/radio.zig").radio;
+pub const scrollArea = @import("widgets/scroll_area.zig").scrollArea;
 pub const row = @import("widgets/row.zig").row;
 pub const column = @import("widgets/column.zig").column;
 pub const loader = @import("widgets/loader.zig").loader;
@@ -59,6 +60,8 @@ pub const BadgeVariant = @import("widgets/badge.zig").BadgeVariant;
 pub const Tooltip = @import("widgets/tooltip.zig").Tooltip;
 pub const TooltipPosition = @import("widgets/tooltip.zig").Position;
 pub const Radio = @import("widgets/radio.zig").Radio;
+pub const ScrollArea = @import("widgets/scroll_area.zig").ScrollArea;
+pub const ScrollAreaHandle = @import("widgets/scroll_area.zig").Handle;
 pub const Router = @import("widgets/router.zig").Router;
 
 // ─── Layout helpers ──────────────────────────────────────────────────────────
@@ -124,6 +127,7 @@ test {
     _ = @import("widgets/badge_tests.zig");
     _ = @import("widgets/tooltip_tests.zig");
     _ = @import("widgets/radio_tests.zig");
+    _ = @import("widgets/scroll_area_tests.zig");
     _ = @import("widgets/text_input_tests.zig");
     _ = @import("widgets/textarea_tests.zig");
     _ = @import("anim/anim_tests.zig");
