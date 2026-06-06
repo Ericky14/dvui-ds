@@ -402,6 +402,9 @@ fn drawAnimatedIconButton(src: std.builtin.SourceLocation, name: [:0]const u8, t
     dvui.icon(@src(), name, tvg_bytes, .{ .fill_color = anim_fill, .stroke_color = anim_stroke }, .{
         .gravity_x = 0.5,
         .gravity_y = 0.5,
+        // Size the glyph to the icon size for this button size — without this the
+        // icon renders at the default (~font line height) and doesn't scale.
+        .min_size_content = .{ .w = icon_sz, .h = icon_sz },
     });
 
     return bw.clicked();

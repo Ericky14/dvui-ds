@@ -29,6 +29,7 @@ const Page = enum {
     buttons,
     icon_button,
     input,
+    textarea,
     labels,
     panel,
     menu_bar,
@@ -65,6 +66,7 @@ fn storybookFrame() bool {
         router.link(@src(), .buttons, "Button");
         router.link(@src(), .icon_button, "Icon Button");
         router.link(@src(), .input, "Text Input");
+        router.link(@src(), .textarea, "Text Area");
         router.link(@src(), .labels, "Label");
         router.link(@src(), .panel, "Panel");
         router.link(@src(), .menu_bar, "Menu Bar");
@@ -78,7 +80,9 @@ fn storybookFrame() bool {
 
         switch (router.active) {
             .buttons => pages.buttons.draw(),
+            .icon_button => pages.icon_button.draw(),
             .input => pages.input.draw(),
+            .textarea => pages.textarea.draw(),
             .labels => pages.labels.draw(),
             .panel => pages.panel.draw(),
             else => pages.placeholder.draw(),

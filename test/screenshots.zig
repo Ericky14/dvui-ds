@@ -80,3 +80,65 @@ test "text input" {
     @memcpy(Local.buffer[0.."hello@example.com".len], "hello@example.com");
     try capture("text_input.png", 320, 150, Local.frame);
 }
+
+test "icon buttons" {
+    const Local = struct {
+        fn frame() !dvui.App.Result {
+            var bg = background(@src());
+            defer bg.deinit();
+            var col = ds.column(@src()).padding(ds.tokens.current.space_lg).draw();
+            defer col.deinit();
+            var r = ds.row(@src()).gap(ds.tokens.current.space_sm).draw();
+            defer r.deinit();
+            _ = ds.iconButton(@src(), "cog", ds.icons.cog).variant(.filled).size(.md).draw();
+            _ = ds.iconButton(@src(), "copy", ds.icons.copy).variant(.outlined).size(.md).draw();
+            _ = ds.iconButton(@src(), "bell", ds.icons.bell).variant(.ghost).size(.md).draw();
+            _ = ds.iconButton(@src(), "delete", ds.icons.delete).variant(.danger).size(.md).draw();
+            return .ok;
+        }
+    };
+    try capture("icon_buttons.png", 260, 80, Local.frame);
+}
+
+test "text area" {
+    const Local = struct {
+        var buffer: [256]u8 = @splat(0);
+        fn frame() !dvui.App.Result {
+            var bg = background(@src());
+            defer bg.deinit();
+            var col = ds.column(@src()).padding(ds.tokens.current.space_lg).expand(.horizontal).draw();
+            defer col.deinit();
+            ds.textarea(@src(), &buffer)
+                .rows(3)
+                .label("Notes")
+                .helper("Wraps and scrolls vertically.")
+                .draw();
+            return .ok;
+        }
+    };
+    @memcpy(
+        Local.buffer[0.."The quick brown fox jumps over the lazy dog near the riverbank.".len],
+        "The quick brown fox jumps over the lazy dog near the riverbank.",
+    );
+    try capture("text_area.png", 340, 200, Local.frame);
+}
+
+test "text area fixed width" {
+    const Local = struct {
+        var buffer: [256]u8 = @splat(0);
+        fn frame() !dvui.App.Result {
+            var bg = background(@src());
+            defer bg.deinit();
+            var col = ds.column(@src()).padding(ds.tokens.current.space_lg).expand(.horizontal).draw();
+            defer col.deinit();
+            // .width() pins the input — it wraps within 220px and never grows.
+            ds.textarea(@src(), &buffer).rows(3).width(220).label("Fixed 220px").draw();
+            return .ok;
+        }
+    };
+    @memcpy(
+        Local.buffer[0.."Pinned to a fixed width; long text wraps inside it.".len],
+        "Pinned to a fixed width; long text wraps inside it.",
+    );
+    try capture("text_area_fixed.png", 320, 200, Local.frame);
+}

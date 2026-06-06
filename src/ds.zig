@@ -12,6 +12,8 @@
 
 // ─── Widgets ─────────────────────────────────────────────────────────────────
 pub const button = @import("widgets/button.zig").button;
+pub const iconButton = @import("widgets/icon_button.zig").iconButton;
+pub const iconButtonSource = @import("widgets/icon_button.zig").iconButtonSource;
 pub const row = @import("widgets/row.zig").row;
 pub const column = @import("widgets/column.zig").column;
 pub const loader = @import("widgets/loader.zig").loader;
@@ -30,6 +32,10 @@ pub const iconTvg = @import("widgets/icon.zig").iconTvg;
 pub const textInput = @import("widgets/text_input.zig").textInput;
 pub const textInputAdvanced = @import("widgets/text_input.zig").textInputAdvanced;
 pub const TextInput = @import("widgets/text_input.zig").TextInput;
+pub const textarea = @import("widgets/textarea.zig").textarea;
+pub const textareaAdvanced = @import("widgets/textarea.zig").textareaAdvanced;
+pub const TextArea = @import("widgets/textarea.zig").TextArea;
+pub const IconButton = @import("widgets/icon_button.zig").IconButton;
 pub const Router = @import("widgets/router.zig").Router;
 
 // ─── Layout helpers ──────────────────────────────────────────────────────────
@@ -84,7 +90,9 @@ pub fn init(theme: Theme) void {
 test {
     std.testing.refAllDecls(@This());
     _ = @import("widgets/button_tests.zig");
+    _ = @import("widgets/icon_button_tests.zig");
     _ = @import("widgets/text_input_tests.zig");
+    _ = @import("widgets/textarea_tests.zig");
     _ = @import("anim/anim_tests.zig");
 }
 
