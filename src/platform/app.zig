@@ -99,6 +99,26 @@ pub const App = struct {
             self.backend.addAllEvents(&ui);
             if (self.backend.quit) break;
 
+            // ─── Layout-settle pass (no rendering) ──────────────────────────
+            // dvui is immediate-mode: a widget's size is measured *during* its
+            // frame and only cached for the next one. So content that first
+            // appears this frame (e.g. after switching storybook pages) has no
+            // cached size yet — it lays out at zero/min size for one visible
+            // frame, then "pops in" and pushes the layout the next frame.
+            //
+            // To avoid that, run the UI once here WITHOUT rendering: null the
+            // render targets so every draw / render-target call no-ops (only
+            // CPU layout + glyph/icon texture uploads run), which warms the
+            // min-size cache. The visible pass below then lays everything out
+            // correctly on the same frame. dvui clears events in end(), so the
+            // visible pass sees none — input is handled exactly once, here.
+            self.renderer.current_pass = null;
+            self.renderer.command_encoder = null;
+            try ui.begin(self.backend.nanoTime());
+            const keep_running = frame_fn();
+            _ = try ui.end(.{});
+            if (!keep_running) break;
+
             // Resize
             const new_fb = self.window.getSizeInPixels() catch .{ self.gpu.width, self.gpu.height };
             const new_w: u32 = @intCast(new_fb[0]);
@@ -144,9 +164,14 @@ pub const App = struct {
             self.renderer.setRenderPass(pass);
             self.renderer.setCommandEncoder(encoder, view);
 
+            // Visible pass — same frame, now with warmed min-sizes. No events
+            // remain (consumed by the settle pass above), so this only renders.
             try ui.begin(self.backend.nanoTime());
-            const keep_running = frame_fn();
+            _ = frame_fn();
             _ = try ui.end(.{});
+
+            // Enable/disable text input for focused text widgets (required on Wayland)
+            self.backend.textInputRect(ui.textInputRequested());
 
             // Update cursor based on dvui's request (e.g. hand on button hover)
             self.backend.setCursor(ui.cursorRequested());
@@ -163,8 +188,6 @@ pub const App = struct {
 
             self.gpu.submit(encoder);
             self.gpu.present();
-
-            if (!keep_running) break;
         }
     }
 };

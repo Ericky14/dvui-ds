@@ -27,6 +27,9 @@ pub const gap = @import("widgets/spacer.zig").gap;
 pub const gapH = @import("widgets/spacer.zig").gapH;
 pub const icon = @import("widgets/icon.zig").icon;
 pub const iconTvg = @import("widgets/icon.zig").iconTvg;
+pub const textInput = @import("widgets/text_input.zig").textInput;
+pub const textInputAdvanced = @import("widgets/text_input.zig").textInputAdvanced;
+pub const TextInput = @import("widgets/text_input.zig").TextInput;
 pub const Router = @import("widgets/router.zig").Router;
 
 // ─── Layout helpers ──────────────────────────────────────────────────────────
@@ -81,6 +84,7 @@ pub fn init(theme: Theme) void {
 test {
     std.testing.refAllDecls(@This());
     _ = @import("widgets/button_tests.zig");
+    _ = @import("widgets/text_input_tests.zig");
     _ = @import("anim/anim_tests.zig");
 }
 

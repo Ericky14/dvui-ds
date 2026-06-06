@@ -48,6 +48,7 @@ pub const Theme = struct {
     // ── Borders ──────────────────────────────────────────────────────────────
     border: Color, // Default borders (rgba 255,255,255,0.10)
     border_subtle: Color, // Light dividers (rgba 255,255,255,0.06)
+    border_input: Color, // Input field borders (rgba 255,255,255,0.12)
     border_strong: Color, // Emphasis borders (rgba 255,255,255,0.18)
 
     // ── Spacing ──────────────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ pub const Theme = struct {
     radius_sm: f32 = 6,
     radius_md: f32 = 8,
     radius_lg: f32 = 12,
+    radius_xl: f32 = 16,
 
     // ── Icon sizes ───────────────────────────────────────────────────────────
     icon_sm: f32 = 11,
@@ -200,6 +202,7 @@ pub const default_theme: Theme = blk: {
         // Borders (approximated as solid for dvui — original uses rgba)
         .border = .fromHex("#2A2C33"), // ~rgba(255,255,255,0.10) on #0C0E14
         .border_subtle = .fromHex("#1E2028"), // ~rgba(255,255,255,0.06) on #0C0E14
+        .border_input = .fromHex("#2E3038"), // ~rgba(255,255,255,0.12) on #0C0E14
         .border_strong = .fromHex("#3A3D46"), // ~rgba(255,255,255,0.18) on #0C0E14
     };
 };

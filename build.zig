@@ -96,4 +96,36 @@ pub fn build(b: *std.Build) void {
     const run_tests = b.addRunArtifact(unit_tests);
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_tests.step);
+
+    // ─── Component screenshots (headless CPU raster via dvui testing backend) ──
+    // `zig build screenshots` renders each DS component to a PNG under
+    // ds-screenshots/ — no GPU or window. Uses a second dvui built with the
+    // testing backend (which rasterizes render targets on the CPU).
+    const dvui_testing_dep = b.dependency("dvui", .{
+        .target = target,
+        .optimize = optimize,
+        .backend = .testing,
+    });
+    const dvui_testing_mod = dvui_testing_dep.module("dvui_testing");
+
+    const ds_testing_mod = b.createModule(.{
+        .root_source_file = b.path("src/ds.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    ds_testing_mod.addImport("dvui", dvui_testing_mod);
+    ds_testing_mod.addImport("ds_focus", focus_mod);
+
+    const shot_mod = b.createModule(.{
+        .root_source_file = b.path("test/screenshots.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    shot_mod.addImport("dvui", dvui_testing_mod);
+    shot_mod.addImport("dvui_ds", ds_testing_mod);
+
+    const shot_tests = b.addTest(.{ .root_module = shot_mod });
+    const run_shots = b.addRunArtifact(shot_tests);
+    const shot_step = b.step("screenshots", "Render DS components to PNGs under ds-screenshots/");
+    shot_step.dependOn(&run_shots.step);
 }

@@ -148,6 +148,23 @@ pub fn setCursor(self: *@This(), cursor: dvui.enums.Cursor) void {
     if (self.cursor) |cur| sdl3.mouse.set(cur) catch {};
 }
 
+/// Enable/disable SDL3 text input based on dvui's request.
+/// Must be called each frame after `ui.end()` so that text entry widgets
+/// receive `text_input` events from the compositor (required on Wayland).
+pub fn textInputRect(self: *@This(), rect: ?dvui.Rect.Natural) void {
+    if (rect) |r| {
+        sdl3.keyboard.setTextInputArea(self.window, .{
+            .x = @intFromFloat(r.x),
+            .y = @intFromFloat(r.y),
+            .w = @intFromFloat(r.w),
+            .h = @intFromFloat(r.h),
+        }, 0) catch {};
+        sdl3.keyboard.startTextInput(self.window) catch {};
+    } else {
+        sdl3.keyboard.stopTextInput(self.window) catch {};
+    }
+}
+
 pub fn preferredColorScheme(_: *@This()) ?dvui.enums.ColorScheme {
     const theme = sdl3.video.getSystemTheme() orelse return null;
     return switch (theme) {
