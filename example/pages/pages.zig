@@ -5,3 +5,15 @@ pub const textarea = @import("textarea.zig");
 pub const labels = @import("labels.zig");
 pub const panel = @import("panel.zig");
 pub const placeholder = @import("placeholder.zig");
+
+// ─── Material components ──────────────────────────────────────────────────────
+pub const card = @import("card.zig");
+pub const checkbox = @import("checkbox.zig");
+pub const switch_page = @import("switch.zig");
+pub const slider = @import("slider.zig");
+pub const tabs = @import("tabs.zig");
+pub const dropdown = @import("dropdown.zig");
+pub const modal = @import("modal.zig");
+pub const badge = @import("badge.zig");
+pub const tooltip = @import("tooltip.zig");
+pub const radio = @import("radio.zig");

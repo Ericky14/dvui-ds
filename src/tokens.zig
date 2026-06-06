@@ -101,6 +101,16 @@ pub const Theme = struct {
     opacity_ghost_press: u8 = 23,
     opacity_track: u8 = 5, // divisor: track_alpha = color.a / track_opacity
 
+    // ── State layers (Material 3) ──────────────────────────────────────────────
+    // Translucent overlay drawn over a control's shape on interaction. Alphas are
+    // the M3 ratios (hover 8%, focus 10%, press 12%) expressed as 0–255.
+    state_hover: u8 = 20, // ~8%
+    state_focus: u8 = 26, // ~10%
+    state_press: u8 = 31, // ~12%
+
+    // Tonal fill alpha for chips/badges (a colored wash behind colored text).
+    opacity_tonal_fill: u8 = 40, // ~16%
+
     // ── Sidebar ──────────────────────────────────────────────────────────────
     sidebar_min_width: f32 = 160,
     sidebar_padding_x: f32 = 16,

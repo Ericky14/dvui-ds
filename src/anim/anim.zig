@@ -12,6 +12,11 @@ pub const float = @import("float.zig").float;
 pub const utils = @import("utils.zig");
 pub const TransitionOptions = @import("options.zig").TransitionOptions;
 
+/// Material 3 state-layer overlay (hover/focus/press), animated.
+pub const stateLayer = @import("state_layer.zig").overlay;
+pub const InteractionState = @import("state_layer.zig").InteractionState;
+
 test {
     _ = @import("anim_tests.zig");
+    _ = @import("state_layer_tests.zig");
 }

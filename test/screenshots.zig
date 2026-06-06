@@ -142,3 +142,223 @@ test "text area fixed width" {
     );
     try capture("text_area_fixed.png", 320, 200, Local.frame);
 }
+
+test "cards" {
+    const Local = struct {
+        fn frame() !dvui.App.Result {
+            var bg = background(@src());
+            defer bg.deinit();
+            var row = ds.row(@src()).gap(ds.tokens.current.space_md).padding(ds.tokens.current.space_xl).draw();
+            defer row.deinit();
+            {
+                var c = ds.card(@src()).variant(.elevated).draw();
+                defer c.deinit();
+                ds.label(@src(), "Elevated").style(.secondary).font(.heading).draw();
+                ds.gap(@src(), ds.tokens.current.space_xs);
+                ds.label(@src(), "Body text").style(.muted).draw();
+            }
+            {
+                var c = ds.card(@src()).variant(.filled).draw();
+                defer c.deinit();
+                ds.label(@src(), "Filled").style(.secondary).font(.heading).draw();
+                ds.gap(@src(), ds.tokens.current.space_xs);
+                ds.label(@src(), "Body text").style(.muted).draw();
+            }
+            {
+                var c = ds.card(@src()).variant(.outlined).draw();
+                defer c.deinit();
+                ds.label(@src(), "Outlined").style(.secondary).font(.heading).draw();
+                ds.gap(@src(), ds.tokens.current.space_xs);
+                ds.label(@src(), "Body text").style(.muted).draw();
+            }
+            return .ok;
+        }
+    };
+    try capture("cards.png", 420, 160, Local.frame);
+}
+
+test "checkboxes" {
+    const Local = struct {
+        var on: bool = true;
+        var off: bool = false;
+        var dis: bool = true;
+        fn frame() !dvui.App.Result {
+            var bg = background(@src());
+            defer bg.deinit();
+            var col = ds.column(@src()).gap(ds.tokens.current.space_md).padding(ds.tokens.current.space_xl).draw();
+            defer col.deinit();
+            _ = ds.checkbox(@src(), &on).label("Checked").draw();
+            _ = ds.checkbox(@src(), &off).label("Unchecked").draw();
+            _ = ds.checkbox(@src(), &dis).label("Disabled (checked)").disabled(true).draw();
+            var sizes = ds.row(@src()).gap(ds.tokens.current.space_md).draw();
+            defer sizes.deinit();
+            _ = ds.checkbox(@src(), &on).size(.sm).draw();
+            _ = ds.checkbox(@src(), &on).size(.md).draw();
+            _ = ds.checkbox(@src(), &on).size(.lg).draw();
+            return .ok;
+        }
+    };
+    try capture("checkboxes.png", 320, 240, Local.frame);
+}
+
+test "switches" {
+    const Local = struct {
+        var on: bool = true;
+        var off: bool = false;
+        var dis_on: bool = true;
+        var s_sm: bool = true;
+        var s_md: bool = true;
+        var s_lg: bool = true;
+        fn frame() !dvui.App.Result {
+            var bg = background(@src());
+            defer bg.deinit();
+            var col = ds.column(@src()).gap(ds.tokens.current.space_md).padding(ds.tokens.current.space_xl).draw();
+            defer col.deinit();
+            _ = ds.toggle(@src(), &on).label("On").draw();
+            _ = ds.toggle(@src(), &off).label("Off").draw();
+            _ = ds.toggle(@src(), &dis_on).label("Disabled (on)").disabled(true).draw();
+            var sizes = ds.row(@src()).gap(ds.tokens.current.space_md).draw();
+            defer sizes.deinit();
+            _ = ds.toggle(@src(), &s_sm).size(.sm).draw();
+            _ = ds.toggle(@src(), &s_md).size(.md).draw();
+            _ = ds.toggle(@src(), &s_lg).size(.lg).draw();
+            return .ok;
+        }
+    };
+    try capture("switches.png", 320, 240, Local.frame);
+}
+
+test "sliders" {
+    const Local = struct {
+        var vol: f32 = 0.6;
+        var dim: f32 = 0.3;
+        var locked: f32 = 0.5;
+        var s_sm: f32 = 0.25;
+        var s_md: f32 = 0.5;
+        var s_lg: f32 = 0.75;
+        fn frame() !dvui.App.Result {
+            var bg = background(@src());
+            defer bg.deinit();
+            var col = ds.column(@src()).gap(ds.tokens.current.space_md).padding(ds.tokens.current.space_xl).draw();
+            defer col.deinit();
+            _ = ds.slider(@src(), &vol).draw();
+            _ = ds.slider(@src(), &dim).draw();
+            _ = ds.slider(@src(), &locked).disabled(true).draw();
+            var sizes = ds.row(@src()).gap(ds.tokens.current.space_md).draw();
+            defer sizes.deinit();
+            _ = ds.slider(@src(), &s_sm).size(.sm).draw();
+            _ = ds.slider(@src(), &s_md).size(.md).draw();
+            _ = ds.slider(@src(), &s_lg).size(.lg).draw();
+            return .ok;
+        }
+    };
+    try capture("sliders.png", 420, 260, Local.frame);
+}
+
+test "tabs" {
+    const Local = struct {
+        var active: usize = 1;
+        const labels = [_][]const u8{ "Design", "Code", "Preview" };
+        fn frame() !dvui.App.Result {
+            var bg = background(@src());
+            defer bg.deinit();
+            var col = ds.column(@src()).padding(ds.tokens.current.space_lg).gap(ds.tokens.current.space_md).draw();
+            defer col.deinit();
+            _ = ds.tabs(@src(), &active, &labels).draw();
+            return .ok;
+        }
+    };
+    try capture("tabs.png", 360, 90, Local.frame);
+}
+
+test "dropdown" {
+    const Local = struct {
+        var fruit: usize = 0;
+        var difficulty: usize = 1;
+        var size_md: usize = 1;
+        const fruits = [_][]const u8{ "Apple", "Banana", "Cherry" };
+        const difficulties = [_][]const u8{ "Easy", "Normal", "Hard" };
+        fn frame() !dvui.App.Result {
+            var bg = background(@src());
+            defer bg.deinit();
+            var col = ds.column(@src()).padding(ds.tokens.current.space_lg).gap(ds.tokens.current.space_md).draw();
+            defer col.deinit();
+            var row = ds.row(@src()).gap(ds.tokens.current.space_lg).draw();
+            defer row.deinit();
+            _ = ds.dropdown(@src(), &fruit, &fruits).draw();
+            _ = ds.dropdown(@src(), &difficulty, &difficulties).draw();
+            _ = ds.dropdown(@src(), &size_md, &fruits).size(.sm).draw();
+            return .ok;
+        }
+    };
+    try capture("dropdown.png", 480, 120, Local.frame);
+}
+
+test "badges" {
+    const Local = struct {
+        fn frame() !dvui.App.Result {
+            var bg = background(@src());
+            defer bg.deinit();
+            var col = ds.column(@src()).gap(ds.tokens.current.space_md).padding(ds.tokens.current.space_xl).draw();
+            defer col.deinit();
+            {
+                var variants = ds.row(@src()).gap(ds.tokens.current.space_sm).draw();
+                defer variants.deinit();
+                ds.badge(@src(), "New").variant(.neutral).draw();
+                ds.badge(@src(), "Beta").variant(.accent).draw();
+                ds.badge(@src(), "Error").variant(.danger).draw();
+            }
+            {
+                var dots = ds.row(@src()).gap(ds.tokens.current.space_md).draw();
+                defer dots.deinit();
+                ds.badge(@src(), "").dot(true).variant(.neutral).draw();
+                ds.badge(@src(), "").dot(true).variant(.accent).draw();
+                ds.badge(@src(), "").dot(true).variant(.danger).draw();
+            }
+            return .ok;
+        }
+    };
+    try capture("badges.png", 300, 160, Local.frame);
+}
+
+test "radios" {
+    const Local = struct {
+        fn frame() !dvui.App.Result {
+            var bg = background(@src());
+            defer bg.deinit();
+            var col = ds.column(@src()).gap(ds.tokens.current.space_md).padding(ds.tokens.current.space_xl).draw();
+            defer col.deinit();
+            _ = ds.radio(@src(), false, "Option A").draw();
+            _ = ds.radio(@src(), true, "Option B").draw();
+            _ = ds.radio(@src(), false, "Disabled").disabled(true).draw();
+            var sizes = ds.row(@src()).gap(ds.tokens.current.space_md).draw();
+            defer sizes.deinit();
+            _ = ds.radio(@src(), true, null).size(.sm).draw();
+            _ = ds.radio(@src(), true, null).size(.md).draw();
+            _ = ds.radio(@src(), true, null).size(.lg).draw();
+            return .ok;
+        }
+    };
+    try capture("radios.png", 320, 240, Local.frame);
+}
+
+test "modal" {
+    const Local = struct {
+        var open: bool = true;
+        fn frame() !dvui.App.Result {
+            var bg = background(@src());
+            defer bg.deinit();
+            var col = ds.column(@src()).padding(ds.tokens.current.space_lg).draw();
+            defer col.deinit();
+            ds.label(@src(), "Page content behind the scrim").style(.secondary).draw();
+            if (ds.modal(@src(), &open).title("Delete file?").draw()) |dialog| {
+                defer dialog.deinit();
+                ds.label(@src(), "This action cannot be undone.").style(.muted).draw();
+                ds.gap(@src(), ds.tokens.current.space_lg);
+                if (ds.button(@src(), "Close").variant(.filled).draw()) open = false;
+            }
+            return .ok;
+        }
+    };
+    try capture("modal.png", 440, 300, Local.frame);
+}

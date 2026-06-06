@@ -34,6 +34,16 @@ const Page = enum {
     panel,
     menu_bar,
     toolbar,
+    card,
+    checkbox,
+    radio,
+    toggle,
+    slider,
+    tabs,
+    dropdown,
+    modal,
+    badge,
+    tooltip,
 };
 
 var router = ds.Router(Page).init(.buttons);
@@ -71,6 +81,20 @@ fn storybookFrame() bool {
         router.link(@src(), .panel, "Panel");
         router.link(@src(), .menu_bar, "Menu Bar");
         router.link(@src(), .toolbar, "Toolbar");
+
+        router.gap(@src(), ds.tokens.current.space_lg);
+
+        router.section(@src(), "MATERIAL");
+        router.link(@src(), .card, "Card");
+        router.link(@src(), .checkbox, "Checkbox");
+        router.link(@src(), .radio, "Radio");
+        router.link(@src(), .toggle, "Switch");
+        router.link(@src(), .slider, "Slider");
+        router.link(@src(), .tabs, "Tabs");
+        router.link(@src(), .dropdown, "Dropdown");
+        router.link(@src(), .modal, "Modal");
+        router.link(@src(), .badge, "Badge");
+        router.link(@src(), .tooltip, "Tooltip");
     }
 
     // ─── Content Area ────────────────────────────────────────────────────────
@@ -85,6 +109,16 @@ fn storybookFrame() bool {
             .textarea => pages.textarea.draw(),
             .labels => pages.labels.draw(),
             .panel => pages.panel.draw(),
+            .card => pages.card.draw(),
+            .checkbox => pages.checkbox.draw(),
+            .radio => pages.radio.draw(),
+            .toggle => pages.switch_page.draw(),
+            .slider => pages.slider.draw(),
+            .tabs => pages.tabs.draw(),
+            .dropdown => pages.dropdown.draw(),
+            .modal => pages.modal.draw(),
+            .badge => pages.badge.draw(),
+            .tooltip => pages.tooltip.draw(),
             else => pages.placeholder.draw(),
         }
     }
