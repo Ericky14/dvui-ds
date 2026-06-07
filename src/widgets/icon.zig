@@ -38,6 +38,9 @@ pub const Icon = struct {
     asset: Source,
     icon_style: IconStyle = .muted,
     icon_size: tokens.Size = .sm,
+    /// Cross-axis gravity. Defaults to 0.5 so an icon vertically centers against
+    /// the (taller) text when placed next to a label in a horizontal row.
+    grav_y: f32 = 0.5,
 
     pub fn style(self: Icon, val: IconStyle) Icon {
         var result = self;
@@ -48,6 +51,13 @@ pub const Icon = struct {
     pub fn size(self: Icon, val: tokens.Size) Icon {
         var result = self;
         result.icon_size = val;
+        return result;
+    }
+
+    /// Override the vertical gravity (0 = top, 0.5 = center, 1 = bottom).
+    pub fn gravityY(self: Icon, val: f32) Icon {
+        var result = self;
+        result.grav_y = val;
         return result;
     }
 
@@ -72,12 +82,14 @@ pub const Icon = struct {
                         .stroke_color = color,
                     }, .{
                         .min_size_content = .{ .w = sz, .h = sz },
+                        .gravity_y = self.grav_y,
                     });
                 }
             },
             .image => |image_source| {
                 _ = dvui.image(self.src, .{ .source = image_source }, .{
                     .min_size_content = .{ .w = sz, .h = sz },
+                    .gravity_y = self.grav_y,
                 });
             },
         }

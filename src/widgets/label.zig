@@ -38,6 +38,7 @@ pub const Label = struct {
     override_font: ?FontToken = null,
     do_padding: ?dvui.Rect = null,
     do_expand: ?dvui.Options.Expand = null,
+    grav_y: ?f32 = null,
 
     /// Set a predefined style (primary, secondary, muted, title, etc.).
     pub fn style(self: Label, val: LabelStyle) Label {
@@ -83,6 +84,14 @@ pub const Label = struct {
         return result;
     }
 
+    /// Set the vertical gravity (0 = top, 0.5 = center, 1 = bottom). Use 0.5 to
+    /// center the text against taller siblings (e.g. buttons) in a horizontal row.
+    pub fn gravityY(self: Label, val: f32) Label {
+        var result = self;
+        result.grav_y = val;
+        return result;
+    }
+
     /// Materialize the label.
     pub fn draw(self: Label) void {
         dvui.label(self.src, "{s}", .{self.text}, self.labelOpts());
@@ -114,6 +123,7 @@ pub const Label = struct {
             .font = resolved_font,
             .padding = self.do_padding,
             .expand = self.do_expand,
+            .gravity_y = self.grav_y,
         };
     }
 };
