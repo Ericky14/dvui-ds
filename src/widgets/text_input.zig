@@ -36,11 +36,19 @@ pub const TextInput = struct {
     is_disabled: bool = false,
     is_password: bool = false,
     input_expand: ?dvui.Options.Expand = null,
+    id_extra_val: usize = 0,
 
     /// Set the input size (sm, md, lg).
     pub fn size(self: TextInput, val: tokens.Size) TextInput {
         var t = self;
         t.input_size = val;
+        return t;
+    }
+
+    /// Disambiguate instances built from the same `@src()` (loops / lists).
+    pub fn idExtra(self: TextInput, val: usize) TextInput {
+        var t = self;
+        t.id_extra_val = val;
         return t;
     }
 
@@ -104,8 +112,9 @@ pub const TextInput = struct {
         }
         defer if (opacity) |o| o.restore();
 
-        // Use caller src hash as id_extra so each textInput instance gets unique child IDs
-        const id_extra = @as(usize, self.src.line) +% (@as(usize, self.src.column) *% 65599);
+        // Use caller src hash (+ optional idExtra for loops) as id_extra so each
+        // textInput instance gets unique child IDs.
+        const id_extra = @as(usize, self.src.line) +% (@as(usize, self.src.column) *% 65599) +% self.id_extra_val;
 
         // Outer column for label + input + helper
         var col = dvui.box(@src(), .{ .dir = .vertical, .gap = theme.space_2xs }, .{

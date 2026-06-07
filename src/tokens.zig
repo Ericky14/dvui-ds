@@ -111,6 +111,12 @@ pub const Theme = struct {
     // Tonal fill alpha for chips/badges (a colored wash behind colored text).
     opacity_tonal_fill: u8 = 40, // ~16%
 
+    // ── Elevation / shadow ─────────────────────────────────────────────────────
+    // Drop-shadow color + peak alpha for elevated surfaces (cards, dialogs,
+    // tooltips). Per-widget blur radius / offset stays in the widget (geometry).
+    shadow_color: Color = .black,
+    shadow_alpha: f32 = 0.4,
+
     // ── Sidebar ──────────────────────────────────────────────────────────────
     sidebar_min_width: f32 = 160,
     sidebar_padding_x: f32 = 16,

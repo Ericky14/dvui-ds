@@ -82,9 +82,7 @@ pub const Card = struct {
 
     /// Materialize the card container. Call `deinit()` on the result when done.
     pub fn draw(self: Card) *dvui.BoxWidget {
-        const box = dvui.box(self.src, .{ .dir = self.dir, .gap = self.gap_val }, self.opts());
-        if (self.card_variant == .outlined) drawOutline(box);
-        return box;
+        return dvui.box(self.src, .{ .dir = self.dir, .gap = self.gap_val }, self.opts());
     }
 
     fn opts(self: Card) dvui.Options {
@@ -103,40 +101,28 @@ pub const Card = struct {
             .elevated => {
                 options.color_fill = theme.surface_2;
                 options.box_shadow = .{
-                    .color = .black,
+                    .color = theme.shadow_color,
                     .corner_radius = radius,
                     .offset = .{ .x = 0, .y = 3 },
                     .fade = 16,
-                    .alpha = 0.4,
+                    .alpha = theme.shadow_alpha,
                 };
             },
             .filled => {
                 options.color_fill = theme.surface_1;
             },
             .outlined => {
-                // The border is painted manually in `drawOutline` as an even SDF
-                // ring — dvui's thin uniform-border stroke renders unevenly on
-                // horizontal vs vertical edges at fractional scales. The box
-                // itself paints nothing.
+                // Transparent center (shows whatever surface the card is nested
+                // on) + a 1px border. The border is a normal dvui stroke, which
+                // the SDF pipeline now renders evenly on all edges.
                 options.background = false;
+                options.color_border = theme.border;
+                options.border = dvui.Rect.all(theme.border_width);
             },
         }
         return options;
     }
 };
-
-/// Paint the outlined card's border as two concentric SDF fills (border color,
-/// then the surface inset by the border width). SDF rounded-rect fills are
-/// symmetric on all sides, unlike a thin stroked path.
-fn drawOutline(box: *dvui.BoxWidget) void {
-    const theme = tokens.current;
-    const rs = box.data().borderRectScale();
-    if (rs.r.empty()) return;
-    const radius = theme.radius_lg * rs.s;
-    const border_w = theme.border_width * rs.s;
-    rs.r.fill(dvui.Rect.Physical.all(radius), .{ .color = theme.border, .fade = 1.0 });
-    rs.r.insetAll(border_w).fill(dvui.Rect.Physical.all(@max(0, radius - border_w)), .{ .color = theme.surface_0, .fade = 1.0 });
-}
 
 test {
     _ = @import("card_tests.zig");

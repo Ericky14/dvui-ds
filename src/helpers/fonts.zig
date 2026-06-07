@@ -7,10 +7,11 @@ pub fn font(size_px: u16) dvui.Font {
     return dvui.Font.find(.{ .family = tokens.current.font_family, .size = size_px, .size_mode = .pixel });
 }
 
-/// Find a light font using the theme's font family in pixel size mode.
-/// `ds.fontLight(theme.font_size_md)` → light weight
+/// Light weight. NOTE: Geist Light isn't embedded (only Regular/Medium/Bold are),
+/// so this maps to the regular weight rather than logging a fallback every frame.
+/// Embed `Geist-Light.ttf` in tokens.geist_fonts to enable the true weight.
 pub fn fontLight(size_px: u16) dvui.Font {
-    return dvui.Font.find(.{ .family = tokens.current.font_family, .size = size_px, .weight = .light, .size_mode = .pixel });
+    return font(size_px);
 }
 
 /// Find a medium font using the theme's font family in pixel size mode.
@@ -19,10 +20,12 @@ pub fn fontMedium(size_px: u16) dvui.Font {
     return dvui.Font.find(.{ .family = tokens.current.font_family, .size = size_px, .weight = .medium, .size_mode = .pixel });
 }
 
-/// Find a semibold font using the theme's font family in pixel size mode.
-/// `ds.fontSemibold(theme.font_size_md)` → semibold weight
+/// Semibold weight. NOTE: Geist SemiBold isn't embedded (only Regular/Medium/Bold
+/// are), so this maps to the bold weight (the nearest available) rather than
+/// logging a fallback every frame. Embed `Geist-SemiBold.ttf` in
+/// tokens.geist_fonts to enable the true weight.
 pub fn fontSemibold(size_px: u16) dvui.Font {
-    return dvui.Font.find(.{ .family = tokens.current.font_family, .size = size_px, .weight = .semi_bold, .size_mode = .pixel });
+    return fontBold(size_px);
 }
 
 /// Find a bold font using the theme's font family in pixel size mode.

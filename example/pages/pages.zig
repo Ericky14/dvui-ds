@@ -6,6 +6,16 @@ pub const labels = @import("labels.zig");
 pub const panel = @import("panel.zig");
 pub const placeholder = @import("placeholder.zig");
 
+// ─── Foundations ──────────────────────────────────────────────────────────────
+pub const typography = @import("typography.zig");
+pub const colors = @import("colors.zig");
+pub const spacing = @import("spacing.zig");
+pub const icons = @import("icons.zig");
+
+// ─── Layout / chrome ──────────────────────────────────────────────────────────
+pub const menu_bar = @import("menu_bar.zig");
+pub const toolbar = @import("toolbar.zig");
+
 // ─── Material components ──────────────────────────────────────────────────────
 pub const card = @import("card.zig");
 pub const checkbox = @import("checkbox.zig");

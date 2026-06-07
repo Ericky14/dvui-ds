@@ -85,6 +85,10 @@ pub const alpha = @import("helpers/color.zig").alpha;
 pub const withOpacity = @import("helpers/color.zig").withOpacity;
 pub const Opacity = @import("helpers/color.zig").Opacity;
 
+/// CSS `:focus-visible` — true only after keyboard input (auto-detected from the
+/// frame's events; no backend cooperation required).
+pub const focusVisible = @import("helpers/focus_visible.zig").visible;
+
 // ─── Icons ───────────────────────────────────────────────────────────────────
 pub const icons = @import("icons.zig");
 

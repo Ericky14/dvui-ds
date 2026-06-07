@@ -17,7 +17,6 @@ const ds = @import("../ds.zig");
 const tokens = @import("../tokens.zig");
 const anim = @import("../anim/anim.zig");
 const motion = @import("../motion.zig");
-const ds_focus = @import("ds_focus");
 
 const Rect = dvui.Rect;
 
@@ -43,6 +42,12 @@ pub const Tabs = struct {
     /// changed this frame.
     pub fn draw(self: Tabs) bool {
         const theme = tokens.current;
+
+        // Keep the active index in range — a stale index would otherwise hide
+        // the indicator (no tab matches) instead of selecting a valid tab.
+        if (self.labels.len > 0 and self.active.* >= self.labels.len) {
+            self.active.* = self.labels.len - 1;
+        }
 
         var changed = false;
         var active_x: f32 = 0;
@@ -79,7 +84,7 @@ pub const Tabs = struct {
                         changed = true;
                     }
                 }
-                const focused = ds_focus.visible() and tab.data().id == dvui.focusedWidgetId();
+                const focused = ds.focusVisible() and tab.data().id == dvui.focusedWidgetId();
                 const pressed = dvui.captured(tab.data().id);
 
                 const is_active = index == self.active.*;

@@ -16,7 +16,6 @@ const dvui = @import("dvui");
 const ds = @import("../ds.zig");
 const tokens = @import("../tokens.zig");
 const anim = @import("../anim/anim.zig");
-const ds_focus = @import("ds_focus");
 
 const Rect = dvui.Rect;
 const Point = dvui.Point;
@@ -152,7 +151,7 @@ pub const Slider = struct {
         }
 
         if (b.data().visible()) {
-            const focused = !self.is_disabled and ds_focus.visible() and b.data().id == dvui.focusedWidgetId();
+            const focused = !self.is_disabled and ds.focusVisible() and b.data().id == dvui.focusedWidgetId();
             const pressed = !self.is_disabled and dvui.captured(b.data().id);
             drawTrackAndThumb(b.data().id, std.math.clamp(self.fraction.*, 0, 1), trackrs, track_h, thumb_d, .{ .hovered = hovered, .pressed = pressed, .focused = focused }, self.is_disabled, theme);
         }

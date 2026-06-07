@@ -385,3 +385,91 @@ test "scroll area" {
     // Short window so the 16 items overflow and the area scrolls.
     try capture("scroll_area.png", 220, 200, Local.frame);
 }
+
+test "icons" {
+    const Local = struct {
+        fn frame() !dvui.App.Result {
+            var bg = background(@src());
+            defer bg.deinit();
+            var row = ds.row(@src()).gap(ds.tokens.current.space_lg).padding(ds.tokens.current.space_lg).draw();
+            defer row.deinit();
+            ds.icon(@src(), ds.Source.namedIcon("save", ds.icons.save)).size(.lg).style(.secondary).draw();
+            ds.icon(@src(), ds.Source.namedIcon("heart", ds.icons.heart)).size(.lg).style(.accent).draw();
+            ds.icon(@src(), ds.Source.namedIcon("trash_2", ds.icons.trash_2)).size(.lg).style(.danger).draw();
+            ds.icon(@src(), ds.Source.namedIcon("settings", ds.icons.settings)).size(.lg).style(.primary).draw();
+            ds.icon(@src(), ds.Source.namedIcon("star", ds.icons.star)).size(.lg).style(.muted).draw();
+            return .ok;
+        }
+    };
+    try capture("icons.png", 240, 80, Local.frame);
+}
+
+test "image source" {
+    const Local = struct {
+        const w = 28;
+        const h = 28;
+        var buf: [w * h * 4]u8 = undefined;
+        var filled = false;
+        fn img() ds.Source {
+            if (!filled) {
+                const from = [3]u32{ 110, 181, 255 };
+                const to = [3]u32{ 168, 120, 245 };
+                const span = (w - 1) + (h - 1);
+                var y: usize = 0;
+                while (y < h) : (y += 1) {
+                    var x: usize = 0;
+                    while (x < w) : (x += 1) {
+                        const i = (y * w + x) * 4;
+                        const t = x + y;
+                        inline for (0..3) |c| {
+                            buf[i + c] = @intCast((from[c] * (span - t) + to[c] * t) / span);
+                        }
+                        buf[i + 3] = 255;
+                    }
+                }
+                filled = true;
+            }
+            return ds.Source.pixels(&buf, w, h);
+        }
+        fn frame() !dvui.App.Result {
+            var bg = background(@src());
+            defer bg.deinit();
+            var row = ds.row(@src()).gap(ds.tokens.current.space_md).padding(ds.tokens.current.space_lg).draw();
+            defer row.deinit();
+            // image-only button, image+label button, and a plain image icon
+            _ = ds.button(@src(), "").source(img()).variant(.outlined).size(.lg).draw();
+            _ = ds.button(@src(), "Photo").source(img()).iconFirst().variant(.filled).size(.lg).draw();
+            ds.icon(@src(), img()).size(.lg).draw();
+            return .ok;
+        }
+    };
+    try capture("image_source.png", 360, 110, Local.frame);
+}
+
+test "icon grid" {
+    const Local = struct {
+        fn cell(src: @import("std").builtin.SourceLocation, comptime name: [:0]const u8, svg: []const u8) void {
+            const theme = ds.tokens.current;
+            var col = dvui.box(src, .{ .dir = .vertical, .gap = theme.space_2xs }, .{ .min_size_content = .{ .w = 80 } });
+            defer col.deinit();
+            {
+                var ic = dvui.box(@src(), .{}, .{ .gravity_x = 0.5 });
+                defer ic.deinit();
+                if (ds.icons.resolve(name, svg)) |r| ds.iconTvg(@src(), r.name, r.tvg_bytes).size(.lg).style(.secondary).draw();
+            }
+            dvui.labelNoFmt(@src(), name, .{}, .{ .color_text = theme.text_ghost, .font = ds.font(theme.font_size_sm), .gravity_x = 0.5 });
+        }
+        fn frame() !dvui.App.Result {
+            var bg = background(@src());
+            defer bg.deinit();
+            var row = ds.row(@src()).gap(ds.tokens.current.space_md).padding(ds.tokens.current.space_lg).draw();
+            defer row.deinit();
+            cell(@src(), "house", ds.icons.house);
+            cell(@src(), "search", ds.icons.search);
+            cell(@src(), "settings", ds.icons.settings);
+            cell(@src(), "bell", ds.icons.bell);
+            return .ok;
+        }
+    };
+    try capture("icon_grid.png", 400, 110, Local.frame);
+}

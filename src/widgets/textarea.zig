@@ -36,11 +36,19 @@ pub const TextArea = struct {
     is_error: bool = false,
     is_disabled: bool = false,
     input_expand: ?dvui.Options.Expand = null,
+    id_extra_val: usize = 0,
 
     /// Set the visible height in text rows (default 4).
     pub fn rows(self: TextArea, n: u32) TextArea {
         var t = self;
         t.visible_rows = @floatFromInt(n);
+        return t;
+    }
+
+    /// Disambiguate instances built from the same `@src()` (loops / lists).
+    pub fn idExtra(self: TextArea, val: usize) TextArea {
+        var t = self;
+        t.id_extra_val = val;
         return t;
     }
 
@@ -106,8 +114,9 @@ pub const TextArea = struct {
         }
         defer if (opacity) |o| o.restore();
 
-        // Use caller src hash as id_extra so each instance gets unique child IDs
-        const id_extra = @as(usize, self.src.line) +% (@as(usize, self.src.column) *% 65599);
+        // Use caller src hash (+ optional idExtra for loops) as id_extra so each
+        // instance gets unique child IDs.
+        const id_extra = @as(usize, self.src.line) +% (@as(usize, self.src.column) *% 65599) +% self.id_extra_val;
 
         // Outer column for label + input + helper
         var col = dvui.box(@src(), .{ .dir = .vertical, .gap = theme.space_2xs }, .{

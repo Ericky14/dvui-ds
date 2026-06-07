@@ -63,13 +63,17 @@ pub const Icon = struct {
         const sz = iconSize(self.icon_size);
 
         switch (self.asset.kind) {
-            .tvg => |tvg| {
-                dvui.icon(self.src, tvg.name, tvg.bytes, .{
-                    .fill_color = color,
-                    .stroke_color = color,
-                }, .{
-                    .min_size_content = .{ .w = sz, .h = sz },
-                });
+            // TVG and named icons both resolve to TVG bytes (named icons convert
+            // their SVG once and cache it).
+            .tvg, .named_icon => {
+                if (self.asset.resolveToTvg()) |resolved| {
+                    dvui.icon(self.src, resolved.name, resolved.bytes, .{
+                        .fill_color = color,
+                        .stroke_color = color,
+                    }, .{
+                        .min_size_content = .{ .w = sz, .h = sz },
+                    });
+                }
             },
             .image => |image_source| {
                 _ = dvui.image(self.src, .{ .source = image_source }, .{

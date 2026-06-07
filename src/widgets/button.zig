@@ -12,7 +12,6 @@ const dvui = @import("dvui");
 const ds = @import("../ds.zig");
 const tokens = @import("../tokens.zig");
 const anim = @import("../anim/anim.zig");
-const focus = @import("ds_focus");
 const icon_mod = @import("icon.zig");
 const loader_mod = @import("loader.zig");
 pub const Source = @import("../source.zig");
@@ -39,6 +38,7 @@ pub const Button = struct {
     override_gravity_x: ?f32 = null,
     override_expand: ?dvui.Options.Expand = null,
     override_padding: ?dvui.Rect = null,
+    id_extra: ?usize = null,
 
     pub fn variant(self: Button, val: tokens.Variant) Button {
         var btn = self;
@@ -134,6 +134,13 @@ pub const Button = struct {
         return btn;
     }
 
+    /// Disambiguate this instance when buttons share a `@src()` (loops/toolbars).
+    pub fn idExtra(self: Button, val: usize) Button {
+        var btn = self;
+        btn.id_extra = val;
+        return btn;
+    }
+
     pub fn draw(self: Button) bool {
         // Resolve named icons to TVG at draw time
         const resolved_source: ?Source = if (self.btn_source) |src_asset| switch (src_asset.kind) {
@@ -156,6 +163,7 @@ pub const Button = struct {
         if (self.override_gravity_x) |g| options.gravity_x = g;
         if (self.override_expand) |e| options.expand = e;
         if (self.override_padding) |p| options.padding = p;
+        options.id_extra = self.id_extra;
 
         // Loading state: show spinner + label, no interaction
         if (self.is_loading) {
@@ -198,26 +206,36 @@ pub const Button = struct {
     fn drawImageButton(self: Button, image_source: dvui.ImageSource, options: dvui.Options) bool {
         const icon_sz = icon_mod.iconSize(self.btn_size);
         var bw: dvui.ButtonWidget = undefined;
-        bw.init(self.src, .{ .draw_focus = focus.visible() }, options);
+        bw.init(self.src, .{ .draw_focus = ds.focusVisible() }, options);
         defer bw.deinit();
         defer bw.drawFocus();
         bw.processEvents();
-        bw.drawBackground();
 
-        if (self.label_str.len > 0 and self.icon_first_flag) {
-            _ = dvui.image(@src(), .{ .source = image_source }, .{
-                .min_size_content = .{ .w = icon_sz, .h = icon_sz },
+        // Animated fill, matching the text/icon button paths.
+        const fill = anim.color(bw.data().id, "fill", targetFillColor(&bw), .{});
+        bw.data().borderAndBackground(.{ .fill_color = fill });
+
+        const img_opts: dvui.Options = .{ .min_size_content = .{ .w = icon_sz, .h = icon_sz }, .gravity_y = 0.5 };
+
+        if (self.label_str.len > 0) {
+            // Image + label: lay them out in a centered horizontal row with a gap
+            // (drawing both directly into the button stacks them).
+            const text_color = anim.color(bw.data().id, "text", targetTextColor(&bw), .{});
+            const style = options.strip().override(bw.style()).override(.{ .color_text = text_color });
+            var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = tokens.current.space_sm }, .{
+                .gravity_x = options.gravity_x orelse 0.5,
+                .gravity_y = 0.5,
             });
-            dvui.labelNoFmt(@src(), self.label_str, .{}, .{});
-        } else if (self.label_str.len > 0) {
-            dvui.labelNoFmt(@src(), self.label_str, .{}, .{});
-            _ = dvui.image(@src(), .{ .source = image_source }, .{
-                .min_size_content = .{ .w = icon_sz, .h = icon_sz },
-            });
+            defer row.deinit();
+            if (self.icon_first_flag) {
+                _ = dvui.image(@src(), .{ .source = image_source }, img_opts);
+                dvui.labelNoFmt(@src(), self.label_str, .{}, style.override(.{ .gravity_y = 0.5 }));
+            } else {
+                dvui.labelNoFmt(@src(), self.label_str, .{}, style.override(.{ .gravity_y = 0.5 }));
+                _ = dvui.image(@src(), .{ .source = image_source }, img_opts);
+            }
         } else {
-            _ = dvui.image(@src(), .{ .source = image_source }, .{
-                .min_size_content = .{ .w = icon_sz, .h = icon_sz },
-            });
+            _ = dvui.image(@src(), .{ .source = image_source }, img_opts.override(.{ .gravity_x = 0.5 }));
         }
 
         return bw.clicked();
@@ -368,7 +386,7 @@ fn targetTextColor(bw: *dvui.ButtonWidget) dvui.Color {
 /// Animated text-only button.
 fn drawAnimatedButton(src: std.builtin.SourceLocation, label_str: []const u8, options: dvui.Options) bool {
     var bw: dvui.ButtonWidget = undefined;
-    bw.init(src, .{ .draw_focus = focus.visible() }, options);
+    bw.init(src, .{ .draw_focus = ds.focusVisible() }, options);
     defer bw.deinit();
     defer bw.drawFocus();
     bw.processEvents();
@@ -388,7 +406,7 @@ fn drawAnimatedButton(src: std.builtin.SourceLocation, label_str: []const u8, op
 /// Animated icon-only button.
 fn drawAnimatedIconButton(src: std.builtin.SourceLocation, name: [:0]const u8, tvg_bytes: []const u8, icon_sz: f32, fill_color: Color, stroke_color: Color, options: dvui.Options) bool {
     var bw: dvui.ButtonWidget = undefined;
-    bw.init(src, .{ .draw_focus = focus.visible() }, options.override(.{ .min_size_content = .{ .w = icon_sz, .h = icon_sz } }));
+    bw.init(src, .{ .draw_focus = ds.focusVisible() }, options.override(.{ .min_size_content = .{ .w = icon_sz, .h = icon_sz } }));
     defer bw.deinit();
     defer bw.drawFocus();
     bw.processEvents();
@@ -413,7 +431,7 @@ fn drawAnimatedIconButton(src: std.builtin.SourceLocation, name: [:0]const u8, t
 /// Animated label + icon button.
 fn drawAnimatedLabelAndIcon(src: std.builtin.SourceLocation, label_str: []const u8, tvg_bytes: []const u8, icon_first: bool, btn_size: tokens.Size, options: dvui.Options) bool {
     var bw: dvui.ButtonWidget = undefined;
-    bw.init(src, .{ .draw_focus = focus.visible() }, options);
+    bw.init(src, .{ .draw_focus = ds.focusVisible() }, options);
     defer bw.deinit();
     defer bw.drawFocus();
     bw.processEvents();
@@ -448,7 +466,7 @@ fn drawLoadingButton(src: std.builtin.SourceLocation, label_str: []const u8, btn
     const text_color = variantTextColor(btn_variant).opacity(theme.opacity_disabled);
 
     var bw: dvui.ButtonWidget = undefined;
-    bw.init(src, .{ .draw_focus = focus.visible() }, options);
+    bw.init(src, .{ .draw_focus = ds.focusVisible() }, options);
     defer bw.deinit();
     defer bw.drawFocus();
 
@@ -478,7 +496,7 @@ fn drawDisabledButton(src: std.builtin.SourceLocation, label_str: []const u8, bt
     _ = btn_variant;
 
     var bw: dvui.ButtonWidget = undefined;
-    bw.init(src, .{ .draw_focus = focus.visible() }, options);
+    bw.init(src, .{ .draw_focus = ds.focusVisible() }, options);
     defer bw.deinit();
     defer bw.drawFocus();
 

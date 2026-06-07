@@ -103,12 +103,18 @@ fn storybookFrame() bool {
         defer content.deinit();
 
         switch (router.active) {
+            .colors => pages.colors.draw(),
+            .typography => pages.typography.draw(),
+            .spacing => pages.spacing.draw(),
+            .icons => pages.icons.draw(),
             .buttons => pages.buttons.draw(),
             .icon_button => pages.icon_button.draw(),
             .input => pages.input.draw(),
             .textarea => pages.textarea.draw(),
             .labels => pages.labels.draw(),
             .panel => pages.panel.draw(),
+            .menu_bar => pages.menu_bar.draw(),
+            .toolbar => pages.toolbar.draw(),
             .card => pages.card.draw(),
             .checkbox => pages.checkbox.draw(),
             .radio => pages.radio.draw(),
@@ -119,7 +125,6 @@ fn storybookFrame() bool {
             .modal => pages.modal.draw(),
             .badge => pages.badge.draw(),
             .tooltip => pages.tooltip.draw(),
-            else => pages.placeholder.draw(),
         }
     }
 

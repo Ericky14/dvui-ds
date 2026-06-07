@@ -85,11 +85,11 @@ pub const Tooltip = struct {
             .font = ds.font(theme.font_size_sm),
             .padding = ds.paddingXY(theme.space_sm, theme.space_3xs),
             .box_shadow = .{
-                .color = .black,
+                .color = theme.shadow_color,
                 .corner_radius = radius,
                 .offset = .{ .x = 0, .y = 2 },
                 .fade = 12,
-                .alpha = 0.45,
+                .alpha = theme.shadow_alpha,
             },
         };
     }

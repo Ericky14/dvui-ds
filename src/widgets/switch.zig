@@ -20,7 +20,6 @@ const ds = @import("../ds.zig");
 const tokens = @import("../tokens.zig");
 const anim = @import("../anim/anim.zig");
 const motion = @import("../motion.zig");
-const ds_focus = @import("ds_focus");
 
 const Color = dvui.Color;
 const RectScale = dvui.RectScale;
@@ -112,7 +111,7 @@ pub const Switch = struct {
                 changed = true;
             }
         }
-        const focused = !self.is_disabled and ds_focus.visible() and b.data().id == dvui.focusedWidgetId();
+        const focused = !self.is_disabled and ds.focusVisible() and b.data().id == dvui.focusedWidgetId();
         const pressed = !self.is_disabled and dvui.captured(b.data().id);
 
         const reserve = dvui.spacer(@src(), .{

@@ -35,6 +35,7 @@ pub const IconButton = struct {
     btn_size: tokens.Size = .sm,
     is_disabled: bool = false,
     is_loading: bool = false,
+    id_extra: ?usize = null,
 
     pub fn variant(self: IconButton, val: tokens.Variant) IconButton {
         var btn = self;
@@ -62,6 +63,13 @@ pub const IconButton = struct {
         return btn;
     }
 
+    /// Disambiguate this instance when icon buttons share a `@src()` (loops/toolbars).
+    pub fn idExtra(self: IconButton, val: usize) IconButton {
+        var btn = self;
+        btn.id_extra = val;
+        return btn;
+    }
+
     /// Square padding so the icon button matches the DS button height for its
     /// size: width = icon + 2·pad = height.
     fn squarePadding(btn_size: tokens.Size) f32 {
@@ -75,14 +83,15 @@ pub const IconButton = struct {
 
     pub fn draw(self: IconButton) bool {
         const pad = squarePadding(self.btn_size);
-        return button_mod.button(self.src, "")
+        var btn = button_mod.button(self.src, "")
             .source(self.icon_source)
             .variant(self.btn_variant)
             .size(self.btn_size)
             .disabled(self.is_disabled)
             .loading(self.is_loading)
-            .padding(dvui.Rect.all(pad))
-            .draw();
+            .padding(dvui.Rect.all(pad));
+        if (self.id_extra) |ie| btn = btn.idExtra(ie);
+        return btn.draw();
     }
 };
 

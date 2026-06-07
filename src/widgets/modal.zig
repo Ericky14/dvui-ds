@@ -48,11 +48,19 @@ pub const Modal = struct {
     open: *bool,
     title_text: ?[]const u8 = null,
     width_val: f32 = default_width,
+    id_extra_val: usize = 0,
 
     /// Set a bold title header drawn at the top of the dialog body.
     pub fn title(self: Modal, text: []const u8) Modal {
         var copy = self;
         copy.title_text = text;
+        return copy;
+    }
+
+    /// Disambiguate instances built from the same `@src()` (loops / lists).
+    pub fn idExtra(self: Modal, val: usize) Modal {
+        var copy = self;
+        copy.id_extra_val = val;
         return copy;
     }
 
@@ -70,7 +78,7 @@ pub const Modal = struct {
 
         // Animate an open/close phase so the dialog fades out (and the scrim
         // fades) before it disappears. State is keyed off the caller's @src().
-        const id: dvui.Id = @enumFromInt(@as(usize, self.src.line) +% (@as(usize, self.src.column) *% 65599));
+        const id: dvui.Id = @enumFromInt(@as(usize, self.src.line) +% (@as(usize, self.src.column) *% 65599) +% self.id_extra_val);
         const phase = anim.float(id, "phase", if (self.open.*) 1.0 else 0.0, .{ .duration = motion.normal, .easing = motion.out });
         if (!self.open.* and phase < 0.01) return null;
 
@@ -100,11 +108,11 @@ pub const Modal = struct {
             .color_border = theme.border,
             .padding = ds.padding(theme.space_lg),
             .box_shadow = .{
-                .color = .black,
+                .color = theme.shadow_color,
                 .corner_radius = radius,
                 .offset = .{ .x = 0, .y = 4 },
                 .fade = 14,
-                .alpha = 0.4,
+                .alpha = theme.shadow_alpha,
             },
             .max_size_content = .width(self.width_val),
         });
