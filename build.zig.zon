@@ -13,7 +13,8 @@
             .hash = "sdl3-0.2.0-NmT1Q2KYJwCCkbyPx_Pu9fRkUOqylPfXJCev93kC23Bt",
         },
         .zwgpu = .{
-            .path = "vendor/zwgpu",
+            .url = "git+https://github.com/Ericky14/zwgpu.git#7407262d76b7bb7397838e22714b6ead98048d27",
+            .hash = "zwgpu-0.2.0-eHtNME5KAAC0iWuINhgD_GANwFGSw5kz3UFTVyeZU1OP",
         },
     },
 

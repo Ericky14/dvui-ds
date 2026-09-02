@@ -2,7 +2,3 @@
 	path = vendor/dvui
 	url = git@github.com:Ericky14/dvui.git
 	branch = main
-[submodule "vendor/zwgpu"]
-	path = vendor/zwgpu
-	url = git@github.com:Ericky14/zwgpu.git
-	branch = main
