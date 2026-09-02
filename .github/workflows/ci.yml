@@ -58,9 +58,17 @@ jobs:
         shell: bash
         run: zig fmt --check build.zig src/ example/ test/
 
+      # On failure, surface the first error lines as check annotations so the failure
+      # is readable through the public API without downloading logs.
       - name: Widget tests
         shell: bash
-        run: zig build test --summary all ${{ steps.tgt.outputs.flags }}
+        run: |
+          set -o pipefail
+          if ! zig build test --summary all ${{ steps.tgt.outputs.flags }} 2>&1 | tee build.log; then
+            grep -nE 'error|fail|panic' build.log | head -6 | while IFS= read -r line; do echo "::error::${line}"; done
+            tail -4 build.log | while IFS= read -r line; do echo "::error::tail: ${line}"; done
+            exit 1
+          fi
 
       - name: Headless screenshots
         shell: bash
