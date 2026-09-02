@@ -44,8 +44,8 @@ pub const MenuItem = struct {
 fn itemOpts() dvui.Options {
     const theme = tokens.current;
     return .{
-        .color_text = theme.text_secondary,
-        .corner_radius = dvui.Rect.all(theme.radius_sm),
+        .color_text = .{ .color = theme.text_secondary },
+        .corners = dvui.CornerRect.round(theme.radius_sm),
         .padding = ds.padding(theme.space_xs),
     };
 }
@@ -53,8 +53,8 @@ fn itemOpts() dvui.Options {
 fn floatingOpts() dvui.Options {
     const theme = tokens.current;
     return .{
-        .color_fill = theme.surface_2,
-        .color_border = theme.border,
-        .corner_radius = dvui.Rect.all(theme.radius_lg),
+        .color_fill = .{ .color = theme.surface_2 },
+        .color_border = .{ .color = theme.border },
+        .corners = dvui.CornerRect.round(theme.radius_lg),
     };
 }

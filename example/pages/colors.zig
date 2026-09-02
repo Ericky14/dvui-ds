@@ -11,16 +11,16 @@ fn swatch(idx: usize, name: []const u8, color: dvui.Color) void {
             .id_extra = idx,
             .min_size_content = .{ .w = 84, .h = 44 },
             .background = true,
-            .color_fill = color,
-            .corner_radius = dvui.Rect.all(theme.radius_md),
+            .color_fill = .{ .color = color },
+            .corners = dvui.CornerRect.round(theme.radius_md),
             .border = dvui.Rect.all(theme.border_width),
-            .color_border = theme.border,
+            .color_border = .{ .color = theme.border },
         });
         sw.deinit();
     }
     dvui.labelNoFmt(@src(), name, .{}, .{
         .id_extra = idx,
-        .color_text = theme.text_muted,
+        .color_text = .{ .color = theme.text_muted },
         .font = ds.font(theme.font_size_sm),
     });
 }

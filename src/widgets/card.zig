@@ -87,36 +87,36 @@ pub const Card = struct {
 
     fn opts(self: Card) dvui.Options {
         const theme = tokens.current;
-        const radius = dvui.Rect.all(theme.radius_lg);
+        const radius = dvui.CornerRect.round(theme.radius_lg);
         const pad = self.pad_override orelse dvui.Rect.all(theme.space_lg);
 
         var options: dvui.Options = .{
             .background = true,
-            .corner_radius = radius,
+            .corners = radius,
             .padding = pad,
             .expand = self.expand_override,
         };
 
         switch (self.card_variant) {
             .elevated => {
-                options.color_fill = theme.surface_2;
+                options.color_fill = .{ .color = theme.surface_2 };
                 options.box_shadow = .{
                     .color = theme.shadow_color,
-                    .corner_radius = radius,
+                    .corners = radius,
                     .offset = .{ .x = 0, .y = 3 },
                     .fade = 16,
                     .alpha = theme.shadow_alpha,
                 };
             },
             .filled => {
-                options.color_fill = theme.surface_1;
+                options.color_fill = .{ .color = theme.surface_1 };
             },
             .outlined => {
                 // Transparent center (shows whatever surface the card is nested
                 // on) + a 1px border. The border is a normal dvui stroke, which
                 // the SDF pipeline now renders evenly on all edges.
                 options.background = false;
-                options.color_border = theme.border;
+                options.color_border = .{ .color = theme.border };
                 options.border = dvui.Rect.all(theme.border_width);
             },
         }

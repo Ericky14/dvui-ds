@@ -128,7 +128,7 @@ pub const TextArea = struct {
         // ─── Label ───────────────────────────────────────────────────────
         if (self.label_text) |lbl| {
             dvui.labelNoFmt(@src(), lbl, .{}, .{
-                .color_text = theme.text_secondary,
+                .color_text = .{ .color = theme.text_secondary },
                 .font = ds.fontMedium(theme.font_size_sm),
                 .id_extra = id_extra,
             });
@@ -167,9 +167,9 @@ pub const TextArea = struct {
         const natural_w = ds.font(theme.font_size_md).sizeM(14, 1).w;
         const box_opts: dvui.Options = if (self.fixed_width) |fixed| .{
             .background = true,
-            .color_fill = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
-            .color_border = border_color,
-            .corner_radius = dvui.Rect.all(theme.radius_md),
+            .color_fill = .{ .color = .{ .r = 0, .g = 0, .b = 0, .a = 0 } },
+            .color_border = .{ .color = border_color },
+            .corners = dvui.CornerRect.round(theme.radius_md),
             .border = dvui.Rect.all(theme.border_width),
             .padding = ds.paddingXY(12, 8),
             .expand = .none,
@@ -178,9 +178,9 @@ pub const TextArea = struct {
             .id_extra = id_extra,
         } else .{
             .background = true,
-            .color_fill = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
-            .color_border = border_color,
-            .corner_radius = dvui.Rect.all(theme.radius_md),
+            .color_fill = .{ .color = .{ .r = 0, .g = 0, .b = 0, .a = 0 } },
+            .color_border = .{ .color = border_color },
+            .corners = dvui.CornerRect.round(theme.radius_md),
             .border = dvui.Rect.all(theme.border_width),
             .padding = ds.paddingXY(12, 8),
             .expand = self.input_expand orelse .horizontal,
@@ -204,7 +204,7 @@ pub const TextArea = struct {
             .border = dvui.Rect.all(0),
             .margin = dvui.Rect.all(0),
             .padding = dvui.Rect.all(0),
-            .color_text = theme.text_primary,
+            .color_text = .{ .color = theme.text_primary },
             .font = ds.font(theme.font_size_md),
         });
 
@@ -218,7 +218,7 @@ pub const TextArea = struct {
         if (self.helper_text) |hlp| {
             const helper_color = if (self.is_error) theme.destructive else theme.text_muted;
             dvui.labelNoFmt(@src(), hlp, .{}, .{
-                .color_text = helper_color,
+                .color_text = .{ .color = helper_color },
                 .font = ds.font(theme.font_size_sm),
                 .id_extra = id_extra,
             });

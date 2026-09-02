@@ -131,7 +131,7 @@ pub const Switch = struct {
 
         if (self.label_text) |str| {
             dvui.labelNoFmt(@src(), str, .{}, .{
-                .color_text = theme.text_primary,
+                .color_text = .{ .color = theme.text_primary },
                 .font = ds.font(font_size),
                 .gravity_y = 0.5,
             });
@@ -199,18 +199,18 @@ fn drawSwitch(id: dvui.Id, on: bool, state: anim.InteractionState, rs: RectScale
     const layer = anim.stateLayer(id, "sl", ink, state);
     const halo_radius = (on_diameter * 1.7) / 2.0;
     const halo_rect = circleRect(knob_center, halo_radius);
-    halo_rect.fill(Rect.Physical.all(1000), .{ .color = layer, .fade = 1.0 });
+    halo_rect.fill(dvui.CornerRect.Physical.round(1000), .{ .color = .{ .color = layer }, .fade = 1.0 });
 
     // 2) Track pill, animating fill color between surface_3 and accent.
     const track_target = if (on) theme.accent else theme.surface_3;
     const track_color = anim.color(id, "trk", track_target, .{ .duration = motion.normal });
-    track_rect.fill(Rect.Physical.all(1000), .{ .color = track_color, .fade = 1.0 });
+    track_rect.fill(dvui.CornerRect.Physical.round(1000), .{ .color = .{ .color = track_color }, .fade = 1.0 });
 
     // 3) Knob circle, animating fill color between text_muted and surface_0.
     const knob_target = if (on) theme.surface_0 else theme.text_muted;
     const knob_color = anim.color(id, "knb", knob_target, .{ .duration = motion.normal });
     const knob_rect = circleRect(knob_center, knob_radius);
-    knob_rect.fill(Rect.Physical.all(1000), .{ .color = knob_color, .fade = 1.0 });
+    knob_rect.fill(dvui.CornerRect.Physical.round(1000), .{ .color = .{ .color = knob_color }, .fade = 1.0 });
 }
 
 /// Build a square physical rect of the given radius centered on `center` — a

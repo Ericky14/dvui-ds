@@ -6,7 +6,7 @@
 ///   const sl = anim.stateLayer(id, "sl", theme.accent, .{
 ///       .hovered = hovered, .pressed = pressed, .focused = focused,
 ///   });
-///   rs.r.fill(corner_rad, .{ .color = sl, .fade = 1.0 });
+///   rs.r.fill(corner_rad, .{ .color = .{ .color = sl }, .fade = 1.0 });
 const dvui = @import("dvui");
 const tokens = @import("../tokens.zig");
 const animColor = @import("color.zig").color;

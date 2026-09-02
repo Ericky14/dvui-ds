@@ -27,7 +27,7 @@ fn background(src: std.builtin.SourceLocation) *dvui.BoxWidget {
     return dvui.box(src, .{}, .{
         .expand = .both,
         .background = true,
-        .color_fill = ds.tokens.current.surface_0,
+        .color_fill = .{ .color = ds.tokens.current.surface_0 },
     });
 }
 
@@ -375,7 +375,7 @@ test "scroll area" {
             inline for (0..16) |i| {
                 dvui.labelNoFmt(@src(), std.fmt.comptimePrint("Item {d}", .{i + 1}), .{}, .{
                     .id_extra = i,
-                    .color_text = ds.tokens.current.text_secondary,
+                    .color_text = .{ .color = ds.tokens.current.text_secondary },
                     .font = ds.font(ds.tokens.current.font_size_md),
                 });
             }
@@ -457,7 +457,7 @@ test "icon grid" {
                 defer ic.deinit();
                 if (ds.icons.resolve(name, svg)) |r| ds.iconTvg(@src(), r.name, r.tvg_bytes).size(.lg).style(.secondary).draw();
             }
-            dvui.labelNoFmt(@src(), name, .{}, .{ .color_text = theme.text_ghost, .font = ds.font(theme.font_size_sm), .gravity_x = 0.5 });
+            dvui.labelNoFmt(@src(), name, .{}, .{ .color_text = .{ .color = theme.text_ghost }, .font = ds.font(theme.font_size_sm), .gravity_x = 0.5 });
         }
         fn frame() !dvui.App.Result {
             var bg = background(@src());

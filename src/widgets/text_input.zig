@@ -126,7 +126,7 @@ pub const TextInput = struct {
         // ─── Label ───────────────────────────────────────────────────────
         if (self.label_text) |lbl| {
             dvui.labelNoFmt(@src(), lbl, .{}, .{
-                .color_text = theme.text_secondary,
+                .color_text = .{ .color = theme.text_secondary },
                 .font = ds.fontMedium(theme.font_size_sm),
                 .id_extra = id_extra,
             });
@@ -161,7 +161,7 @@ pub const TextInput = struct {
         if (self.helper_text) |hlp| {
             const helper_color = if (self.is_error) theme.destructive else theme.text_muted;
             dvui.labelNoFmt(@src(), hlp, .{}, .{
-                .color_text = helper_color,
+                .color_text = .{ .color = helper_color },
                 .font = ds.font(theme.font_size_sm),
                 .id_extra = id_extra,
             });
@@ -188,10 +188,10 @@ pub const TextInput = struct {
         };
 
         return .{
-            .color_fill = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
-            .color_border = border_color,
-            .color_text = tokens.current.text_primary,
-            .corner_radius = dvui.Rect.all(tokens.current.radius_md),
+            .color_fill = .{ .color = .{ .r = 0, .g = 0, .b = 0, .a = 0 } },
+            .color_border = .{ .color = border_color },
+            .color_text = .{ .color = tokens.current.text_primary },
+            .corners = dvui.CornerRect.round(tokens.current.radius_md),
             .border = dvui.Rect.all(tokens.current.border_width),
             .padding = pad,
             .font = ds.font(font_size),

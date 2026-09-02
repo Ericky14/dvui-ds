@@ -74,19 +74,19 @@ pub const Tooltip = struct {
     fn opts(self: Tooltip) dvui.Options {
         _ = self;
         const theme = tokens.current;
-        const radius = dvui.Rect.all(theme.radius_md);
+        const radius = dvui.CornerRect.round(theme.radius_md);
         return .{
-            .color_fill = theme.surface_2,
+            .color_fill = .{ .color = theme.surface_2 },
             .background = true,
-            .corner_radius = radius,
+            .corners = radius,
             .border = dvui.Rect.all(theme.border_width),
-            .color_border = theme.border,
-            .color_text = theme.text_primary,
+            .color_border = .{ .color = theme.border },
+            .color_text = .{ .color = theme.text_primary },
             .font = ds.font(theme.font_size_sm),
             .padding = ds.paddingXY(theme.space_sm, theme.space_3xs),
             .box_shadow = .{
                 .color = theme.shadow_color,
-                .corner_radius = radius,
+                .corners = radius,
                 .offset = .{ .x = 0, .y = 2 },
                 .fade = 12,
                 .alpha = theme.shadow_alpha,

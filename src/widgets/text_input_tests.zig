@@ -147,8 +147,10 @@ test "inputOpts all sizes have 8px radius" {
     inline for (&[_]tokens.Size{ .sm, .md, .lg }) |s| {
         const t = ti.textInput(@src(), &buf).size(s);
         const o = t.inputOpts(tokens.current.border_input);
-        const r = o.corner_radius.?;
-        try std.testing.expectApproxEqAbs(tokens.current.radius_md, r.x, 0.001);
+        const r = o.corners.?;
+        try std.testing.expectEqual(dvui.Corner.Style.round, r.tl.kind);
+        try std.testing.expectApproxEqAbs(tokens.current.radius_md, r.tl.rx, 0.001);
+        try std.testing.expectApproxEqAbs(tokens.current.radius_md, r.br.rx, 0.001);
     }
 }
 
@@ -156,21 +158,21 @@ test "inputOpts uses transparent fill" {
     var buf: [64]u8 = @splat(0);
     const t = ti.textInput(@src(), &buf);
     const o = t.inputOpts(tokens.current.border_input);
-    try std.testing.expectEqual(dvui.Color.transparent, o.color_fill.?);
+    try std.testing.expectEqual(dvui.Color.transparent, o.color_fill.?.toColor());
 }
 
 test "inputOpts uses text_primary for text color" {
     var buf: [64]u8 = @splat(0);
     const t = ti.textInput(@src(), &buf);
     const o = t.inputOpts(tokens.current.border_input);
-    try std.testing.expectEqual(tokens.current.text_primary, o.color_text.?);
+    try std.testing.expectEqual(tokens.current.text_primary, o.color_text.?.toColor());
 }
 
 test "inputOpts passes border color through" {
     var buf: [64]u8 = @splat(0);
     const t = ti.textInput(@src(), &buf);
     const o = t.inputOpts(tokens.current.destructive);
-    try std.testing.expectEqual(tokens.current.destructive, o.color_border.?);
+    try std.testing.expectEqual(tokens.current.destructive, o.color_border.?.toColor());
 }
 
 test "inputOpts defaults to horizontal expand" {

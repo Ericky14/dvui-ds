@@ -98,7 +98,7 @@ pub const Radio = struct {
 
         if (self.label_text) |str| {
             dvui.labelNoFmt(@src(), str, .{}, .{
-                .color_text = theme.text_primary,
+                .color_text = .{ .color = theme.text_primary },
                 .font = ds.font(font_size),
                 .gravity_y = 0.5,
             });
@@ -134,16 +134,16 @@ fn drawCircle(id: dvui.Id, active: bool, state: anim.InteractionState, rs: RectS
     // neutral text otherwise.
     const ink = if (active) theme.accent else theme.text_primary;
     const layer = anim.stateLayer(id, "sl", ink, state);
-    centeredSquare(center, circle_size_logical * 1.7 * scale).fill(Rect.Physical.all(1000), .{ .color = layer, .fade = 1.0 });
+    centeredSquare(center, circle_size_logical * 1.7 * scale).fill(dvui.CornerRect.Physical.round(1000), .{ .color = .{ .color = layer }, .fade = 1.0 });
 
     // The outer ring: centered circle, animated border, transparent fill.
     const diameter = circle_size_logical * scale;
     const ring_rect = centeredSquare(center, diameter);
-    const circle_corner = Rect.Physical.all(1000);
+    const circle_corner = dvui.CornerRect.Physical.round(1000);
 
     const border_target = if (active) theme.accent else theme.border_strong;
     const border_color = anim.color(id, "bd", border_target, .{ .duration = motion.normal });
-    ring_rect.stroke(circle_corner, .{ .thickness = 2 * scale, .color = border_color });
+    ring_rect.stroke(circle_corner, .{ .thickness = 2 * scale, .color = .{ .color = border_color } });
 
     // Inner dot springs in/out with the active state.
     const progress = anim.float(id, "dot", if (active) 1.0 else 0.0, .{ .duration = motion.normal, .easing = motion.bounce });
@@ -152,7 +152,7 @@ fn drawCircle(id: dvui.Id, active: bool, state: anim.InteractionState, rs: RectS
         const dot_diameter = base_dot * @min(progress, 1.1);
         const dot_rect = centeredSquare(center, dot_diameter);
         dot_rect.fill(circle_corner, .{
-            .color = theme.accent.opacity(@min(progress, 1.0)),
+            .color = .{ .color = theme.accent.opacity(@min(progress, 1.0)) },
             .fade = 1.0,
         });
     }

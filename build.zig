@@ -9,7 +9,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
         .backend = .custom,
-        .@"render-backend" = .wgpu,
+        .renderer = .wgpu,
         .freetype = true,
         .libc = true,
         .@"stb-image" = true,
@@ -23,7 +23,11 @@ pub fn build(b: *std.Build) void {
     const zwgpu = b.dependency("zwgpu", .{});
 
     const dvui_mod = dvui_dep.module("dvui");
-    const dvui_render_mod = dvui_dep.module("render_backend");
+    // dvui creates its renderer module privately (createModule) and hangs it
+    // off the dvui module as the "render_backend" import; the wgpu renderer
+    // itself does `@import("wgpu")`, which the consumer must supply.
+    const dvui_render_mod = dvui_mod.import_table.get("render_backend") orelse
+        @panic("dvui module has no render_backend import; expected -Drenderer=wgpu");
 
     // Wire wgpu into dvui render backend
     dvui_render_mod.addImport("wgpu", zwgpu.module("root"));

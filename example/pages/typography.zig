@@ -25,9 +25,9 @@ pub fn draw() void {
     {
         var row = ds.row(@src()).gap(theme.space_2xl).draw();
         defer row.deinit();
-        dvui.labelNoFmt(@src(), "Regular", .{}, .{ .font = ds.font(theme.font_size_lg), .color_text = theme.text_primary });
-        dvui.labelNoFmt(@src(), "Medium", .{}, .{ .font = ds.fontMedium(theme.font_size_lg), .color_text = theme.text_primary });
-        dvui.labelNoFmt(@src(), "Bold", .{}, .{ .font = ds.fontBold(theme.font_size_lg), .color_text = theme.text_primary });
+        dvui.labelNoFmt(@src(), "Regular", .{}, .{ .font = ds.font(theme.font_size_lg), .color_text = .{ .color = theme.text_primary } });
+        dvui.labelNoFmt(@src(), "Medium", .{}, .{ .font = ds.fontMedium(theme.font_size_lg), .color_text = .{ .color = theme.text_primary } });
+        dvui.labelNoFmt(@src(), "Bold", .{}, .{ .font = ds.fontBold(theme.font_size_lg), .color_text = .{ .color = theme.text_primary } });
     }
 
     ds.gap(@src(), theme.space_lg);
@@ -38,9 +38,9 @@ pub fn draw() void {
     {
         var row = ds.row(@src()).gap(theme.space_xl).draw();
         defer row.deinit();
-        dvui.labelNoFmt(@src(), "sm 11", .{}, .{ .font = ds.font(theme.font_size_sm), .color_text = theme.text_secondary, .gravity_y = 1.0 });
-        dvui.labelNoFmt(@src(), "md 13", .{}, .{ .font = ds.font(theme.font_size_md), .color_text = theme.text_secondary, .gravity_y = 1.0 });
-        dvui.labelNoFmt(@src(), "lg 16", .{}, .{ .font = ds.font(theme.font_size_lg), .color_text = theme.text_secondary, .gravity_y = 1.0 });
-        dvui.labelNoFmt(@src(), "xl 20", .{}, .{ .font = ds.font(theme.font_size_xl), .color_text = theme.text_secondary, .gravity_y = 1.0 });
+        dvui.labelNoFmt(@src(), "sm 11", .{}, .{ .font = ds.font(theme.font_size_sm), .color_text = .{ .color = theme.text_secondary }, .gravity_y = 1.0 });
+        dvui.labelNoFmt(@src(), "md 13", .{}, .{ .font = ds.font(theme.font_size_md), .color_text = .{ .color = theme.text_secondary }, .gravity_y = 1.0 });
+        dvui.labelNoFmt(@src(), "lg 16", .{}, .{ .font = ds.font(theme.font_size_lg), .color_text = .{ .color = theme.text_secondary }, .gravity_y = 1.0 });
+        dvui.labelNoFmt(@src(), "xl 20", .{}, .{ .font = ds.font(theme.font_size_xl), .color_text = .{ .color = theme.text_secondary }, .gravity_y = 1.0 });
     }
 }

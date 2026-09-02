@@ -10,7 +10,7 @@ fn row(idx: usize, name: []const u8, value: f32) void {
     dvui.labelNoFmt(@src(), name, .{}, .{
         .id_extra = idx,
         .min_size_content = .{ .w = 64 },
-        .color_text = theme.text_muted,
+        .color_text = .{ .color = theme.text_muted },
         .font = ds.font(theme.font_size_sm),
         .gravity_y = 0.5,
     });
@@ -19,8 +19,8 @@ fn row(idx: usize, name: []const u8, value: f32) void {
             .id_extra = idx,
             .min_size_content = .{ .w = value, .h = 14 },
             .background = true,
-            .color_fill = theme.accent,
-            .corner_radius = dvui.Rect.all(theme.radius_sm),
+            .color_fill = .{ .color = theme.accent },
+            .corners = dvui.CornerRect.round(theme.radius_sm),
             .gravity_y = 0.5,
         });
         bar.deinit();
@@ -29,7 +29,7 @@ fn row(idx: usize, name: []const u8, value: f32) void {
     const px = std.fmt.bufPrint(&buf, "{d:.0}px", .{value}) catch "";
     dvui.labelNoFmt(@src(), px, .{}, .{
         .id_extra = idx,
-        .color_text = theme.text_ghost,
+        .color_text = .{ .color = theme.text_ghost },
         .font = ds.font(theme.font_size_sm),
         .gravity_y = 0.5,
     });

@@ -102,7 +102,7 @@ pub const Checkbox = struct {
 
         if (self.label_text) |str| {
             dvui.labelNoFmt(@src(), str, .{}, .{
-                .color_text = theme.text_primary,
+                .color_text = .{ .color = theme.text_primary },
                 .font = ds.font(font_size),
                 .gravity_y = 0.5,
             });
@@ -138,20 +138,20 @@ fn drawBox(id: dvui.Id, checked: bool, state: anim.InteractionState, rs: RectSca
     // is the accent when checked, neutral text otherwise.
     const ink = if (checked) theme.accent else theme.text_primary;
     const layer = anim.stateLayer(id, "sl", ink, state);
-    centeredSquare(center, box_size_logical * 1.7 * scale).fill(Rect.Physical.all(1000), .{ .color = layer, .fade = 1.0 });
+    centeredSquare(center, box_size_logical * 1.7 * scale).fill(dvui.CornerRect.Physical.round(1000), .{ .color = .{ .color = layer }, .fade = 1.0 });
 
     // The box itself: centered square, animated fill + border.
     const side = box_size_logical * scale;
     const box_rect = centeredSquare(center, side);
-    const corner = Rect.Physical.all(theme.radius_sm * scale);
+    const corner = dvui.CornerRect.Physical.round(theme.radius_sm * scale);
 
     const fill_target = if (checked) theme.accent else ds.alpha(theme.accent, 0);
     const fill = anim.color(id, "fill", fill_target, .{ .duration = motion.normal });
-    box_rect.fill(corner, .{ .color = fill, .fade = 1.0 });
+    box_rect.fill(corner, .{ .color = .{ .color = fill }, .fade = 1.0 });
 
     const border_target = if (checked) theme.accent else theme.border_strong;
     const border_color = anim.color(id, "bd", border_target, .{ .duration = motion.normal });
-    box_rect.stroke(corner, .{ .thickness = 2 * scale, .color = border_color });
+    box_rect.stroke(corner, .{ .thickness = 2 * scale, .color = .{ .color = border_color } });
 
     // Checkmark springs in/out with the checked state.
     const progress = anim.float(id, "chk", if (checked) 1.0 else 0.0, .{ .duration = motion.normal, .easing = motion.bounce });
@@ -183,7 +183,7 @@ fn drawCheckmark(box: Rect.Physical, progress: f32, color: Color) void {
     const path: dvui.Path = .{ .points = &grown };
     path.stroke(.{
         .thickness = thick,
-        .color = color.opacity(@min(progress, 1.0)),
+        .color = .{ .color = color.opacity(@min(progress, 1.0)) },
         .endcap_style = .none,
     });
 }

@@ -179,7 +179,7 @@ fn trackHeight(sz: tokens.Size) f32 {
 fn drawTrackAndThumb(id: dvui.Id, perc: f32, trackrs: dvui.RectScale, track_h: f32, thumb_d: f32, state: anim.InteractionState, disabled: bool, theme: tokens.Theme) void {
     if (trackrs.r.w <= 0) return; // no room to draw a meaningful track
     const scale = trackrs.s;
-    const pill = Rect.Physical.all((track_h / 2.0) * scale);
+    const pill = dvui.CornerRect.Physical.round((track_h / 2.0) * scale);
 
     // Disabled goes neutral/gray (not just dimmed accent) so it clearly reads as
     // inert; the active track and thumb use a muted fill and the thumb shrinks
@@ -187,10 +187,10 @@ fn drawTrackAndThumb(id: dvui.Id, perc: f32, trackrs: dvui.RectScale, track_h: f
     const active_color = if (disabled) theme.text_muted else theme.accent;
 
     // Inactive (full) track, then the active portion on top.
-    trackrs.r.fill(pill, .{ .color = if (disabled) theme.surface_2 else theme.surface_3, .fade = 1.0 });
+    trackrs.r.fill(pill, .{ .color = .{ .color = if (disabled) theme.surface_2 else theme.surface_3 }, .fade = 1.0 });
     var active = trackrs.r;
     active.w *= perc;
-    active.fill(pill, .{ .color = active_color, .fade = 1.0 });
+    active.fill(pill, .{ .color = .{ .color = active_color }, .fade = 1.0 });
 
     // Thumb centered on the track at the current fraction.
     const center: Point.Physical = .{
@@ -200,11 +200,11 @@ fn drawTrackAndThumb(id: dvui.Id, perc: f32, trackrs: dvui.RectScale, track_h: f
 
     // State-layer halo behind the thumb (always transparent when disabled).
     const halo = anim.stateLayer(id, "sl", active_color, state);
-    centeredSquare(center, thumb_d * 1.8 * scale).fill(Rect.Physical.all(1000), .{ .color = halo, .fade = 1.0 });
+    centeredSquare(center, thumb_d * 1.8 * scale).fill(dvui.CornerRect.Physical.round(1000), .{ .color = .{ .color = halo }, .fade = 1.0 });
 
     // M3 gap ring (surface_0) then the thumb.
-    centeredSquare(center, (thumb_d + 4) * scale).fill(Rect.Physical.all(1000), .{ .color = theme.surface_0, .fade = 1.0 });
-    centeredSquare(center, thumb_d * scale).fill(Rect.Physical.all(1000), .{ .color = active_color, .fade = 1.0 });
+    centeredSquare(center, (thumb_d + 4) * scale).fill(dvui.CornerRect.Physical.round(1000), .{ .color = .{ .color = theme.surface_0 }, .fade = 1.0 });
+    centeredSquare(center, thumb_d * scale).fill(dvui.CornerRect.Physical.round(1000), .{ .color = .{ .color = active_color }, .fade = 1.0 });
 }
 
 fn centeredSquare(center: Point.Physical, side: f32) Rect.Physical {

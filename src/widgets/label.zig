@@ -119,7 +119,7 @@ pub const Label = struct {
         };
 
         return .{
-            .color_text = text_color,
+            .color_text = .{ .color = text_color },
             .font = resolved_font,
             .padding = self.do_padding,
             .expand = self.do_expand,

@@ -111,7 +111,7 @@ test "button builder chaining" {
 
 test "opts ghost sm has transparent fill" {
     const o = btn.opts(.ghost, .sm);
-    try std.testing.expectEqual(Color.transparent, o.color_fill.?);
+    try std.testing.expectEqual(Color.transparent, o.color_fill.?.toColor());
 }
 
 test "opts ghost sm has zero border" {
@@ -140,7 +140,7 @@ test "opts filled sm has accent-based fill" {
     const o = btn.opts(.filled, .sm);
     const fill = o.color_fill.?;
     // Alpha should be 30 (accent at ~12% opacity)
-    try std.testing.expectEqual(@as(u8, 30), fill.a);
+    try std.testing.expectEqual(@as(u8, 30), fill.toColor().a);
 }
 
 test "opts sm padding uses space_md x space_xs" {

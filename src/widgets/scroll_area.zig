@@ -64,7 +64,7 @@ pub const ScrollArea = struct {
             .expand = self.expand_val,
             .id_extra = self.id_extra,
             .background = false,
-            .color_text = ds.alpha(theme.text_secondary, bar_alpha),
+            .color_text = .{ .color = ds.alpha(theme.text_secondary, bar_alpha) },
         });
 
         return .{ .sa = sa, .id = id };

@@ -71,7 +71,7 @@ pub const Tabs = struct {
                 var tab = dvui.box(@src(), .{ .dir = .horizontal }, .{
                     .id_extra = index,
                     .padding = ds.paddingXY(theme.space_md, theme.space_sm),
-                    .corner_radius = Rect.all(theme.radius_sm),
+                    .corners = dvui.CornerRect.round(theme.radius_sm),
                 });
                 defer tab.deinit();
 
@@ -99,12 +99,12 @@ pub const Tabs = struct {
                         .pressed = pressed,
                         .focused = focused,
                     });
-                    rect_scale.r.fill(Rect.Physical.all(theme.radius_sm * rect_scale.s), .{ .color = layer, .fade = 1.0 });
+                    rect_scale.r.fill(dvui.CornerRect.Physical.round(theme.radius_sm * rect_scale.s), .{ .color = .{ .color = layer }, .fade = 1.0 });
                 }
 
                 const label_color = if (is_active) theme.accent else theme.text_secondary;
                 dvui.labelNoFmt(@src(), text, .{}, .{
-                    .color_text = label_color,
+                    .color_text = .{ .color = label_color },
                     .font = ds.fontMedium(theme.font_size_md),
                     .gravity_y = 0.5,
                 });
@@ -137,7 +137,7 @@ pub const Tabs = struct {
                 .w = indicator_w,
                 .h = thickness,
             };
-            indicator.fill(Rect.Physical.all(1.5 * active_scale), .{ .color = theme.accent, .fade = 1.0 });
+            indicator.fill(dvui.CornerRect.Physical.round(1.5 * active_scale), .{ .color = .{ .color = theme.accent }, .fade = 1.0 });
         }
 
         return changed;

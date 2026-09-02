@@ -50,9 +50,9 @@ pub fn Router(comptime Route: type) type {
             const frame = dvui.box(src, .{}, .{
                 .min_size_content = .{ .w = theme.sidebar_min_width, .h = 0 },
                 .background = true,
-                .color_fill = theme.surface_1,
+                .color_fill = .{ .color = theme.surface_1 },
                 .border = ds.paddingEach(0, theme.border_width, 0, 0),
-                .color_border = theme.border_subtle,
+                .color_border = .{ .color = theme.border_subtle },
                 .expand = .vertical,
             });
             const scroll = ds.scrollArea(@src()).expand(.both).draw();
@@ -67,7 +67,7 @@ pub fn Router(comptime Route: type) type {
         pub fn section(_: *Self, src: std.builtin.SourceLocation, title: []const u8) void {
             const theme = tokens.current;
             dvui.label(src, "{s}", .{title}, .{
-                .color_text = theme.text_ghost,
+                .color_text = .{ .color = theme.text_ghost },
                 .padding = ds.paddingEach(theme.space_2xs, theme.space_sm, theme.space_sm, theme.space_sm),
             });
         }

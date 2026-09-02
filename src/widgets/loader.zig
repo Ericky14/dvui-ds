@@ -103,7 +103,7 @@ pub const Loader = struct {
         // Use IconWidget for the arc — it properly participates in parent layout
         var iw: dvui.IconWidget = undefined;
         iw.init(self.src, "_ds_loader_arc", arc_tvg, .{
-            .stroke_color = arc_color,
+            .stroke_color = .{ .color = arc_color },
             .fill_color = .transparent,
         }, .{
             .min_size_content = .{ .w = sz, .h = sz },
@@ -114,7 +114,7 @@ pub const Loader = struct {
         // Render track ring at the same rect as the arc (behind it)
         const rs = iw.data().parent.screenRectScale(iw.data().contentRect());
         render.renderIcon("_ds_loader_track", track_tvg, rs, .{}, .{
-            .stroke_color = track_color,
+            .stroke_color = .{ .color = track_color },
             .fill_color = .transparent,
         }) catch {};
 

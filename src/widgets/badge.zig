@@ -72,8 +72,8 @@ pub const Badge = struct {
             var box = dvui.box(self.src, .{ .dir = .horizontal }, .{
                 .id_extra = self.id_extra,
                 .background = true,
-                .corner_radius = dvui.Rect.all(1000),
-                .color_fill = base,
+                .corners = dvui.CornerRect.round(1000),
+                .color_fill = .{ .color = base },
                 .min_size_content = dvui.Size.all(diameter),
             });
             box.deinit();
@@ -83,14 +83,14 @@ pub const Badge = struct {
         var box = dvui.box(self.src, .{ .dir = .horizontal }, .{
             .id_extra = self.id_extra,
             .background = true,
-            .corner_radius = dvui.Rect.all(1000),
+            .corners = dvui.CornerRect.round(1000),
             .padding = ds.paddingXY(theme.space_sm, theme.space_3xs),
-            .color_fill = self.fillColor(theme, base),
+            .color_fill = .{ .color = self.fillColor(theme, base) },
         });
         defer box.deinit();
 
         dvui.labelNoFmt(@src(), self.text, .{}, .{
-            .color_text = self.labelColor(theme, base),
+            .color_text = .{ .color = self.labelColor(theme, base) },
             .font = ds.fontMedium(theme.font_size_sm),
             .gravity_y = 0.5,
         });

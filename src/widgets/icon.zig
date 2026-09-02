@@ -78,8 +78,8 @@ pub const Icon = struct {
             .tvg, .named_icon => {
                 if (self.asset.resolveToTvg()) |resolved| {
                     dvui.icon(self.src, resolved.name, resolved.bytes, .{
-                        .fill_color = color,
-                        .stroke_color = color,
+                        .fill_color = .{ .color = color },
+                        .stroke_color = .{ .color = color },
                     }, .{
                         .min_size_content = .{ .w = sz, .h = sz },
                         .gravity_y = self.grav_y,

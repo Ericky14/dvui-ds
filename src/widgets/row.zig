@@ -55,7 +55,7 @@ pub const Row = struct {
             .expand = self.do_expand,
             .padding = self.do_padding,
             .background = false,
-            .color_fill = theme.surface_0,
+            .color_fill = .{ .color = theme.surface_0 },
         });
     }
 };

@@ -82,7 +82,7 @@ pub const Modal = struct {
         const phase = anim.float(id, "phase", if (self.open.*) 1.0 else 0.0, .{ .duration = motion.normal, .easing = motion.out });
         if (!self.open.* and phase < 0.01) return null;
 
-        const radius = dvui.Rect.all(theme.radius_lg);
+        const radius = dvui.CornerRect.round(theme.radius_lg);
 
         // Fade the whole dialog (scrim + window + body) by the phase. Restored by
         // the handle's deinit, after the body has been drawn.
@@ -102,14 +102,14 @@ pub const Modal = struct {
             .resize = .none,
             .center_on = center_on,
         }, .{
-            .color_fill = theme.surface_2,
-            .corner_radius = radius,
+            .color_fill = .{ .color = theme.surface_2 },
+            .corners = radius,
             .border = dvui.Rect.all(theme.border_width),
-            .color_border = theme.border,
+            .color_border = .{ .color = theme.border },
             .padding = ds.padding(theme.space_lg),
             .box_shadow = .{
                 .color = theme.shadow_color,
-                .corner_radius = radius,
+                .corners = radius,
                 .offset = .{ .x = 0, .y = 4 },
                 .fade = 14,
                 .alpha = theme.shadow_alpha,
@@ -136,7 +136,7 @@ pub const Modal = struct {
         if (self.title_text) |text| {
             dvui.labelNoFmt(@src(), text, .{}, .{
                 .font = ds.fontBold(theme.font_size_xl),
-                .color_text = theme.text_primary,
+                .color_text = .{ .color = theme.text_primary },
             });
             _ = dvui.spacer(@src(), .{ .min_size_content = dvui.Size.all(theme.space_md) });
         }

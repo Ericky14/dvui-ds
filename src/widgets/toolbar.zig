@@ -23,11 +23,11 @@ pub const Toolbar = struct {
 fn opts() dvui.Options {
     const theme = tokens.current;
     return .{
-        .color_fill = theme.surface_2,
+        .color_fill = .{ .color = theme.surface_2 },
         .background = true,
         .padding = ds.paddingXY(theme.space_xs, theme.space_3xs),
         .border = ds.paddingEach(0, 0, theme.border_width, 0),
-        .color_border = theme.border,
+        .color_border = .{ .color = theme.border },
         .expand = .horizontal,
     };
 }

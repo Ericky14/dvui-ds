@@ -156,10 +156,10 @@ pub const Button = struct {
         var options = opts(self.btn_variant, self.btn_size);
 
         // Apply overrides
-        if (self.override_text_color) |c| options.color_text = c;
-        if (self.override_fill_color) |c| options.color_fill = c;
-        if (self.override_fill_hover) |c| options.color_fill_hover = c;
-        if (self.override_fill_press) |c| options.color_fill_press = c;
+        if (self.override_text_color) |c| options.color_text = .{ .color = c };
+        if (self.override_fill_color) |c| options.color_fill = .{ .color = c };
+        if (self.override_fill_hover) |c| options.color_fill_hover = .{ .color = c };
+        if (self.override_fill_press) |c| options.color_fill_press = .{ .color = c };
         if (self.override_gravity_x) |g| options.gravity_x = g;
         if (self.override_expand) |e| options.expand = e;
         if (self.override_padding) |p| options.padding = p;
@@ -213,7 +213,7 @@ pub const Button = struct {
 
         // Animated fill, matching the text/icon button paths.
         const fill = anim.color(bw.data().id, "fill", targetFillColor(&bw), .{});
-        bw.data().borderAndBackground(.{ .fill_color = fill });
+        bw.data().borderAndBackground(.{ .fill_color = .{ .color = fill } });
 
         const img_opts: dvui.Options = .{ .min_size_content = .{ .w = icon_sz, .h = icon_sz }, .gravity_y = 0.5 };
 
@@ -221,7 +221,7 @@ pub const Button = struct {
             // Image + label: lay them out in a centered horizontal row with a gap
             // (drawing both directly into the button stacks them).
             const text_color = anim.color(bw.data().id, "text", targetTextColor(&bw), .{});
-            const style = options.strip().override(bw.style()).override(.{ .color_text = text_color });
+            const style = options.strip().override(bw.style()).override(.{ .color_text = .{ .color = text_color } });
             var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = tokens.current.space_sm }, .{
                 .gravity_x = options.gravity_x orelse 0.5,
                 .gravity_y = 0.5,
@@ -265,20 +265,20 @@ pub fn opts(btn_variant: tokens.Variant, btn_size: tokens.Size) dvui.Options {
     };
 
     const radius = switch (btn_size) {
-        .sm => dvui.Rect.all(theme.radius_sm),
-        .md => dvui.Rect.all(theme.radius_md),
-        .lg => dvui.Rect.all(theme.radius_md),
+        .sm => dvui.CornerRect.round(theme.radius_sm),
+        .md => dvui.CornerRect.round(theme.radius_md),
+        .lg => dvui.CornerRect.round(theme.radius_md),
     };
 
     return switch (btn_variant) {
         // Primary: accent text, accent 25% hover
         .filled => .{
-            .color_fill = ds.alpha(theme.accent, theme.opacity_fill_rest),
-            .color_fill_hover = ds.alpha(theme.accent, theme.opacity_fill_hover),
-            .color_fill_press = ds.alpha(theme.accent, theme.opacity_fill_press),
-            .color_text = theme.accent,
-            .color_border = .transparent,
-            .corner_radius = radius,
+            .color_fill = .{ .color = ds.alpha(theme.accent, theme.opacity_fill_rest) },
+            .color_fill_hover = .{ .color = ds.alpha(theme.accent, theme.opacity_fill_hover) },
+            .color_fill_press = .{ .color = ds.alpha(theme.accent, theme.opacity_fill_press) },
+            .color_text = .{ .color = theme.accent },
+            .color_border = .{ .color = .transparent },
+            .corners = radius,
             .border = dvui.Rect.all(0),
             .margin = dvui.Rect.all(0),
             .padding = padding,
@@ -286,12 +286,12 @@ pub fn opts(btn_variant: tokens.Variant, btn_size: tokens.Size) dvui.Options {
         },
         // Secondary: subtle bg, white hover
         .outlined => .{
-            .color_fill = ds.alpha(.white, theme.opacity_subtle_rest),
-            .color_fill_hover = ds.alpha(.white, theme.opacity_subtle_hover),
-            .color_fill_press = ds.alpha(.white, theme.opacity_subtle_press),
-            .color_text = theme.text_secondary,
-            .color_border = theme.border_subtle,
-            .corner_radius = radius,
+            .color_fill = .{ .color = ds.alpha(.white, theme.opacity_subtle_rest) },
+            .color_fill_hover = .{ .color = ds.alpha(.white, theme.opacity_subtle_hover) },
+            .color_fill_press = .{ .color = ds.alpha(.white, theme.opacity_subtle_press) },
+            .color_text = .{ .color = theme.text_secondary },
+            .color_border = .{ .color = theme.border_subtle },
+            .corners = radius,
             .border = dvui.Rect.all(theme.border_width),
             .margin = dvui.Rect.all(0),
             .padding = padding,
@@ -299,11 +299,11 @@ pub fn opts(btn_variant: tokens.Variant, btn_size: tokens.Size) dvui.Options {
         },
         // Ghost: transparent, white hover
         .ghost => .{
-            .color_fill = .transparent,
-            .color_fill_hover = ds.alpha(.white, theme.opacity_ghost_hover),
-            .color_fill_press = ds.alpha(.white, theme.opacity_ghost_press),
-            .color_text = theme.text_secondary,
-            .corner_radius = radius,
+            .color_fill = .{ .color = .transparent },
+            .color_fill_hover = .{ .color = ds.alpha(.white, theme.opacity_ghost_hover) },
+            .color_fill_press = .{ .color = ds.alpha(.white, theme.opacity_ghost_press) },
+            .color_text = .{ .color = theme.text_secondary },
+            .corners = radius,
             .border = dvui.Rect.all(0),
             .margin = dvui.Rect.all(0),
             .padding = padding,
@@ -311,11 +311,11 @@ pub fn opts(btn_variant: tokens.Variant, btn_size: tokens.Size) dvui.Options {
         },
         // Destructive: destructive text, destructive hover
         .danger => .{
-            .color_fill = ds.alpha(theme.destructive, theme.opacity_fill_rest),
-            .color_fill_hover = ds.alpha(theme.destructive, theme.opacity_fill_hover),
-            .color_fill_press = ds.alpha(theme.destructive, theme.opacity_fill_press),
-            .color_text = theme.destructive,
-            .corner_radius = radius,
+            .color_fill = .{ .color = ds.alpha(theme.destructive, theme.opacity_fill_rest) },
+            .color_fill_hover = .{ .color = ds.alpha(theme.destructive, theme.opacity_fill_hover) },
+            .color_fill_press = .{ .color = ds.alpha(theme.destructive, theme.opacity_fill_press) },
+            .color_text = .{ .color = theme.destructive },
+            .corners = radius,
             .border = dvui.Rect.all(0),
             .margin = dvui.Rect.all(0),
             .padding = padding,
@@ -323,11 +323,11 @@ pub fn opts(btn_variant: tokens.Variant, btn_size: tokens.Size) dvui.Options {
         },
         // Accent ghost (AI): accent text, accent hover
         .accent_ghost => .{
-            .color_fill = .transparent,
-            .color_fill_hover = ds.alpha(theme.accent, theme.opacity_ghost_hover),
-            .color_fill_press = ds.alpha(theme.accent, theme.opacity_subtle_press),
-            .color_text = theme.accent,
-            .corner_radius = radius,
+            .color_fill = .{ .color = .transparent },
+            .color_fill_hover = .{ .color = ds.alpha(theme.accent, theme.opacity_ghost_hover) },
+            .color_fill_press = .{ .color = ds.alpha(theme.accent, theme.opacity_subtle_press) },
+            .color_text = .{ .color = theme.accent },
+            .corners = radius,
             .border = dvui.Rect.all(0),
             .margin = dvui.Rect.all(0),
             .padding = padding,
@@ -364,22 +364,22 @@ fn variantTextColor(btn_variant: tokens.Variant) Color {
 /// Determine the target fill color for a button based on interaction state.
 fn targetFillColor(bw: *dvui.ButtonWidget) dvui.Color {
     if (dvui.captured(bw.data().id)) {
-        return bw.data().options.color(.fill_press);
+        return bw.data().options.color(.fill_press).toColor();
     } else if (bw.hover) {
-        return bw.data().options.color(.fill_hover);
+        return bw.data().options.color(.fill_hover).toColor();
     } else {
-        return bw.data().options.color(.fill);
+        return bw.data().options.color(.fill).toColor();
     }
 }
 
 /// Determine the target text color for a button based on interaction state.
 fn targetTextColor(bw: *dvui.ButtonWidget) dvui.Color {
     if (dvui.captured(bw.data().id)) {
-        return bw.data().options.color(.text_press);
+        return bw.data().options.color(.text_press).toColor();
     } else if (bw.hover) {
-        return bw.data().options.color(.text_hover);
+        return bw.data().options.color(.text_hover).toColor();
     } else {
-        return bw.data().options.color(.text);
+        return bw.data().options.color(.text).toColor();
     }
 }
 
@@ -392,13 +392,13 @@ fn drawAnimatedButton(src: std.builtin.SourceLocation, label_str: []const u8, op
     bw.processEvents();
 
     const fill = anim.color(bw.data().id, "fill", targetFillColor(&bw), .{});
-    bw.data().borderAndBackground(.{ .fill_color = fill });
+    bw.data().borderAndBackground(.{ .fill_color = .{ .color = fill } });
 
     const target_text = targetTextColor(&bw);
     const text_color = anim.color(bw.data().id, "text", target_text, .{});
 
     const gravity_x = options.gravity_x orelse 0.5;
-    dvui.labelNoFmt(@src(), label_str, .{ .align_x = 0.5, .align_y = 0.5 }, options.strip().override(bw.style()).override(.{ .color_text = text_color, .gravity_x = gravity_x, .gravity_y = 0.5 }));
+    dvui.labelNoFmt(@src(), label_str, .{ .align_x = 0.5, .align_y = 0.5 }, options.strip().override(bw.style()).override(.{ .color_text = .{ .color = text_color }, .gravity_x = gravity_x, .gravity_y = 0.5 }));
 
     return bw.clicked();
 }
@@ -412,12 +412,12 @@ fn drawAnimatedIconButton(src: std.builtin.SourceLocation, name: [:0]const u8, t
     bw.processEvents();
 
     const fill = anim.color(bw.data().id, "fill", targetFillColor(&bw), .{});
-    bw.data().borderAndBackground(.{ .fill_color = fill });
+    bw.data().borderAndBackground(.{ .fill_color = .{ .color = fill } });
 
     const anim_fill = anim.color(bw.data().id, "icon_f", fill_color, .{});
     const anim_stroke = anim.color(bw.data().id, "icon_s", stroke_color, .{});
 
-    dvui.icon(@src(), name, tvg_bytes, .{ .fill_color = anim_fill, .stroke_color = anim_stroke }, .{
+    dvui.icon(@src(), name, tvg_bytes, .{ .fill_color = .{ .color = anim_fill }, .stroke_color = .{ .color = anim_stroke } }, .{
         .gravity_x = 0.5,
         .gravity_y = 0.5,
         // Size the glyph to the icon size for this button size — without this the
@@ -437,12 +437,12 @@ fn drawAnimatedLabelAndIcon(src: std.builtin.SourceLocation, label_str: []const 
     bw.processEvents();
 
     const fill = anim.color(bw.data().id, "fill", targetFillColor(&bw), .{});
-    bw.data().borderAndBackground(.{ .fill_color = fill });
+    bw.data().borderAndBackground(.{ .fill_color = .{ .color = fill } });
 
     const target_text = targetTextColor(&bw);
     const text_color = anim.color(bw.data().id, "text", target_text, .{});
 
-    const style = options.strip().override(bw.style()).override(.{ .color_text = text_color });
+    const style = options.strip().override(bw.style()).override(.{ .color_text = .{ .color = text_color } });
     {
         var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = tokens.current.space_sm }, .{ .gravity_x = options.gravity_x orelse 0.5, .gravity_y = 0.5 });
         defer row.deinit();
@@ -471,7 +471,7 @@ fn drawLoadingButton(src: std.builtin.SourceLocation, label_str: []const u8, btn
     defer bw.drawFocus();
 
     // Don't process events — loading buttons are non-interactive
-    bw.data().borderAndBackground(.{ .fill_color = targetFillColor(&bw).opacity(theme.opacity_disabled) });
+    bw.data().borderAndBackground(.{ .fill_color = .{ .color = targetFillColor(&bw).opacity(theme.opacity_disabled) } });
 
     {
         var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_sm }, .{ .gravity_x = 0.5, .gravity_y = 0.5 });
@@ -482,7 +482,7 @@ fn drawLoadingButton(src: std.builtin.SourceLocation, label_str: []const u8, btn
 
         // Draw label if provided
         if (label_str.len > 0) {
-            const style = options.strip().override(bw.style()).override(.{ .color_text = text_color });
+            const style = options.strip().override(bw.style()).override(.{ .color_text = .{ .color = text_color } });
             dvui.labelNoFmt(@src(), label_str, .{}, style.override(.{ .gravity_y = 0.5 }));
         }
     }
@@ -501,10 +501,10 @@ fn drawDisabledButton(src: std.builtin.SourceLocation, label_str: []const u8, bt
     defer bw.drawFocus();
 
     // Don't process events — disabled buttons are non-interactive
-    bw.data().borderAndBackground(.{ .fill_color = targetFillColor(&bw).opacity(tokens.current.opacity_disabled) });
+    bw.data().borderAndBackground(.{ .fill_color = .{ .color = targetFillColor(&bw).opacity(tokens.current.opacity_disabled) } });
 
-    const dim_text = options.color(.text).opacity(tokens.current.opacity_disabled);
-    const style = options.strip().override(bw.style()).override(.{ .color_text = dim_text });
+    const dim_text = options.color(.text).toColor().opacity(tokens.current.opacity_disabled);
+    const style = options.strip().override(bw.style()).override(.{ .color_text = .{ .color = dim_text } });
     const icon_sz = icon_mod.iconSize(btn_size);
 
     if (btn_source) |asset| {

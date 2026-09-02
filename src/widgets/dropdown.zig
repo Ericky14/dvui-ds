@@ -102,7 +102,7 @@ pub const Dropdown = struct {
         var box = dvui.box(self.src, .{ .dir = .horizontal }, self.opts().override(.{ .background = true }));
         defer box.deinit();
         dvui.labelNoFmt(@src(), text, .{}, .{
-            .color_text = theme.text_primary,
+            .color_text = .{ .color = theme.text_primary },
             .font = ds.font(fontSize(self.dropdown_size)),
             .gravity_y = 0.5,
         });
@@ -113,11 +113,11 @@ pub const Dropdown = struct {
         const theme = tokens.current;
         const font_size = fontSize(self.dropdown_size);
         return .{
-            .color_fill = theme.surface_2,
-            .color_border = theme.border_input,
+            .color_fill = .{ .color = theme.surface_2 },
+            .color_border = .{ .color = theme.border_input },
             .border = dvui.Rect.all(theme.border_width),
-            .corner_radius = dvui.Rect.all(theme.radius_md),
-            .color_text = theme.text_primary,
+            .corners = dvui.CornerRect.round(theme.radius_md),
+            .color_text = .{ .color = theme.text_primary },
             .padding = ds.paddingXY(theme.space_md, theme.space_sm),
             .font = ds.font(font_size),
             .min_size_content = .{ .w = 160 },

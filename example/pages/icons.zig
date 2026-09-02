@@ -21,7 +21,7 @@ fn cell(src: @import("std").builtin.SourceLocation, comptime name: [:0]const u8,
             ds.iconTvg(@src(), resolved.name, resolved.tvg_bytes).size(.lg).style(.secondary).draw();
         }
     }
-    dvui.labelNoFmt(@src(), name, .{}, .{ .color_text = theme.text_ghost, .font = ds.font(theme.font_size_sm), .gravity_x = 0.5 });
+    dvui.labelNoFmt(@src(), name, .{}, .{ .color_text = .{ .color = theme.text_ghost }, .font = ds.font(theme.font_size_sm), .gravity_x = 0.5 });
 }
 
 pub fn draw() void {

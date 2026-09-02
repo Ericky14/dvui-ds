@@ -37,11 +37,11 @@ pub const PanelHeader = struct {
 fn headerOpts() dvui.Options {
     const theme = tokens.current;
     return .{
-        .color_fill = theme.surface_2,
+        .color_fill = .{ .color = theme.surface_2 },
         .background = true,
         .padding = ds.paddingXY(theme.space_xs, theme.space_3xs),
         .border = ds.paddingEach(0, 0, theme.border_width, 0),
-        .color_border = theme.border,
+        .color_border = .{ .color = theme.border },
         .expand = .horizontal,
     };
 }
@@ -49,8 +49,8 @@ fn headerOpts() dvui.Options {
 fn bodyOpts() dvui.Options {
     const theme = tokens.current;
     return .{
-        .color_fill = theme.surface_1,
-        .color_border = theme.border,
+        .color_fill = .{ .color = theme.surface_1 },
+        .color_border = .{ .color = theme.border },
         .border = dvui.Rect.all(theme.border_width),
         .padding = dvui.Rect.all(0),
         .expand = .both,
