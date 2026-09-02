@@ -22,6 +22,13 @@ pub fn build(b: *std.Build) void {
     });
     const zwgpu = b.dependency("zwgpu", .{});
 
+    // zwgpu (and dvui, for freetype) fetch some packages lazily. On a cold cache a
+    // dependency's build script returns error.LazyDependencyNeeded *before* it has
+    // registered its modules; the build runner then fetches and re-runs configure.
+    // Asking such a dependency for a module in this run panics ("unable to find
+    // module"), so stop here and let the re-run do the real work.
+    if (b.graph.needed_lazy_dependencies.count() != 0) return;
+
     const dvui_mod = dvui_dep.module("dvui");
     // dvui creates its renderer module privately (createModule) and hangs it
     // off the dvui module as the "render_backend" import; the wgpu renderer
