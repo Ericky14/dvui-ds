@@ -1,0 +1,65 @@
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Exact pin in .zigversion (same policy as the zigame engine: master, bumped on purpose).
+      - name: Install pinned Zig
+        shell: bash
+        run: |
+          set -euo pipefail
+          VER="$(tr -d '[:space:]' < .zigversion)"
+          case "${{ runner.os }}" in
+            Linux)   ASSET="zig-x86_64-linux-${VER}.tar.xz" ;;
+            Windows) ASSET="zig-x86_64-windows-${VER}.zip" ;;
+          esac
+          case "$VER" in
+            *-dev.*) URL="https://ziglang.org/builds/${ASSET}" ;;
+            *)       URL="https://ziglang.org/download/${VER}/${ASSET}" ;;
+          esac
+          echo "fetching ${URL}"
+          mkdir -p "$HOME/zig" && cd "$HOME/zig"
+          curl -fsSL -o "$ASSET" "$URL"
+          case "$ASSET" in
+            *.zip)    unzip -q "$ASSET" ;;
+            *.tar.xz) tar -xf "$ASSET" ;;
+          esac
+          DIR="$(ls -d zig-*-"${VER}" | head -1)"
+          echo "$HOME/zig/$DIR" >> "$GITHUB_PATH"
+          "$HOME/zig/$DIR/zig" version
+
+      - name: Linux build deps (SDL3 from source)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwayland-dev libxkbcommon-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libgl-dev libegl-dev libpulse-dev libasound2-dev
+
+      - name: Format check
+        shell: bash
+        run: zig fmt --check build.zig src/ example/ test/
+
+      - name: Widget tests
+        shell: bash
+        run: zig build test --summary all
+
+      - name: Headless screenshots
+        shell: bash
+        run: zig build screenshots --summary all
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: ds-screenshots-${{ matrix.os }}
+          path: ds-screenshots/*.png
+          if-no-files-found: error
