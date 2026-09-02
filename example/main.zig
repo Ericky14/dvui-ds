@@ -44,6 +44,8 @@ const Page = enum {
     modal,
     badge,
     tooltip,
+    chat,
+    chat_cards,
 };
 
 var router = ds.Router(Page).init(.buttons);
@@ -95,6 +97,12 @@ fn storybookFrame() bool {
         router.link(@src(), .modal, "Modal");
         router.link(@src(), .badge, "Badge");
         router.link(@src(), .tooltip, "Tooltip");
+
+        router.gap(@src(), ds.tokens.current.space_lg);
+
+        router.section(@src(), "CHAT");
+        router.link(@src(), .chat, "Messages");
+        router.link(@src(), .chat_cards, "Cards");
     }
 
     // ─── Content Area ────────────────────────────────────────────────────────
@@ -125,6 +133,8 @@ fn storybookFrame() bool {
             .modal => pages.modal.draw(),
             .badge => pages.badge.draw(),
             .tooltip => pages.tooltip.draw(),
+            .chat => pages.chat.draw(),
+            .chat_cards => pages.chat_cards.draw(),
         }
     }
 

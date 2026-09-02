@@ -27,3 +27,7 @@ pub const modal = @import("modal.zig");
 pub const badge = @import("badge.zig");
 pub const tooltip = @import("tooltip.zig");
 pub const radio = @import("radio.zig");
+
+// ─── Chat (zigame editor) ─────────────────────────────────────────────────────
+pub const chat = @import("chat.zig");
+pub const chat_cards = @import("chat_cards.zig");

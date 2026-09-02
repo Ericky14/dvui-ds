@@ -11,7 +11,7 @@ const dvui = @import("dvui");
 const ds = @import("dvui_ds");
 
 /// Render `frame` once (settled) and write it to ds-screenshots/<name>.
-fn capture(name: []const u8, w: f32, h: f32, frame: dvui.App.frameFunction) !void {
+pub fn capture(name: []const u8, w: f32, h: f32, frame: dvui.App.frameFunction) !void {
     var t = try dvui.testing.init(.{
         .image_dir = "ds-screenshots",
         .window_size = .{ .w = w, .h = h },
@@ -23,7 +23,7 @@ fn capture(name: []const u8, w: f32, h: f32, frame: dvui.App.frameFunction) !voi
 }
 
 /// Full-window themed background so components sit on the app surface.
-fn background(src: std.builtin.SourceLocation) *dvui.BoxWidget {
+pub fn background(src: std.builtin.SourceLocation) *dvui.BoxWidget {
     return dvui.box(src, .{}, .{
         .expand = .both,
         .background = true,
@@ -472,4 +472,10 @@ test "icon grid" {
         }
     };
     try capture("icon_grid.png", 400, 110, Local.frame);
+}
+
+// Chat widget fixtures live in their own files so parallel work does not collide.
+test {
+    _ = @import("chat_screenshots.zig");
+    _ = @import("card_screenshots.zig");
 }

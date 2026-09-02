@@ -64,6 +64,9 @@ pub const ScrollArea = @import("widgets/scroll_area.zig").ScrollArea;
 pub const ScrollAreaHandle = @import("widgets/scroll_area.zig").Handle;
 pub const Router = @import("widgets/router.zig").Router;
 
+// ─── Chat widgets (ds.chat.*) ────────────────────────────────────────────────
+pub const chat = @import("widgets/chat/chat.zig");
+
 // ─── Layout helpers ──────────────────────────────────────────────────────────
 const dvui = @import("dvui");
 
@@ -135,6 +138,7 @@ test {
     _ = @import("widgets/text_input_tests.zig");
     _ = @import("widgets/textarea_tests.zig");
     _ = @import("anim/anim_tests.zig");
+    _ = @import("widgets/chat/chat.zig");
 }
 
 const std = @import("std");
