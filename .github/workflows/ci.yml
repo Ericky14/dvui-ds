@@ -45,17 +45,26 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libwayland-dev libxkbcommon-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libgl-dev libegl-dev libpulse-dev libasound2-dev
 
+      # GitHub's Windows runners ship MSVC, so Zig resolves the native target to
+      # x86_64-windows-msvc, where Debug links against wgpu_native.lib fail (Zig bug,
+      # see the zig-toolchain skill). Build for the gnu ABI there, as on the dev box.
+      - name: Target flags
+        id: tgt
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then echo "flags=-Dtarget=x86_64-windows-gnu" >> "$GITHUB_OUTPUT"; else echo "flags=" >> "$GITHUB_OUTPUT"; fi
+
       - name: Format check
         shell: bash
         run: zig fmt --check build.zig src/ example/ test/
 
       - name: Widget tests
         shell: bash
-        run: zig build test --summary all
+        run: zig build test --summary all ${{ steps.tgt.outputs.flags }}
 
       - name: Headless screenshots
         shell: bash
-        run: zig build screenshots --summary all
+        run: zig build screenshots --summary all ${{ steps.tgt.outputs.flags }}
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
