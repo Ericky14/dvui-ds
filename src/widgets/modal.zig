@@ -78,7 +78,7 @@ pub const Modal = struct {
 
         // Animate an open/close phase so the dialog fades out (and the scrim
         // fades) before it disappears. State is keyed off the caller's @src().
-        const id: dvui.Id = @enumFromInt(@as(usize, self.src.line) +% (@as(usize, self.src.column) *% 65599) +% self.id_extra_val);
+        const id: dvui.Id = @fromBackingInt(@intCast(@as(usize, self.src.line) +% (@as(usize, self.src.column) *% 65599) +% self.id_extra_val));
         const phase = anim.float(id, "phase", if (self.open.*) 1.0 else 0.0, .{ .duration = motion.normal, .easing = motion.out });
         if (!self.open.* and phase < 0.01) return null;
 

@@ -45,7 +45,7 @@ pub const ScrollArea = struct {
 
         // Stable id (independent of the inner widget) for the fade state, known
         // before the scroll area is created so we can set its bar color.
-        const id: dvui.Id = @enumFromInt(@as(usize, self.src.line) +% (@as(usize, self.src.column) *% 65599) +% (self.id_extra orelse 0));
+        const id: dvui.Id = @fromBackingInt(@intCast(@as(usize, self.src.line) +% (@as(usize, self.src.column) *% 65599) +% (self.id_extra orelse 0)));
 
         // Fade the bar toward visible while the area was interacted with last
         // frame; fast in, slow out (a gentle Chrome/macOS-style disappearance).

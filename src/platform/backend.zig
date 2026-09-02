@@ -218,7 +218,7 @@ pub fn refresh(_: *@This()) void {
     // Push a wakeup event so SDL_WaitEvent returns immediately
     sdl3.events.push(.{ .user = .{
         .common = .{ .timestamp = 0 },
-        .event_type = @intFromEnum(sdl3.events.Type.user),
+        .event_type = @backingInt(sdl3.events.Type.user),
         .code = 0,
     } }) catch {};
 }

@@ -134,7 +134,7 @@ pub const TextInput = struct {
 
         // ─── Input field ─────────────────────────────────────────────────
         // Use focus state from previous frame to set border color (focus persists across frames)
-        const focus_key: dvui.Id = @enumFromInt(id_extra);
+        const focus_key: dvui.Id = @fromBackingInt(@intCast(id_extra));
         const was_focused = dvui.dataGetPtrDefault(null, focus_key, "_ds_focused", bool, false);
 
         const border_color = if (self.is_error)
