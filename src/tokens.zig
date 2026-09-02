@@ -82,6 +82,9 @@ pub const Theme = struct {
 
     // ── Font ──────────────────────────────────────────────────────────────────
     font_family: [:0]const u8 = "Geist",
+    /// Monospace family: code blocks, inline code, the label `.mono` FontToken,
+    /// tool-card names and the composer hint row (`ds.fontMono` / `dvuiTheme().font_mono`).
+    font_family_mono: [:0]const u8 = "Geist Mono",
 
     // ── Font sizes (pixel) ───────────────────────────────────────────────────
     font_size_sm: u16 = 11,
@@ -160,20 +163,24 @@ pub fn dvuiTheme() dvui.Theme {
         .fill_hover = t.destructive_muted,
         .text = t.text_primary,
     };
-    // Geist font family — using .pixel size_mode for CSS/iced-compatible sizing.
+    // Geist (sans) + Geist Mono — using .pixel size_mode for CSS/iced-compatible sizing.
     // Values match the Desktop text styles:
     // body = body-sm (13px/18px), heading = heading-sm (16px/24px), title = heading-md (20px/28px)
     theme.embedded_fonts = &geist_fonts;
     theme.font_body = ds.font(current.font_size_md);
     theme.font_heading = ds.fontBold(current.font_size_lg);
     theme.font_title = ds.fontBold(current.font_size_xl);
-    theme.font_mono = ds.font(current.font_size_md);
+    theme.font_mono = ds.fontMono(current.font_size_md);
     return theme;
 }
 
 const font_family_default: [:0]const u8 = "Geist";
+const font_family_mono_default: [:0]const u8 = "Geist Mono";
 
-const geist_fonts: [3]dvui.Font.Source = .{
+/// Every face embedded in the binary (SIL OFL, see src/fonts/). Sans: Regular/Medium/Bold.
+/// Mono: Regular/Medium — the chat cards ask for `.medium` mono, so both weights ship;
+/// a missing weight makes dvui fall back to the nearest one and log it every frame.
+const geist_fonts: [5]dvui.Font.Source = .{
     .{
         .family = dvui.Font.array(font_family_default),
         .bytes = @embedFile("fonts/Geist-Regular.ttf"),
@@ -188,7 +195,21 @@ const geist_fonts: [3]dvui.Font.Source = .{
         .weight = .bold,
         .bytes = @embedFile("fonts/Geist-Bold.ttf"),
     },
+    .{
+        .family = dvui.Font.array(font_family_mono_default),
+        .bytes = @embedFile("fonts/GeistMono-Regular.ttf"),
+    },
+    .{
+        .family = dvui.Font.array(font_family_mono_default),
+        .weight = .medium,
+        .bytes = @embedFile("fonts/GeistMono-Medium.ttf"),
+    },
 };
+
+/// The embedded font sources `dvuiTheme()` registers (read-only view for tests/tools).
+pub fn embeddedFonts() []const dvui.Font.Source {
+    return &geist_fonts;
+}
 
 /// Fallback dark theme — Cosmic Teal.
 pub const default_theme: Theme = blk: {

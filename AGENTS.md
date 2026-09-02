@@ -34,7 +34,7 @@ src/
 ├── anim/               # animation primitives (anim.zig, color, float, options, utils)
 ├── icons/lucide/       # Lucide icon set (TVG)
 ├── icons.zig           # icon byte re-exports (ds.icons.save, ...)
-├── fonts/              # Geist font family (Regular/Medium/Bold)
+├── fonts/              # Geist (Regular/Medium/Bold) + Geist Mono (Regular/Medium), SIL OFL
 ├── platform/           # app.zig, backend.zig (SDL3), gpu.zig (wgpu), runner.zig
 ├── focus.zig           # focus helper module (ds_focus)
 ├── motion.zig          # motion tokens

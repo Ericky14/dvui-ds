@@ -79,6 +79,8 @@ pub const fontLight = @import("helpers/fonts.zig").fontLight;
 pub const fontMedium = @import("helpers/fonts.zig").fontMedium;
 pub const fontSemibold = @import("helpers/fonts.zig").fontSemibold;
 pub const fontBold = @import("helpers/fonts.zig").fontBold;
+pub const fontMono = @import("helpers/fonts.zig").fontMono;
+pub const fontMonoMedium = @import("helpers/fonts.zig").fontMonoMedium;
 
 // ─── Color helpers ───────────────────────────────────────────────────────────
 
@@ -138,6 +140,7 @@ test {
     _ = @import("widgets/text_input_tests.zig");
     _ = @import("widgets/textarea_tests.zig");
     _ = @import("anim/anim_tests.zig");
+    _ = @import("helpers/fonts.zig");
     _ = @import("widgets/chat/chat.zig");
 }
 
