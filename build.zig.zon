@@ -9,7 +9,8 @@
             .path = "vendor/dvui",
         },
         .sdl3 = .{
-            .path = "vendor/zig-sdl3",
+            .url = "git+https://github.com/Ericky14/zig-sdl3.git#47bb9543bee1492965b177d8ca9c32f872ca0d51",
+            .hash = "sdl3-0.2.0-NmT1Q2KYJwCCkbyPx_Pu9fRkUOqylPfXJCev93kC23Bt",
         },
         .zwgpu = .{
             .path = "vendor/zwgpu",
