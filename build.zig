@@ -20,7 +20,10 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    const zwgpu = b.dependency("zwgpu", .{});
+    // Forward the target: zwgpu picks the prebuilt wgpu-native archive and the system
+    // libraries per target, and would otherwise resolve to the host (a Linux
+    // cross-build from Windows then tries to link ws2_32/userenv).
+    const zwgpu = b.dependency("zwgpu", .{ .target = target, .optimize = optimize });
 
     // zwgpu (and dvui, for freetype) fetch some packages lazily. On a cold cache a
     // dependency's build script returns error.LazyDependencyNeeded *before* it has
