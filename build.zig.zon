@@ -6,7 +6,8 @@
 
     .dependencies = .{
         .dvui = .{
-            .path = "vendor/dvui",
+            .url = "git+https://github.com/Ericky14/dvui.git#25118c619429c4297d6ec44d541cc98d3b085e8e",
+            .hash = "dvui-0.5.0-dev-AQFJmXcBDQHfFhPhJ07ppdhFrjRkXN_MyH-z5LUOziDg",
         },
         .sdl3 = .{
             .url = "git+https://github.com/Ericky14/zig-sdl3.git#47bb9543bee1492965b177d8ca9c32f872ca0d51",

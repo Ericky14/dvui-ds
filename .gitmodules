@@ -1,4 +1,0 @@
-[submodule "vendor/dvui"]
-	path = vendor/dvui
-	url = git@github.com:Ericky14/dvui.git
-	branch = main
