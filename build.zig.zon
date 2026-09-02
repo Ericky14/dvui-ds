@@ -10,8 +10,8 @@
             .hash = "dvui-0.5.0-dev-AQFJmXcBDQHfFhPhJ07ppdhFrjRkXN_MyH-z5LUOziDg",
         },
         .sdl3 = .{
-            .url = "git+https://github.com/Ericky14/zig-sdl3.git#47bb9543bee1492965b177d8ca9c32f872ca0d51",
-            .hash = "sdl3-0.2.0-NmT1Q2KYJwCCkbyPx_Pu9fRkUOqylPfXJCev93kC23Bt",
+            .url = "git+https://github.com/Ericky14/zig-sdl3.git#f9d632e640db230a93cbc2b9c716d5f528ba94b5",
+            .hash = "sdl3-0.2.0-NmT1Q1CbJwCpQM0B3qC9stTpmmeClOj-6y_86dpmjx41",
         },
         .zwgpu = .{
             .url = "git+https://github.com/Ericky14/zwgpu.git#7407262d76b7bb7397838e22714b6ead98048d27",
