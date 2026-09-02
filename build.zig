@@ -62,6 +62,16 @@ pub fn build(b: *std.Build) void {
     ds_mod.addImport("wgpu", zwgpu.module("root"));
     ds_mod.addImport("ds_focus", focus_mod);
 
+    // ─── Re-exports for consumers ────────────────────────────────────────────
+    // The engine (zigame) must use the *same* dvui / sdl3 / wgpu module instances
+    // the design system was wired with — a second dvui instance would carry no
+    // platform backend and no wgpu renderer. Expose them under this package so a
+    // consumer's build.zig does `dvui_ds_dep.module("dvui")` etc. and never
+    // repeats the wiring above.
+    b.modules.put(b.allocator, "dvui", dvui_mod) catch @panic("OOM");
+    b.modules.put(b.allocator, "sdl3", sdl3_dep.module("sdl3")) catch @panic("OOM");
+    b.modules.put(b.allocator, "wgpu", zwgpu.module("root")) catch @panic("OOM");
+
     // ─── Example / Storybook ─────────────────────────────────────────────────
     const example_mod = b.createModule(.{
         .root_source_file = b.path("example/main.zig"),
@@ -111,6 +121,8 @@ pub fn build(b: *std.Build) void {
         .backend = .testing,
     });
     const dvui_testing_mod = dvui_testing_dep.module("dvui_testing");
+    // Headless dvui for consumers' own screenshot tests (same CPU rasteriser).
+    b.modules.put(b.allocator, "dvui_testing", dvui_testing_mod) catch @panic("OOM");
 
     const ds_testing_mod = b.createModule(.{
         .root_source_file = b.path("src/ds.zig"),
