@@ -66,22 +66,15 @@ pub fn addAllEvents(self: *@This(), win: *dvui.Window) void {
     }
 }
 
+/// Real framebuffer size. This MUST match the size the wgpu surface is
+/// configured with (`GpuContext` uses `getSizeInPixels()` too): dvui derives
+/// its clip/scissor rects from this, and wgpu rejects a scissor larger than
+/// the render target.
 pub fn pixelSize(self: *@This()) dvui.Size.Physical {
     const pixels = self.window.getSizeInPixels() catch return .{ .w = 0, .h = 0 };
-    const win = self.window.getSize() catch return .{ .w = 0, .h = 0 };
-
-    // If SDL3 provides native HiDPI pixels, use them directly
-    if (pixels[0] > win[0] or pixels[1] > win[1]) {
-        return .{
-            .w = @floatFromInt(pixels[0]),
-            .h = @floatFromInt(pixels[1]),
-        };
-    }
-
-    // Otherwise apply our detected scale (X11 fallback)
     return .{
-        .w = @as(f32, @floatFromInt(win[0])) * self.scale,
-        .h = @as(f32, @floatFromInt(win[1])) * self.scale,
+        .w = @floatFromInt(pixels[0]),
+        .h = @floatFromInt(pixels[1]),
     };
 }
 
@@ -93,15 +86,14 @@ pub fn windowSize(self: *@This()) dvui.Size.Natural {
     };
 }
 
+/// DPI scaling dvui should apply to logical content.
+///
+/// Wayland/macOS hand SDL a HiDPI framebuffer (pixels > window size), and dvui
+/// picks that up through `pixelSize()`/`windowSize()` as its natural scale;
+/// returning the scale here too would double-apply it. Windows/X11 report
+/// pixels == window size, so the display content scale is applied here.
 pub fn contentScale(self: *@This()) f32 {
-    // On Wayland, SDL3 already provides a HiDPI framebuffer (pixels > window).
-    // In that case, the scale is communicated through pixelSize() being larger,
-    // and dvui handles it via natural_scale. Returning scale here would double-apply it.
-    const pixels = self.window.getSizeInPixels() catch return self.scale;
-    const win = self.window.getSize() catch return self.scale;
-    if (pixels[0] > win[0] or pixels[1] > win[1]) {
-        return 1.0;
-    }
+    if (hasHiDpiFramebuffer(self.window)) return 1.0;
     return self.scale;
 }
 
@@ -110,13 +102,13 @@ pub fn clipboardText(_: *@This()) ![]const u8 {
 }
 
 pub fn clipboardTextSet(self: *@This(), text: []const u8) !void {
-    const duped = try self.gpa.dupeZ(u8, text);
+    const duped = try self.gpa.dupeSentinel(u8, text, 0);
     defer self.gpa.free(duped);
     sdl3.clipboard.setText(duped) catch return error.BackendError;
 }
 
 pub fn openURL(self: *@This(), url: []const u8, _: bool) !void {
-    const duped = self.gpa.dupeZ(u8, url) catch return error.OutOfMemory;
+    const duped = self.gpa.dupeSentinel(u8, url, 0) catch return error.OutOfMemory;
     defer self.gpa.free(duped);
     sdl3.openURL(duped) catch return error.BackendError;
 }
@@ -164,6 +156,10 @@ pub fn textInputRect(self: *@This(), rect: ?dvui.Rect.Natural) void {
         sdl3.keyboard.stopTextInput(self.window) catch {};
     }
 }
+
+/// Presentation happens in `App.runWithConfig` (wgpu surface present), so
+/// dvui's end-of-frame present request is a no-op here.
+pub fn renderPresent(_: *@This()) void {}
 
 pub fn preferredColorScheme(_: *@This()) ?dvui.enums.ColorScheme {
     const theme = sdl3.video.getSystemTheme() orelse return null;
@@ -270,12 +266,23 @@ fn handleMouseButton(dvui_window: *dvui.Window, btn: sdl3.events.MouseButton, do
 }
 
 fn handleMouseWheel(dvui_window: *dvui.Window, wheel: sdl3.events.MouseWheel) void {
+    // dvui wants to know whether the wheel is a classic notched mouse or a
+    // smooth-scrolling trackpad (it changes scroll animation / batching).
+    // Same heuristic as dvui's own SDL backend: the smallest raw delta seen in
+    // the current batch is exactly 1.0 for a notched wheel.
     if (wheel.scroll_x != 0) {
-        _ = dvui_window.addEventMouseWheel(wheel.scroll_x * dvui.scroll_speed, .horizontal) catch {};
+        const mouse_type = wheelMouseType(dvui_window, .horizontal, wheel.scroll_x);
+        _ = dvui_window.addEventMouseWheel(wheel.scroll_x * dvui.scroll_speed, .horizontal, mouse_type) catch {};
     }
     if (wheel.scroll_y != 0) {
-        _ = dvui_window.addEventMouseWheel(wheel.scroll_y * dvui.scroll_speed, .vertical) catch {};
+        const mouse_type = wheelMouseType(dvui_window, .vertical, wheel.scroll_y);
+        _ = dvui_window.addEventMouseWheel(wheel.scroll_y * dvui.scroll_speed, .vertical, mouse_type) catch {};
     }
+}
+
+fn wheelMouseType(dvui_window: *dvui.Window, dir: dvui.enums.Direction, raw_delta: f32) dvui.enums.MouseType {
+    const batch_min = dvui_window.mouseWheelBatch(dir, raw_delta);
+    return if (batch_min == 1.0) .mouse else .trackpad;
 }
 
 fn sdlModToDvui(mod: sdl3.keycode.KeyModifier) dvui.enums.Mod {
@@ -383,6 +390,14 @@ fn sdlScancodeToDvui(scancode: ?sdl3.Scancode) dvui.enums.Key {
 
         else => .unknown,
     };
+}
+
+/// True when SDL gives the window a framebuffer larger than its logical size
+/// (Wayland, macOS retina). False on Windows/X11, where window units are pixels.
+pub fn hasHiDpiFramebuffer(window: sdl3.video.Window) bool {
+    const pixels = window.getSizeInPixels() catch return false;
+    const win_size = window.getSize() catch return false;
+    return pixels[0] > win_size[0] or pixels[1] > win_size[1];
 }
 
 fn detectContentScale(window: sdl3.video.Window) f32 {

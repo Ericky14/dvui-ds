@@ -45,6 +45,17 @@ pub const App = struct {
         const content_scale = detectContentScale(window);
         log.info("window: scale={d:.2}", .{content_scale});
 
+        // Windows/X11 size windows in pixels and report the DPI scale
+        // separately (no HiDPI framebuffer), so `config.width x height` would
+        // come out `scale` times smaller in logical units than on Wayland.
+        // Grow the window so the logical layout size is what was asked for.
+        if (content_scale > 1.0 and !dvui.backend.hasHiDpiFramebuffer(window)) {
+            const scaled_w: u32 = @intFromFloat(@round(@as(f32, @floatFromInt(config.width)) * content_scale));
+            const scaled_h: u32 = @intFromFloat(@round(@as(f32, @floatFromInt(config.height)) * content_scale));
+            window.setSize(scaled_w, scaled_h) catch {};
+            log.info("window: sized {d}x{d} px for {d}x{d} logical", .{ scaled_w, scaled_h, config.width, config.height });
+        }
+
         const gpu = try GpuContext.init(window);
 
         const backend = dvui.backend.init(std.heap.smp_allocator, window, content_scale);
