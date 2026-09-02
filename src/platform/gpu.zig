@@ -173,6 +173,20 @@ fn requestDevice(instance: wgpu.WGPUInstance, adapter: wgpu.WGPUAdapter) wgpu.WG
 fn createSurface(instance: wgpu.WGPUInstance, window: sdl3.video.Window) ?wgpu.WGPUSurface {
     const props = window.getProperties() catch return null;
 
+    // Windows: wgpu wants the HWND plus the module HINSTANCE (null is accepted).
+    if (props.win32_hwnd) |hwnd| {
+        log.info("surface: win32", .{});
+        const from_win32 = wgpu.WGPUSurfaceSourceWindowsHWND{
+            .chain = .{ .next = null, .sType = wgpu.WGPUSType_SurfaceSourceWindowsHWND },
+            .hinstance = if (props.win32_instance) |inst| inst.value else null,
+            .hwnd = hwnd.value,
+        };
+        return wgpu.wgpuInstanceCreateSurface(instance, &.{
+            .nextInChain = @ptrCast(@constCast(&from_win32)),
+            .label = wgpu.WGPUStringView{ .data = "win32", .length = 5 },
+        });
+    }
+
     if (props.wayland_display) |display| {
         if (props.wayland_surface) |wl_surface| {
             log.info("surface: wayland", .{});

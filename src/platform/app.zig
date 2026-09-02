@@ -28,7 +28,11 @@ pub const App = struct {
     pub fn init(config: AppConfig) !App {
         log.info("starting: {s} ({d}x{d})", .{ config.title, config.width, config.height });
 
-        sdl3.hints.set(.video_driver, "wayland,x11") catch {};
+        // Linux only: on Windows/macOS this hint would restrict SDL to drivers that do
+        // not exist there and make SDL_Init(VIDEO) fail.
+        if (@import("builtin").os.tag == .linux) {
+            sdl3.hints.set(.video_driver, "wayland,x11") catch {};
+        }
         try sdl3.init(.{ .video = true, .events = true });
 
         const window = try sdl3.video.Window.init(
