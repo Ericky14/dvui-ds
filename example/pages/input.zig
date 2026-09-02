@@ -1,7 +1,7 @@
 const ds = @import("dvui_ds");
 
-var name_buf: [128]u8 = [_]u8{0} ** 128;
-var email_buf: [128]u8 = [_]u8{0} ** 128;
+var name_buf: [128]u8 = @splat(0);
+var email_buf: [128]u8 = @splat(0);
 
 pub fn draw() void {
     const theme = ds.tokens.current;

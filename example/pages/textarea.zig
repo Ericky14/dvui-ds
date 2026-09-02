@@ -1,8 +1,8 @@
 const ds = @import("dvui_ds");
 
-var notes_buf: [512]u8 = [_]u8{0} ** 512;
-var bio_buf: [512]u8 = [_]u8{0} ** 512;
-var fixed_buf: [512]u8 = [_]u8{0} ** 512;
+var notes_buf: [512]u8 = @splat(0);
+var bio_buf: [512]u8 = @splat(0);
+var fixed_buf: [512]u8 = @splat(0);
 
 pub fn draw() void {
     const theme = ds.tokens.current;

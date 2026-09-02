@@ -2,7 +2,7 @@
     .fingerprint = 0xe78f69ca4def8fea,
     .name = .dvui_ds,
     .version = "0.1.0",
-    .minimum_zig_version = "0.17.0",
+    .minimum_zig_version = "0.17.0-dev.1963+e00c6c439",
 
     .dependencies = .{
         .dvui = .{
