@@ -40,6 +40,13 @@ const lua_sample = "function on_update(dt)\n" ++
 
 const long_user_text = "Make the ball red, have it bounce on the floor with a restitution of 0.8, and add a faint trail behind it so the motion reads clearly at a distance.";
 
+/// A long inline code span that lands right at the pane edge: it must wrap to
+/// a fresh line as a whole chip rather than splitting mid-word.
+const code_wrap_sample =
+    \\Open `scenes/main.json`, then confirm the gate with
+    \\`zigame.physics.is_grounded(self.id)` before wiring the trigger.
+;
+
 pub fn draw() void {
     const theme = ds.tokens.current;
     // The page is taller than the window; scroll it (the storybook content area does not).
@@ -64,6 +71,17 @@ pub fn draw() void {
     // ─── Markdown ────────────────────────────────────────────────────────
     ds.label(@src(), "Markdown").style(.secondary).font(.heading).draw();
     ds.chat.markdown(@src(), markdown_sample).draw();
+
+    ds.label(@src(), "Inline code chip wrap").style(.secondary).font(.heading).draw();
+    {
+        // Narrow on purpose to force the long chip past the edge of the pane.
+        var narrow = dvui.box(@src(), .{ .dir = .vertical }, .{
+            .min_size_content = .{ .w = 260, .h = 0 },
+            .max_size_content = .{ .w = 260, .h = dvui.max_float_safe },
+        });
+        defer narrow.deinit();
+        ds.chat.markdown(@src(), code_wrap_sample).draw();
+    }
 
     // ─── Code block ──────────────────────────────────────────────────────
     ds.label(@src(), "Code block").style(.secondary).font(.heading).draw();

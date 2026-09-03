@@ -49,6 +49,38 @@ test "markdown builder defaults and copy-on-set idExtra" {
     try std.testing.expectEqual(@as(usize, 4), keyed.id_extra);
 }
 
+// ─── Inline code chip wrap decision ─────────────────────────────────────────
+
+test "chipNeedsBreak: fits in what's left of the line" {
+    try std.testing.expect(!md.chipNeedsBreak(80, 200, 100));
+}
+
+test "chipNeedsBreak: exactly fills what's left of the line" {
+    try std.testing.expect(!md.chipNeedsBreak(100, 200, 100));
+}
+
+test "chipNeedsBreak: too wide for the remainder, but nothing precedes it on the line" {
+    // Already at the left edge: dropping to a fresh line would not help
+    // (this chip is wider than the container itself), so it stays put and
+    // wraps at its own boundaries.
+    try std.testing.expect(!md.chipNeedsBreak(250, 200, 0));
+}
+
+test "chipNeedsBreak: too wide for the remainder, other content already on the line" {
+    try std.testing.expect(md.chipNeedsBreak(120, 200, 100));
+}
+
+test "chipNeedsBreak: too wide even for a fresh line still forces the break" {
+    // The whole-line fallback (breaking at the chip's own boundaries) applies
+    // only once it lands on a fresh line; a chip that can never fit still
+    // moves off content it would otherwise split.
+    try std.testing.expect(md.chipNeedsBreak(500, 200, 50));
+}
+
+test "chipNeedsBreak: an unsettled (zero) container width never forces a break" {
+    try std.testing.expect(!md.chipNeedsBreak(50, 0, 10));
+}
+
 // ─── Blocks ──────────────────────────────────────────────────────────────────
 
 test "blocks: empty and whitespace-only input yield nothing" {

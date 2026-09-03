@@ -99,6 +99,27 @@ test "chat code block" {
     try shots.capture("chat_code_block.png", 420, 220, Local.frame);
 }
 
+test "chat markdown code chip wrap" {
+    const Local = struct {
+        // Deliberately narrow: the prose runs right up to the pane edge so the
+        // long inline code span that follows cannot fit on the same line but
+        // would fit a fresh one — the case that used to split the chip mid-word.
+        const sample =
+            \\Open `scenes/main.json`, then confirm the gate with
+            \\`zigame.physics.is_grounded(self.id)` before wiring the trigger.
+        ;
+        fn frame() !dvui.App.Result {
+            var bg = shots.background(@src());
+            defer bg.deinit();
+            var col = chatColumn(@src());
+            defer col.deinit();
+            ds.chat.markdown(@src(), sample).draw();
+            return .ok;
+        }
+    };
+    try shots.capture("chat_markdown_code_wrap.png", 320, 170, Local.frame);
+}
+
 test "chat composer" {
     const Local = struct {
         fn frame() !dvui.App.Result {

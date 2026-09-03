@@ -13,8 +13,9 @@
 ///                             string as language; an unterminated fence runs to the end
 ///     anything else           a paragraph; single newlines soft-wrap
 ///   Inline (inside paragraphs, headings and list items):
-///     **bold**, *italic*, `code` (mono on `surface_2`), [text](url) (underlined,
-///     never navigated). Unbalanced delimiters render literally; nothing panics.
+///     **bold**, *italic*, `code` (mono on `surface_2`, wraps to a fresh line as a
+///     whole chip rather than splitting mid-word), [text](url) (underlined, never
+///     navigated). Unbalanced delimiters render literally; nothing panics.
 ///
 /// Usage:
 ///   ds.chat.markdown(@src(), "## Done\nThe ball is **red** now.").draw();
@@ -79,8 +80,53 @@ fn drawRuns(src: std.builtin.SourceLocation, id_extra: usize, text: []const u8, 
     var runs = InlineIterator.init(text);
     while (runs.next()) |run| {
         const run_opts = runOpts(run.style, base_font, base_color);
-        addSoftWrapped(layout, run.text, run_opts);
+        if (run.style.code) {
+            addCodeChip(layout, run.text, run_opts);
+        } else {
+            addSoftWrapped(layout, run.text, run_opts);
+        }
     }
+}
+
+/// Add an inline code span as a single visual unit, never split mid-word.
+///
+/// `TextLayoutWidget` wraps at word (space) boundaries, but a code span is
+/// exactly one "word" with no spaces in it. Its own line-breaking only drops a
+/// whole word to the next line when that word doesn't fit anywhere on the
+/// current line width at all; when a shorter prefix of the word DOES fit in
+/// the space left on the line (just not the whole thing), it renders that
+/// prefix and continues the rest on the next line — i.e. it silently splits
+/// the chip wherever it happens to land. Pre-measuring the chip here and
+/// forcing a break before it (when the line already holds other content)
+/// keeps it whole. A chip wider than the entire line still wraps at its own
+/// character boundaries once it is alone on a fresh line — nothing else
+/// competes for that space, so the break stays inside the chip.
+fn addCodeChip(layout: *dvui.TextLayoutWidget, text: []const u8, run_opts: dvui.Options) void {
+    if (text.len == 0) return;
+    if (std.mem.findScalar(u8, text, '\n') != null) {
+        // A code span that itself spans a soft-wrapped source line: fall back
+        // to normal per-line handling rather than measure it as one chip.
+        addSoftWrapped(layout, text, run_opts);
+        return;
+    }
+
+    const chip_width = run_opts.fontGet().textSize(text).w;
+    if (chipNeedsBreak(chip_width, layout.data().contentRect().w, layout.insert_pt.x)) {
+        layout.addText("\n", run_opts);
+    }
+    layout.addText(text, run_opts);
+}
+
+/// Whether a chip of `chip_width` must be pushed to a fresh line: it doesn't
+/// fit in what's left of the current line (`container_width - current_x`),
+/// but the line already holds other content, so a fresh line offers more
+/// room. Never forces a break at the very start of a line (`current_x == 0`,
+/// nowhere better to put it) or before the widget has a settled width
+/// (`container_width <= 0`, e.g. the first layout frame).
+///
+/// Usage: `markdown.chipNeedsBreak(chip_width, container_width, current_x)`.
+pub fn chipNeedsBreak(chip_width: f32, container_width: f32, current_x: f32) bool {
+    return container_width > 0 and current_x > 0 and current_x + chip_width > container_width;
 }
 
 /// Add a run whose newlines are soft wraps: each newline (plus the indentation of
