@@ -17,7 +17,21 @@ cursor: ?sdl3.mouse.Cursor,
 quit: bool,
 scale: f32,
 
+/// dvui reads clocks through the global `dvui.io` ("set by the backend when it
+/// is initialized"): `Window.mouseWheelBatch` calls `std.Io.Clock.awake.now(dvui.io)`
+/// on every wheel event and dereferences an unset vtable if nobody assigned it —
+/// the first mouse-wheel tick crashed the zigame editor (found 2026-09-03). The
+/// backend owns one blocking single-threaded `Io` for that, like dvui's own
+/// backends do; `init_single_threaded` ships `Allocator.failing`, so give it a
+/// real allocator for the paths that allocate internally.
+var dvui_io: std.Io.Threaded = blk: {
+    var instance: std.Io.Threaded = .init_single_threaded;
+    instance.allocator = std.heap.page_allocator;
+    break :blk instance;
+};
+
 pub fn init(gpa: std.mem.Allocator, window: sdl3.video.Window, content_scale: f32) @This() {
+    dvui.io = dvui_io.io();
     return .{
         .gpa = gpa,
         .arena = .init(gpa),
