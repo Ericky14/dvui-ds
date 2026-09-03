@@ -51,12 +51,12 @@ pub fn addAllEvents(self: *@This(), win: *dvui.Window) void {
             },
             .key_up => |key| handleKeyEvent(win, key, false),
             .text_input => |ti| handleTextInput(win, ti),
-            .mouse_motion => |motion| handleMouseMotion(win, motion),
+            .mouse_motion => |motion| self.handleMouseMotion(win, motion),
             .mouse_button_down => |btn| {
                 focus.notifyMouse();
-                handleMouseButton(win, btn, true);
+                self.handleMouseButton(win, btn, true);
             },
-            .mouse_button_up => |btn| handleMouseButton(win, btn, false),
+            .mouse_button_up => |btn| self.handleMouseButton(win, btn, false),
             .mouse_wheel => |wheel| handleMouseWheel(win, wheel),
             .window_display_scale_changed, .window_pixel_size_changed => {
                 self.scale = detectContentScale(self.window);
@@ -236,10 +236,20 @@ fn handleTextInput(dvui_window: *dvui.Window, ti: sdl3.events.TextInput) void {
     _ = dvui_window.addEventText(.{ .text = ti.text }) catch {};
 }
 
-fn handleMouseMotion(dvui_window: *dvui.Window, motion: sdl3.events.MouseMotion) void {
-    // SDL3 reports mouse in window (logical) coordinates.
-    // dvui expects physical pixel coordinates — scale by natural_scale.
-    const scale = dvui_window.natural_scale;
+/// SDL reports the mouse in window coordinates; dvui wants framebuffer pixels.
+/// The factor is the framebuffer ratio alone (`pixelSize / windowSize`: 2.0 on a
+/// HiDPI Wayland/macOS surface, 1.0 on Windows/X11), exactly as dvui's own SDL
+/// backend does. NOT `natural_scale`: that already includes `contentScale()`,
+/// which on Windows/X11 is the display scale (1.75 on a 175 % desk), so using it
+/// scaled every click twice and only the top-left 57 % of the window was
+/// reachable (found 2026-09-03 driving the zigame welcome sheet).
+fn mouseScale(self: *@This()) f32 {
+    const window_w = self.windowSize().w;
+    return if (window_w == 0) 1.0 else self.pixelSize().w / window_w;
+}
+
+fn handleMouseMotion(self: *@This(), dvui_window: *dvui.Window, motion: sdl3.events.MouseMotion) void {
+    const scale = self.mouseScale();
     const physical: dvui.Point.Physical = .{
         .x = motion.x * scale,
         .y = motion.y * scale,
@@ -247,15 +257,15 @@ fn handleMouseMotion(dvui_window: *dvui.Window, motion: sdl3.events.MouseMotion)
     _ = dvui_window.addEventMouseMotion(.{ .pt = physical }) catch {};
 }
 
-fn handleMouseButton(dvui_window: *dvui.Window, btn: sdl3.events.MouseButton, down: bool) void {
+fn handleMouseButton(self: *@This(), dvui_window: *dvui.Window, btn: sdl3.events.MouseButton, down: bool) void {
     const dvui_button: dvui.enums.Button = switch (btn.button) {
         .left => .left,
         .right => .right,
         .middle => .middle,
         else => return, // ignore extra buttons (x1, x2, etc.)
     };
-    // Update mouse position (SDL3 reports in logical coords, dvui needs physical)
-    const scale = dvui_window.natural_scale;
+    // Update the mouse position first so the press lands where the pointer is.
+    const scale = self.mouseScale();
     const physical: dvui.Point.Physical = .{
         .x = btn.x * scale,
         .y = btn.y * scale,
