@@ -120,6 +120,30 @@ test "chat markdown code chip wrap" {
     try shots.capture("chat_markdown_code_wrap.png", 320, 170, Local.frame);
 }
 
+test "chat markdown code chip glue" {
+    const Local = struct {
+        // The break that keeps a chip whole is spent from the blank before it, so
+        // nothing that isn't in the source can be selected and copied. The second
+        // chip is glued to a "(" and has no blank to spend: it wraps at its own
+        // character boundaries like any other long word, rather than being torn
+        // off the bracket it belongs to.
+        const sample =
+            \\Call `zigame.physics.set_gravity(0, -9.8)` first.
+            \\
+            \\Then read (`zigame.physics.is_grounded(self.id)`) once.
+        ;
+        fn frame() !dvui.App.Result {
+            var bg = shots.background(@src());
+            defer bg.deinit();
+            var col = chatColumn(@src());
+            defer col.deinit();
+            ds.chat.markdown(@src(), sample).draw();
+            return .ok;
+        }
+    };
+    try shots.capture("chat_markdown_code_glue.png", 320, 200, Local.frame);
+}
+
 test "chat composer" {
     const Local = struct {
         fn frame() !dvui.App.Result {

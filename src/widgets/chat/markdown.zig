@@ -14,8 +14,10 @@
 ///     anything else           a paragraph; single newlines soft-wrap
 ///   Inline (inside paragraphs, headings and list items):
 ///     **bold**, *italic*, `code` (mono on `surface_2`, wraps to a fresh line as a
-///     whole chip rather than splitting mid-word), [text](url) (underlined, never
-///     navigated). Unbalanced delimiters render literally; nothing panics.
+///     whole chip rather than splitting mid-word — the break is spent from the blank
+///     before the chip, so selecting and copying the text yields the source and never
+///     a newline the source lacks), [text](url) (underlined, never navigated).
+///     Unbalanced delimiters render literally; nothing panics.
 ///
 /// Usage:
 ///   ds.chat.markdown(@src(), "## Done\nThe ball is **red** now.").draw();
@@ -60,7 +62,10 @@ pub const Markdown = struct {
                 .bullet, .ordered => drawListItem(index, block),
                 .code => {
                     // The markdown widget is the code block's caller, so it owns the
-                    // clipboard side of the Copy contract.
+                    // clipboard side of the Copy contract: exactly the fenced body —
+                    // its lines joined by '\n', with the newline that terminated the
+                    // last line dropped by `fencedBlock` (a blank final line in the
+                    // source is intentional and survives as one trailing newline).
                     if (code_block.codeBlock(@src(), block.lang, block.text).idExtra(index).draw()) {
                         dvui.clipboardTextSet(block.text);
                     }
@@ -77,44 +82,80 @@ fn drawRuns(src: std.builtin.SourceLocation, id_extra: usize, text: []const u8, 
     var layout = dvui.textLayout(src, .{ .break_lines = true }, layoutOpts(id_extra, base_font, base_color));
     defer layout.deinit();
 
-    var runs = InlineIterator.init(text);
-    while (runs.next()) |run| {
-        const run_opts = runOpts(run.style, base_font, base_color);
-        if (run.style.code) {
-            addCodeChip(layout, run.text, run_opts);
-        } else {
-            addSoftWrapped(layout, run.text, run_opts);
-        }
-    }
+    var sink: LayoutSink = .{ .layout = layout, .base_font = base_font, .base_color = base_color };
+    emitRuns(&sink, text);
 }
 
-/// Add an inline code span as a single visual unit, never split mid-word.
-///
-/// `TextLayoutWidget` wraps at word (space) boundaries, but a code span is
-/// exactly one "word" with no spaces in it. Its own line-breaking only drops a
-/// whole word to the next line when that word doesn't fit anywhere on the
-/// current line width at all; when a shorter prefix of the word DOES fit in
-/// the space left on the line (just not the whole thing), it renders that
-/// prefix and continues the rest on the next line — i.e. it silently splits
-/// the chip wherever it happens to land. Pre-measuring the chip here and
-/// forcing a break before it (when the line already holds other content)
-/// keeps it whole. A chip wider than the entire line still wraps at its own
-/// character boundaries once it is alone on a fresh line — nothing else
-/// competes for that space, so the break stays inside the chip.
-fn addCodeChip(layout: *dvui.TextLayoutWidget, text: []const u8, run_opts: dvui.Options) void {
-    if (text.len == 0) return;
-    if (std.mem.findScalar(u8, text, '\n') != null) {
-        // A code span that itself spans a soft-wrapped source line: fall back
-        // to normal per-line handling rather than measure it as one chip.
-        addSoftWrapped(layout, text, run_opts);
-        return;
+/// The sink `emitRuns` draws into: each piece goes to the live text layout with
+/// its run styling, and the wrap decision measures the chip — plus the blank that
+/// would precede it — against what is left of the current line.
+const LayoutSink = struct {
+    layout: *dvui.TextLayoutWidget,
+    base_font: dvui.Font,
+    base_color: dvui.Color,
+
+    fn add(self: *LayoutSink, text: []const u8, style: Style) void {
+        self.layout.addText(text, runOpts(style, self.base_font, self.base_color));
     }
 
-    const chip_width = run_opts.fontGet().textSize(text).w;
-    if (chipNeedsBreak(chip_width, layout.data().contentRect().w, layout.insert_pt.x)) {
-        layout.addText("\n", run_opts);
+    fn breaksBefore(self: *LayoutSink, chip: Run, separator: Style) bool {
+        const chip_font = runOpts(chip.style, self.base_font, self.base_color).fontGet();
+        const separator_font = runOpts(separator, self.base_font, self.base_color).fontGet();
+        const needed = separator_font.textSize(" ").w + chip_font.textSize(chip.text).w;
+        return chipNeedsBreak(needed, self.layout.data().contentRect().w, self.layout.insert_pt.x);
     }
-    layout.addText(text, run_opts);
+};
+
+/// Hand the inline runs of `text` to `sink` piece by piece, in draw order.
+///
+/// `sink` is duck-typed so the same walk runs headless in the tests:
+///   - `fn add(self, text: []const u8, style: Style) void` — draw or record a piece.
+///   - `fn breaksBefore(self, chip: Run, separator: Style) bool` — must this chip
+///     start a fresh line instead of following `separator`, the blank held for it?
+///
+/// **Every piece is a slice of the source, or the single space a soft newline
+/// renders as — the walk never invents a byte.** `TextLayoutWidget` puts exactly
+/// the bytes it was handed on the clipboard when text is selected and copied, so a
+/// synthetic '\n' added to keep a chip whole would be copied along with the code.
+/// The break is therefore *spent* from the blank separating the chip from the run
+/// before it: that space becomes the break rather than gaining one, so the copied
+/// chip is exactly its code. A chip glued to the previous word (``foo`bar` ``) has
+/// no blank to spend and none to gain — it wraps like any other long word.
+///
+/// Usage: `markdown.emitRuns(&sink, "run `zig build test` now");`
+pub fn emitRuns(sink: anytype, text: []const u8) void {
+    var runs = InlineIterator.init(text);
+    // The style of a blank held back from the previous run, still to be spent.
+    var held: ?Style = null;
+    while (runs.next()) |run| {
+        if (isChip(run)) {
+            const breaks = if (held) |separator| sink.breaksBefore(run, separator) else false;
+            if (held) |separator| sink.add(if (breaks) "\n" else " ", separator);
+            held = null;
+            sink.add(run.text, run.style);
+            continue;
+        }
+        if (held) |separator| sink.add(" ", separator);
+        held = emitSoftWrapped(sink, run.text, run.style);
+    }
+    if (held) |separator| sink.add(" ", separator);
+}
+
+/// A code run that can be placed as a single visual unit, never split mid-word.
+///
+/// `TextLayoutWidget` wraps at word (space) boundaries, but a code span is exactly
+/// one "word" with no spaces in it. Its own line-breaking only drops a whole word
+/// to the next line when that word doesn't fit anywhere on the current line width
+/// at all; when a shorter prefix of the word DOES fit in the space left on the
+/// line (just not the whole thing), it renders that prefix and continues the rest
+/// on the next line — i.e. it silently splits the chip wherever it happens to
+/// land. Measuring the chip and spending the blank before it as a break keeps it
+/// whole. A chip wider than the entire line still wraps at its own character
+/// boundaries once it is alone on a fresh line — nothing else competes for that
+/// space, so the break stays inside the chip. A code span carrying a soft newline
+/// is not a chip: it takes the normal per-line path instead of being measured.
+fn isChip(run: Run) bool {
+    return run.style.code and run.text.len > 0 and std.mem.findScalar(u8, run.text, '\n') == null;
 }
 
 /// Whether a chip of `chip_width` must be pushed to a fresh line: it doesn't
@@ -129,23 +170,35 @@ pub fn chipNeedsBreak(chip_width: f32, container_width: f32, current_x: f32) boo
     return container_width > 0 and current_x > 0 and current_x + chip_width > container_width;
 }
 
-/// Add a run whose newlines are soft wraps: each newline (plus the indentation of
-/// the following line) becomes a single space.
-fn addSoftWrapped(layout: *dvui.TextLayoutWidget, text: []const u8, run_opts: dvui.Options) void {
+/// Emit a run whose newlines are soft wraps: each newline (plus the indentation of
+/// the following line) becomes a single space. The run's trailing blank, if it has
+/// one, is not emitted but returned: the caller either flushes it as that space or
+/// spends it as the line break before a code chip.
+fn emitSoftWrapped(sink: anytype, text: []const u8, style: Style) ?Style {
     var rest = text;
     var first = true;
+    var held = false;
     while (true) {
         const newline = std.mem.findScalar(u8, rest, '\n');
         var piece = if (newline) |at| rest[0..at] else rest;
         if (!first) piece = std.mem.trimStart(u8, piece, " \t");
         if (newline != null) piece = std.mem.trimEnd(u8, piece, " \t\r");
-        if (!first) layout.addText(" ", run_opts);
-        if (piece.len > 0) layout.addText(piece, run_opts);
+        if (!first) {
+            if (held) sink.add(" ", style);
+            held = true;
+        }
+        if (piece.len > 0) {
+            if (held) sink.add(" ", style);
+            held = piece[piece.len - 1] == ' ';
+            const body = if (held) piece[0 .. piece.len - 1] else piece;
+            if (body.len > 0) sink.add(body, style);
+        }
         first = false;
         if (newline) |at| {
             rest = rest[at + 1 ..];
         } else break;
     }
+    return if (held) style else null;
 }
 
 fn drawListItem(index: usize, block: Block) void {

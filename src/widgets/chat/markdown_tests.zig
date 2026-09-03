@@ -81,6 +81,133 @@ test "chipNeedsBreak: an unsettled (zero) container width never forces a break" 
     try std.testing.expect(!md.chipNeedsBreak(50, 0, 10));
 }
 
+// ─── Copy stream ─────────────────────────────────────────────────────────────
+//
+// `TextLayoutWidget` puts exactly the bytes it was handed on the clipboard when
+// the user selects text and copies it, so recording the pieces `emitRuns` feeds
+// the layout is recording the clipboard. `drawRuns` uses this same walk.
+
+/// Records what a block hands to the text layout: `written()` is what a
+/// select-all copy of the drawn block yields, `codeText()` what the first inline
+/// code chip contributes to it.
+const RecordingSink = struct {
+    /// Every chip that has a blank before it starts a fresh line.
+    break_chips: bool,
+    buffer: [256]u8 = @splat(0),
+    len: usize = 0,
+    code_start: usize = 0,
+    code_len: usize = 0,
+
+    // `emitRuns` calls these from markdown.zig, so they cross a file boundary.
+    pub fn add(self: *RecordingSink, text: []const u8, style: md.Style) void {
+        std.debug.assert(self.len + text.len <= self.buffer.len);
+        if (style.code and self.code_len == 0) {
+            self.code_start = self.len;
+            self.code_len = text.len;
+        }
+        @memcpy(self.buffer[self.len..][0..text.len], text);
+        self.len += text.len;
+    }
+
+    pub fn breaksBefore(self: *RecordingSink, chip: md.Run, separator: md.Style) bool {
+        _ = chip;
+        _ = separator;
+        return self.break_chips;
+    }
+
+    fn written(self: *const RecordingSink) []const u8 {
+        return self.buffer[0..self.len];
+    }
+
+    fn codeText(self: *const RecordingSink) []const u8 {
+        return self.buffer[self.code_start..][0..self.code_len];
+    }
+};
+
+test "copy stream: a chip that fits the line copies as the source text" {
+    var sink: RecordingSink = .{ .break_chips = false };
+    md.emitRuns(&sink, "run `zig build test` now");
+    try std.testing.expectEqualStrings("run zig build test now", sink.written());
+    try std.testing.expectEqualStrings("zig build test", sink.codeText());
+}
+
+test "copy stream: a chip pushed to a fresh line spends the space, it never adds a newline" {
+    var sink: RecordingSink = .{ .break_chips = true };
+    md.emitRuns(&sink, "run `zig build test` now");
+    // The blank that separated the chip becomes the break — one byte in, one byte
+    // out — so the copied chip is exactly the code, with no newline attached.
+    try std.testing.expectEqualStrings("run\nzig build test now", sink.written());
+    try std.testing.expectEqualStrings("zig build test", sink.codeText());
+    try std.testing.expect(std.mem.findScalar(u8, sink.codeText(), '\n') == null);
+}
+
+test "copy stream: the break is spent from a soft newline too" {
+    var sink: RecordingSink = .{ .break_chips = true };
+    md.emitRuns(&sink, "confirm the gate with\n`is_grounded(id)` first");
+    try std.testing.expectEqualStrings("confirm the gate with\nis_grounded(id) first", sink.written());
+    try std.testing.expectEqualStrings("is_grounded(id)", sink.codeText());
+}
+
+test "copy stream: a chip glued to the previous word has no blank to spend" {
+    var sink: RecordingSink = .{ .break_chips = true };
+    md.emitRuns(&sink, "see foo`bar` here");
+    try std.testing.expectEqualStrings("see foobar here", sink.written());
+    try std.testing.expectEqualStrings("bar", sink.codeText());
+}
+
+test "copy stream: adjacent chips keep the single space between them" {
+    var sink: RecordingSink = .{ .break_chips = false };
+    md.emitRuns(&sink, "`a` `b`");
+    try std.testing.expectEqualStrings("a b", sink.written());
+}
+
+test "copy stream: soft newlines and their indentation copy as one space" {
+    var sink: RecordingSink = .{ .break_chips = true };
+    md.emitRuns(&sink, "the ball is\n   red now");
+    try std.testing.expectEqualStrings("the ball is red now", sink.written());
+}
+
+test "copy stream: repeated spaces survive intact" {
+    var sink: RecordingSink = .{ .break_chips = false };
+    md.emitRuns(&sink, "two  spaces  here");
+    try std.testing.expectEqualStrings("two  spaces  here", sink.written());
+}
+
+test "copy stream: emphasis markers and link targets are not copied" {
+    var sink: RecordingSink = .{ .break_chips = false };
+    md.emitRuns(&sink, "**bold** and [docs](https://example.test)");
+    try std.testing.expectEqualStrings("bold and docs", sink.written());
+}
+
+test "copy stream: a code span carrying a soft newline copies as one line" {
+    var sink: RecordingSink = .{ .break_chips = true };
+    md.emitRuns(&sink, "call `run(\n  arg)` twice");
+    try std.testing.expectEqualStrings("call run( arg) twice", sink.written());
+}
+
+// ─── Code block copy ─────────────────────────────────────────────────────────
+//
+// `Markdown.draw()` puts `block.text` on the clipboard when a fenced block's Copy
+// button is clicked, so the block body IS the copied string.
+
+test "code block copy: the body's lines joined by newlines, with no trailing newline" {
+    var storage: [4]Block = undefined;
+    const blocks = collectBlocks("```zig\nconst a = 1;\nconst b = 2;\n```\nafter", &storage);
+    try std.testing.expectEqualStrings("const a = 1;\nconst b = 2;", blocks[0].text);
+}
+
+test "code block copy: a blank final line in the source survives as one newline" {
+    var storage: [4]Block = undefined;
+    const blocks = collectBlocks("```\nx\n\n```", &storage);
+    try std.testing.expectEqualStrings("x\n", blocks[0].text);
+}
+
+test "code block copy: a CRLF body copies with neither the CR nor a trailing newline" {
+    var storage: [4]Block = undefined;
+    const blocks = collectBlocks("```\r\nlocal speed = 1\r\n```\r\n", &storage);
+    try std.testing.expectEqualStrings("local speed = 1", blocks[0].text);
+}
+
 // ─── Blocks ──────────────────────────────────────────────────────────────────
 
 test "blocks: empty and whitespace-only input yield nothing" {
