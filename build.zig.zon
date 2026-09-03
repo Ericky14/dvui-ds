@@ -6,12 +6,12 @@
 
     .dependencies = .{
         .dvui = .{
-            .url = "git+https://github.com/Ericky14/dvui.git#144198a04373bc9e01b3dea89256e0b9e1d5947c",
-            .hash = "dvui-0.5.0-dev-AQFJmSkWDQG8wOQQs8k77iTvtCiGnPi1wT8cQCjJAE1i",
+            .url = "git+https://github.com/Ericky14/dvui.git#085e04bc0321d9d838cedbc43cf2786c9dfd7ead",
+            .hash = "dvui-0.5.0-dev-AQFJmS0YDQEBpnBsJ0IjTDh_p5fveKzCx2lyQ1ze9_O0",
         },
         .sdl3 = .{
-            .url = "git+https://github.com/Ericky14/zig-sdl3.git#f9d632e640db230a93cbc2b9c716d5f528ba94b5",
-            .hash = "sdl3-0.2.0-NmT1Q1CbJwCpQM0B3qC9stTpmmeClOj-6y_86dpmjx41",
+            .url = "git+https://github.com/Ericky14/zig-sdl3.git#45d398c76c0f05aa2ae035eff18a4d59b5cf2f35",
+            .hash = "sdl3-0.2.0-NmT1Q8qdJwDwjV27pR055vQ8RIrmHzrkfh0hZZ3ulZ4x",
         },
         .zwgpu = .{
             .url = "git+https://github.com/Ericky14/zwgpu.git#7407262d76b7bb7397838e22714b6ead98048d27",
