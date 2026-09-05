@@ -179,6 +179,10 @@ pub const Glass = struct {
     /// Skip the blur and paint a near-opaque surface instead — for a backend
     /// with no render targets, or a user who prefers reduced transparency.
     /// (`opaque` is a Zig keyword, hence `solid`.)
+    ///
+    /// Honoured whether this panel captures its own backdrop or samples a
+    /// shared `ds.glassScene`: a reduced-transparency setting is the user's,
+    /// and it cannot depend on which of the two the caller happened to use.
     pub fn solid(self: Glass, value: bool) Glass {
         var copy = self;
         copy.is_solid = value;
@@ -277,10 +281,16 @@ pub const Glass = struct {
         // first frames of any panel, and every frame on a backend without
         // render targets, have nothing to show through, and a 55 %-alpha panel
         // over raw scene content is unreadable. Fall back to near-opaque.
-        const blur_live = if (self.backdrop) |capture| capture.small != null else false;
+        // `.solid` is checked here, not only in `behind()`. A panel that samples
+        // a *shared* `ds.glassScene` never calls `behind()`, so deciding purely
+        // from "is there a capture" made `.solid(true)` a no-op on exactly the
+        // page that has a reduced-transparency switch — the scene had a capture,
+        // so the panel drew it whatever the caller asked for.
+        const blur_live = !self.is_solid and
+            if (self.backdrop) |capture| capture.small != null else false;
         // Same reason as `Scene.end`: keep the frames coming until there is a
         // capture to show, then stop.
-        if (self.backdrop != null and !blur_live) dvui.refresh(null, @src(), null);
+        if (!self.is_solid and self.backdrop != null and !blur_live) dvui.refresh(null, @src(), null);
         const tint = theme.glass_tint orelse theme.surface_1;
         const fill = ds.alpha(tint, if (blur_live) theme.glass_alpha else theme.glass_alpha_opaque);
 
@@ -293,7 +303,7 @@ pub const Glass = struct {
             // Draw the cached blur ourselves rather than via `BlurBackdrop.draw`,
             // which paints a square quad — a square blur under a rounded panel
             // leaves four grey ears at the corners.
-            if (self.backdrop) |capture| {
+            if (if (self.is_solid) null else self.backdrop) |capture| {
                 if (capture.small) |texture| {
                     // `uv_rect` is the capture's own extent, so a panel that
                     // covers part of a shared scene samples exactly the patch of
@@ -328,7 +338,7 @@ pub const Glass = struct {
         return .{
             .box = box,
             .floater = floater,
-            .backdrop = if (self.owns_backdrop) self.backdrop else null,
+            .backdrop = if (self.owns_backdrop and !self.is_solid) self.backdrop else null,
         };
     }
 };

@@ -232,6 +232,34 @@ render it does exactly that. Shifting the *whole* ladder keeps the hierarchy: a
 caption still reads quieter than a title, which the flatter rule ("use
 `.secondary` on glass") throws away by collapsing two rungs into one.
 
+### Drawing through raw dvui
+
+`ds.labelColor(style)` resolves a `LabelStyle` to its colour, for a consumer
+handing `dvui.Options` straight to a dvui widget the design system does not
+have — a `dvui.textLayout` run, a custom widget, a third-party one:
+
+```zig
+dvui.labelNoFmt(@src(), text, .{}, .{
+    .color_text = .{ .color = ds.labelColor(ds.onGlass(.muted)) },
+});
+```
+
+Exported rather than left private because the alternative is a copy of the
+switch on the consumer's side, and that copies the *ladder* as well as the
+colours: it goes stale the moment a theme adds a rung, and then `ds.onGlass`
+and the copy quietly disagree about what "one rung up" means.
+
+### Where a `snapped` finding actually comes from
+
+A widget owns its **size** and its internal insets; its **origin** it inherits.
+So a `snapped` finding on a leaf usually names the wrong file. The pinned case
+is `test/lint_tests.zig` → "a button's edges follow its container": the same
+button, at the same scale, is clean inside a container padded with `ds.padding(5)`
+and reports a half-pixel edge inside one padded with a raw `dvui.Rect.all(5)`
+— 5 logical px is 8.75 physical at 175 %, and nothing inside can land on a pixel
+after that. Before chasing the widget, check what positioned it, and use
+`ds.padding` / `ds.paddingXY` / `ds.paddingEach` / `ds.border` for every inset.
+
 ### Borderless window
 
 `ds.windowFrame`'s double ring only means anything on a **borderless** window —

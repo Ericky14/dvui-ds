@@ -143,6 +143,9 @@ pub const LabelStyle = @import("widgets/label.zig").LabelStyle;
 /// The text style to use on a glass surface: one rung brighter than the same
 /// text on an opaque panel. See `widgets/label.zig`.
 pub const onGlass = @import("widgets/label.zig").onGlass;
+
+/// The colour a `LabelStyle` resolves to, for drawing through raw dvui.
+pub const labelColor = @import("widgets/label.zig").labelColor;
 pub const FontToken = @import("widgets/label.zig").FontToken;
 pub const IconStyle = @import("widgets/icon.zig").IconStyle;
 pub const Theme = @import("tokens.zig").Theme;

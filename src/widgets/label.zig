@@ -26,6 +26,31 @@ pub const FontToken = enum {
     mono,
 };
 
+/// The colour a `LabelStyle` resolves to in the current theme.
+///
+/// Public because a consumer drawing through raw dvui — a widget the design
+/// system does not have, a `dvui.textLayout` run, anything taking a
+/// `dvui.Options` directly — otherwise has to duplicate this switch, and a
+/// duplicate is a copy of the *ladder* as well as of the colours: it goes stale
+/// the moment a theme adds a rung, and the duplicate is what `ds.onGlass` then
+/// silently disagrees with.
+///
+///   dvui.labelNoFmt(@src(), text, .{}, .{
+///       .color_text = .{ .color = ds.labelColor(ds.onGlass(.muted)) },
+///   });
+pub fn labelColor(style: LabelStyle) dvui.Color {
+    const theme = tokens.current;
+    return switch (style) {
+        .primary => theme.text_primary,
+        .secondary => theme.text_secondary,
+        .muted => theme.text_muted,
+        .weak => theme.text_ghost,
+        .title => theme.text_primary,
+        .accent => theme.accent,
+        .danger => theme.destructive,
+    };
+}
+
 /// The same text style, one rung brighter — the rule for text drawn *on glass*.
 ///
 /// A glass surface is a tint over a blurred copy of whatever is behind it, so
@@ -120,19 +145,10 @@ pub const Label = struct {
     }
 
     fn labelOpts(self: Label) dvui.Options {
-        const theme = tokens.current;
         const dvui_theme = dvui.themeGet();
 
         // Resolve color: override > style preset
-        const text_color = self.override_color orelse switch (self.label_style) {
-            .primary => theme.text_primary,
-            .secondary => theme.text_secondary,
-            .muted => theme.text_muted,
-            .weak => theme.text_ghost,
-            .title => theme.text_primary,
-            .accent => theme.accent,
-            .danger => theme.destructive,
-        };
+        const text_color = self.override_color orelse labelColor(self.label_style);
 
         // Resolve font: override > style preset > null (dvui default)
         const resolved_font: ?dvui.Font = if (self.override_font) |f| resolveFontToken(f, dvui_theme) else switch (self.label_style) {
@@ -173,4 +189,28 @@ test "on glass, every style moves one rung up and the ladder keeps its order" {
     // The order survives the shift: two styles that differed still differ.
     try std_testing.expect(onGlass(.weak) != onGlass(.muted));
     try std_testing.expect(onGlass(.muted) != onGlass(.secondary));
+}
+
+test "labelColor is the same colour the label draws with, for every style" {
+    const std_testing = @import("std").testing;
+    const theme = tokens.current;
+    try std_testing.expectEqual(theme.text_primary, labelColor(.primary));
+    try std_testing.expectEqual(theme.text_secondary, labelColor(.secondary));
+    try std_testing.expectEqual(theme.text_muted, labelColor(.muted));
+    try std_testing.expectEqual(theme.text_ghost, labelColor(.weak));
+    try std_testing.expectEqual(theme.text_primary, labelColor(.title));
+    try std_testing.expectEqual(theme.accent, labelColor(.accent));
+    try std_testing.expectEqual(theme.destructive, labelColor(.danger));
+}
+
+test "the on-glass ladder is brighter at every rung it moves" {
+    const std_testing = @import("std").testing;
+    // The pairing that makes `onGlass` worth having: each shifted style is a
+    // *different* colour from the one it replaces, so a consumer resolving
+    // through `labelColor` actually sees the lift.
+    for ([_]LabelStyle{ .weak, .muted, .secondary }) |style| {
+        const plain = labelColor(style);
+        const lifted = labelColor(onGlass(style));
+        try std_testing.expect(plain.r != lifted.r or plain.g != lifted.g or plain.b != lifted.b);
+    }
 }

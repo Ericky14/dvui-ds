@@ -129,11 +129,16 @@ test "a label+icon button draws on whole physical pixels" {
         fn frame() !dvui.App.Result {
             var background = page(@src());
             defer background.deinit();
-            var row = ds.row(@src()).gap(ds.tokens.current.space_sm).draw();
-            defer row.deinit();
-            _ = ds.button(@src(), "Send").variant(.filled).size(.sm).icon("send", ds.icons.send).draw();
-            _ = ds.button(@src(), "Stop").variant(.danger).size(.sm).icon("square", ds.icons.square).iconFirst().draw();
-            _ = ds.button(@src(), "Off").variant(.outlined).size(.sm).icon("cog", ds.icons.cog).disabled(true).draw();
+            var column = ds.column(@src()).gap(ds.tokens.current.space_sm).draw();
+            defer column.deinit();
+            inline for (.{ ds.Size.sm, ds.Size.md, ds.Size.lg }, 0..) |size, index| {
+                var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = ds.tokens.current.space_sm }, .{ .id_extra = index });
+                defer row.deinit();
+                _ = ds.button(@src(), "Send").variant(.filled).size(size).icon("send", ds.icons.send).idExtra(index).draw();
+                _ = ds.button(@src(), "Stop").variant(.danger).size(size).icon("square", ds.icons.square).iconFirst().idExtra(index).draw();
+                _ = ds.button(@src(), "Off").variant(.outlined).size(size).icon("cog", ds.icons.cog).disabled(true).idExtra(index).draw();
+                _ = ds.iconButton(@src(), "bell", ds.icons.bell).size(size).idExtra(index).draw();
+            }
             return .ok;
         }
     };
@@ -156,6 +161,34 @@ test "a plain button clears the 24px hit target however it is padded" {
         }
     };
     try expectClean(.{ .w = 160, .h = 80 }, "button.zig", Local.frame);
+}
+
+test "a label+icon button is snapped with a caption font that does not divide evenly" {
+    // The reported survivor. Sizing the glyph from the button's *assumed*
+    // content height is only even-remainder if the row is that height — and a
+    // caption font with a taller line box makes the row taller, so the glyph
+    // ends up centred in something else and lands on a half pixel.
+    const Local = struct {
+        fn frame() !dvui.App.Result {
+            var background = page(@src());
+            defer background.deinit();
+            var row = ds.row(@src()).gap(ds.tokens.current.space_sm).draw();
+            defer row.deinit();
+            _ = ds.button(@src(), "Send").variant(.filled).size(.sm).icon("send", ds.icons.send).draw();
+            _ = ds.button(@src(), "Stop").variant(.danger).size(.sm).icon("square", ds.icons.square).iconFirst().draw();
+            _ = ds.button(@src(), "Off").variant(.outlined).size(.sm).icon("cog", ds.icons.cog).disabled(true).draw();
+            return .ok;
+        }
+    };
+
+    const original = ds.tokens.current;
+    defer ds.init(original);
+    for ([_]u16{ 12, 13, 15, 17 }) |caption| {
+        var theme = original;
+        theme.font_size_sm = caption;
+        ds.init(theme);
+        try expectClean(.{ .w = 520, .h = 220 }, "button.zig", Local.frame);
+    }
 }
 
 // ─── chat widgets ────────────────────────────────────────────────────────────
@@ -266,3 +299,46 @@ test "chips and pills are snapped, on the grid and reachable" {
 }
 
 // force
+
+test "a button's edges follow its container: hand-rolled insets put them on a half pixel" {
+    // `button.zig:526 snapped` survived in the editor's lint, and this is what
+    // it was: not the button's geometry — its size comes out exactly 19x19 at
+    // 175 % — but the *origin* it inherits. A container padded with a raw
+    // `dvui.Rect.all(5)` starts at 8.75 physical px, and nothing inside it can
+    // land on a pixel after that.
+    //
+    // The pair is the point. Same button, same scale, two containers: the one
+    // that snapped its own inset is clean, the one that did not is not. So the
+    // rule this pins is "use `ds.padding` / `ds.paddingXY` for every inset",
+    // and the place to fix such a finding is whatever positions the widget.
+    const Raw = struct {
+        fn frame() !dvui.App.Result {
+            var background = page(@src());
+            defer background.deinit();
+            var host = dvui.box(@src(), .{}, .{ .padding = dvui.Rect.all(5) });
+            defer host.deinit();
+            _ = ds.button(@src(), "Send").variant(.filled).size(.sm).icon("send", ds.icons.send).iconFirst().draw();
+            return .ok;
+        }
+    };
+    const Snapped = struct {
+        fn frame() !dvui.App.Result {
+            var background = page(@src());
+            defer background.deinit();
+            var host = dvui.box(@src(), .{}, .{ .padding = ds.padding(5) });
+            defer host.deinit();
+            _ = ds.button(@src(), "Send").variant(.filled).size(.sm).icon("send", ds.icons.send).iconFirst().draw();
+            return .ok;
+        }
+    };
+
+    // A ds-snapped container: clean at every scale.
+    try expectClean(.{ .w = 300, .h = 90 }, "button.zig", Snapped.frame);
+
+    // A hand-rolled one: clean at 1.0 and 2.0, where 5 px is already whole, and
+    // reporting at 1.75, where it is 8.75.
+    const raw = try lintAt(1.75, .{ .w = 300, .h = 90 }, "button.zig", Raw.frame);
+    try std.testing.expect(raw.snapped > 0);
+    const raw_at_one = try lintAt(1.0, .{ .w = 300, .h = 90 }, "button.zig", Raw.frame);
+    try std.testing.expectEqual(@as(usize, 0), raw_at_one.total());
+}

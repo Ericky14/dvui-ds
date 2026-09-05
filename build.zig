@@ -222,6 +222,17 @@ pub fn build(b: *std.Build) void {
     const composer_tests = b.addTest(.{ .root_module = composer_mod });
     test_step.dependOn(&b.addRunArtifact(composer_tests).step);
 
+    // What a glass surface actually puts on screen, sampled in pixels.
+    const glass_render_mod = b.createModule(.{
+        .root_source_file = b.path("test/glass_render_tests.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    glass_render_mod.addImport("dvui", dvui_testing_mod);
+    glass_render_mod.addImport("dvui_ds", ds_testing_mod);
+    const glass_render_tests = b.addTest(.{ .root_module = glass_render_mod });
+    test_step.dependOn(&b.addRunArtifact(glass_render_tests).step);
+
     const cost_mod = b.createModule(.{
         .root_source_file = b.path("test/blur_cost.zig"),
         .target = target,
