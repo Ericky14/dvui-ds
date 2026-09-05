@@ -88,12 +88,15 @@ fn hasLineMarker(text: []const u8) bool {
 }
 
 /// Destructive-tinted container with a destructive border.
-fn containerOpts(theme: tokens.Theme, id_extra: usize) dvui.Options {
+pub fn containerOpts(theme: tokens.Theme, id_extra: usize) dvui.Options {
     return .{
         .id_extra = id_extra,
         .expand = .horizontal,
         .background = true,
-        .color_fill = .{ .color = ds.alpha(theme.destructive, theme.opacity_tonal_fill) },
+        // A tint, not a slab. `statusWash`, not `statusSoft`: this is a panel,
+        // and the same distance from the background that makes a *chip* findable
+        // makes a 400x90 card a brick. See `Theme.statusWash`.
+        .color_fill = .{ .color = theme.dangerWash() },
         .color_border = .{ .color = theme.destructive },
         .border = ds.border(theme.border_width),
         .corners = dvui.CornerRect.round(theme.radius_md),

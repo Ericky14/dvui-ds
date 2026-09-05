@@ -385,12 +385,14 @@ pub fn opts(btn_variant: tokens.Variant, btn_size: tokens.Size) dvui.Options {
             .padding = padding,
             .font = font,
         },
-        // Destructive: destructive text, destructive hover
+        // Destructive: a status tint with lightened danger ink. Not the accent's
+        // `soft_mix` — see `Theme.statusSoft` — and not the destructive colour at
+        // a low alpha, which changes hue with whatever is behind the button.
         .danger => .{
-            .color_fill = .{ .color = ds.alpha(theme.destructive, theme.opacity_fill_rest) },
-            .color_fill_hover = .{ .color = ds.alpha(theme.destructive, theme.opacity_fill_hover) },
-            .color_fill_press = .{ .color = ds.alpha(theme.destructive, theme.opacity_fill_press) },
-            .color_text = .{ .color = theme.destructive },
+            .color_fill = .{ .color = theme.dangerSoft() },
+            .color_fill_hover = .{ .color = theme.dangerSoftHover() },
+            .color_fill_press = .{ .color = theme.dangerSoftHover() },
+            .color_text = .{ .color = theme.onDangerSoft() },
             .corners = radius,
             .border = dvui.Rect.all(0),
             .margin = dvui.Rect.all(0),

@@ -82,6 +82,21 @@ pub fn draw() void {
     }
 
     ds.gap(@src(), theme.space_lg);
+    ds.label(@src(), "Status surfaces (derived)").style(.secondary).font(.heading).draw();
+    ds.label(@src(), "Danger, warning and success get their own, calmer mix. A status tint must never use the accent's soft_mix: at that distance a panel-sized red reads as a slab. Two size classes — statusSoft for a chip, statusWash for a panel.").style(.muted).draw();
+    ds.gap(@src(), theme.space_sm);
+    {
+        var row = ds.row(@src()).gap(theme.space_sm).draw();
+        defer row.deinit();
+        swatch(50, "destructive", theme.destructive);
+        swatch(51, "dangerSoft", theme.dangerSoft());
+        swatch(52, "dangerWash", theme.dangerWash());
+        swatch(53, "onDangerSoft", theme.onDangerSoft());
+        swatch(54, "warningSoft", theme.warningSoft());
+        swatch(55, "successSoft", theme.successSoft());
+    }
+
+    ds.gap(@src(), theme.space_lg);
     ds.label(@src(), "Borders").style(.secondary).font(.heading).draw();
     ds.gap(@src(), theme.space_sm);
     {

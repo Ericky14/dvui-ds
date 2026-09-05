@@ -143,3 +143,105 @@ test "the accent surfaces stay derived from one hex" {
     theme.accent_soft = .fromHex("#123456");
     try testing.expectEqual(Color.fromHex("#123456"), theme.accentSoft());
 }
+
+// ── The status family ────────────────────────────────────────────────────────
+//
+// Danger, warning and success get tonal surfaces of their own, and they are
+// deliberately *calmer* than the accent's. The accent marks the one thing you
+// are meant to reach for, so `soft_mix` 0.56 makes a selected row read blue. A
+// script error is not something to reach for: at panel size the same distance
+// from the background reads as a saturated slab, and a column of two of them
+// becomes the loudest thing on screen. Hence a separate `danger_soft_mix`, and
+// the band below, which is what "a tint, not a slab" means as a number.
+
+/// A status tint has to lift off the background enough to be a surface…
+const status_lift_min: f32 = 1.6;
+/// …and not so much that a panel-sized one reads as a slab.
+const status_lift_max: f32 = 2.2;
+
+fn statusBases(theme: tokens.Theme) [3]Color {
+    return .{ theme.destructive, theme.warning, theme.success };
+}
+
+test "a status tonal surface is a tint, not a slab" {
+    const theme = tokens.default_theme;
+    for (statusBases(theme)) |base| {
+        const soft = theme.statusSoft(base);
+        const lift = ratio(soft, theme.surface_0);
+        try testing.expect(lift >= status_lift_min);
+        try testing.expect(lift <= status_lift_max);
+        // Opaque: a wash whose colour depends on what happens to be behind it
+        // goes pink over a bright render. Mixed, not alpha'd.
+        try testing.expectEqual(@as(u8, 255), soft.a);
+    }
+}
+
+test "the status family is calmer than the accent, by construction" {
+    // The one number that keeps a red error card from competing with the blue
+    // control the user is supposed to press.
+    try testing.expect(tokens.danger_soft_mix > tokens.soft_mix);
+    const theme = tokens.default_theme;
+    try testing.expect(ratio(theme.accentSoft(), theme.surface_0) > ratio(theme.dangerSoft(), theme.surface_0));
+}
+
+test "status ink clears WCAG AA on its own tonal surface" {
+    const theme = tokens.default_theme;
+    for (statusBases(theme)) |base| {
+        const soft = theme.statusSoft(base);
+        const hover = theme.statusSoftHover(base);
+        const ink = theme.onStatusSoft(base);
+        try testing.expect(ratio(ink, soft) >= body_min);
+        try testing.expect(ratio(ink, hover) >= body_min);
+        // Primary text is an option on these surfaces too (an error card's
+        // message is `text_primary`, not the danger colour).
+        try testing.expect(ratio(theme.text_primary, soft) >= body_min);
+        // Hover is a visible step, not a jump to another colour.
+        const lift = color.relativeLuminance(hover) / color.relativeLuminance(soft);
+        try testing.expect(lift > 1.10);
+        try testing.expect(lift < 1.60);
+    }
+}
+
+test "the status border and glyph read on the tint they sit on" {
+    const theme = tokens.default_theme;
+    for (statusBases(theme)) |base| {
+        // The card's 1 px border and its status glyph are the base colour, and
+        // both are non-text, so 3:1.
+        try testing.expect(ratio(base, theme.statusSoft(base)) >= caption_min);
+        try testing.expect(ratio(base, theme.surface_0) >= body_min);
+    }
+}
+
+test "the named status accessors are the generic one" {
+    const theme = tokens.default_theme;
+    try testing.expectEqual(theme.statusSoft(theme.destructive), theme.dangerSoft());
+    try testing.expectEqual(theme.statusSoftHover(theme.destructive), theme.dangerSoftHover());
+    try testing.expectEqual(theme.onStatusSoft(theme.destructive), theme.onDangerSoft());
+    try testing.expectEqual(theme.statusSoft(theme.warning), theme.warningSoft());
+    try testing.expectEqual(theme.statusSoft(theme.success), theme.successSoft());
+}
+
+/// A panel-sized tint has to stay a tint: area is loudness.
+const wash_lift_min: f32 = 1.15;
+const wash_lift_max: f32 = 1.45;
+
+test "a panel-sized status tint is calmer than a chip-sized one" {
+    const theme = tokens.default_theme;
+    for (statusBases(theme)) |base| {
+        const wash = theme.statusWash(base);
+        const lift = ratio(wash, theme.surface_0);
+        try testing.expect(lift >= wash_lift_min);
+        try testing.expect(lift <= wash_lift_max);
+        try testing.expectEqual(@as(u8, 255), wash.a);
+        // Strictly calmer than the chip-sized surface — that is the whole
+        // reason it is a second constant.
+        try testing.expect(lift < ratio(theme.statusSoft(base), theme.surface_0));
+        // An error card's message is `text_primary` and its summary is
+        // `text_secondary`; both have to hold on the tint.
+        try testing.expect(ratio(theme.text_primary, wash) >= body_min);
+        try testing.expect(ratio(theme.text_secondary, wash) >= body_min);
+        // The card's 1 px border and its glyph are the base colour: non-text.
+        try testing.expect(ratio(base, wash) >= caption_min);
+    }
+    try testing.expect(tokens.danger_wash_mix > tokens.danger_soft_mix);
+}

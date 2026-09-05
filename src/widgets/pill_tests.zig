@@ -68,8 +68,22 @@ test "an accent pill is the solid accent with dark text" {
     try std.testing.expect(ds.contrastRatio(colors.text, colors.fill) >= 4.5);
 }
 
-test "the other pill tones keep their own hue" {
+test "a danger pill is a status tint with lightened danger ink" {
     const theme = tokens.current;
-    try std.testing.expectEqual(theme.destructive, pill_mod.toneColors(.danger).text);
+    const colors = pill_mod.toneColors(.danger);
+    // Mixed, not the destructive colour at a low alpha: a wash takes its hue
+    // from whatever is behind it, which over a bright render goes pink.
+    try std.testing.expectEqual(@as(u8, 255), colors.fill.a);
+    try std.testing.expectEqual(theme.dangerSoft(), colors.fill);
+    try std.testing.expectEqual(theme.onDangerSoft(), colors.text);
+    try std.testing.expect(ds.contrastRatio(colors.text, colors.fill) >= 4.5);
+    // …and it stays a tint: calmer off the background than the accent pill,
+    // which is the whole point of a separate mix.
+    try std.testing.expect(ds.contrastRatio(colors.fill, theme.surface_0) <= 2.2);
+    try std.testing.expect(ds.contrastRatio(pill_mod.toneColors(.accent).fill, theme.surface_0) > ds.contrastRatio(colors.fill, theme.surface_0));
+}
+
+test "a neutral pill stays neutral" {
+    const theme = tokens.current;
     try std.testing.expectEqual(theme.text_secondary, pill_mod.toneColors(.neutral).text);
 }

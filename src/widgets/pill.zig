@@ -206,8 +206,10 @@ pub fn toneColors(pill_tone: PillTone) ToneColors {
             .text = theme.surface_0,
         },
         .danger => .{
-            .fill = ds.alpha(theme.destructive, theme.opacity_tonal_fill),
-            .text = theme.destructive,
+            // A status tint with lightened danger ink: `destructive` on its own
+            // tint is 3.90:1, under the body-text bar.
+            .fill = theme.dangerSoft(),
+            .text = theme.onDangerSoft(),
         },
     };
 }

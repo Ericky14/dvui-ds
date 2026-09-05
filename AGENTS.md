@@ -106,6 +106,10 @@ so dvui-native widgets match.
   `accentOnSoft()`, `accentHover()`, `accentPressed()`. Never paint the accent at a
   low alpha over `surface_0` to get a tonal fill — see "The accent, and why a hex
   is not the decision".
+- **Status surfaces have their own, calmer mix:** `statusSoft()` / `statusWash()` /
+  `onStatusSoft()` and the `danger*` / `warning*` / `success*` wrappers. Reaching
+  for `soft_mix` with a status colour is the bug that made error cards read as
+  slabs — see "Status surfaces: a chip is not a panel".
 
 ## Storybook (the dev loop)
 
@@ -245,10 +249,68 @@ re-tuning a mix constant cannot quietly push a real pairing under:
 | `accent` on `accentSoft` (a pill on a selected row) | 3.58 | 3.0 |
 | `text_muted` on `surface_3` (disabled `.filled`) | 2.93 | — (inactive; exempt) |
 | `accent` vs `surface_3` (on vs off fill) | 8.21 | — (states must not be confusable) |
+| `onDangerSoft` on `dangerSoft` | 4.90 | 4.5 |
+| `onDangerSoft` on `dangerSoftHover` | 4.51 | 4.5 |
+| `onDangerSoft` on the approval card's fill (fill-less Deny) | 5.24 | 4.5 |
+| `onWarningSoft` / `onSuccessSoft` on their own tints | 5.82 / 5.72 | 4.5 |
+| `text_primary` on `dangerWash` (an error card's message) | 13.14 | 4.5 |
+| `text_secondary` on `dangerWash` (its path line) | 6.40 | 4.5 |
+| `destructive` on `dangerWash` (the card's border and glyph) | 5.26 | 3.0 |
+| `dangerSoft` on `surface_0` (chip lift) | 1.64 | 1.6–2.2 |
+| `warningSoft` / `successSoft` on `surface_0` | 2.06 / 2.02 | 1.6–2.2 |
+| `dangerWash` on `surface_0` (panel lift) | 1.22 | 1.15–1.45 |
 
 The last row is not a WCAG rule — it is the "reads as a lit surface, not as a
 shadow" rule, and 2.5 is the floor because 2.12 is what the version that got
 flagged measured.
+
+### Status surfaces: a chip is not a panel
+
+Danger, warning and success get tonal surfaces built exactly like the accent's —
+**mixed** towards `surface_0`, never the colour at a low alpha — but with their
+own, larger mixes. The accent marks the one thing you are meant to reach for. A
+script error is not that, and reusing `soft_mix` for it is how a chat column ends
+up with two saturated red slabs shouting over the blue control the user is
+actually supposed to press.
+
+There are **two size classes**, and the difference is not taste — it is area:
+
+| Method | Mix | destructive | warning | success | For |
+| --- | --- | --- | --- | --- | --- |
+| `statusSoft(base)` | `mix(base, surface_0, 0.68)` | `#522D31` | `#524430` | `#2C4C3E` | a chip: `pill(.danger)`, `badge(.danger)`, `button(.danger)` |
+| `statusSoftHover(base)` | `…, 0.64` | `#5E3336` | — | — | the same, under the pointer |
+| `statusWash(base)` | `mix(base, surface_0, 0.84)` | `#2F1E23` | `#2F2922` | `#1C2D29` | a **panel**: the error card, a banner |
+| `onStatusSoft(base)` | `mix(base, white, 0.20)` | `#ED8D8D` | `#EDC68A` | `#8CD9AC` | text and glyphs on either |
+
+Named wrappers exist for all of them: `dangerSoft()`, `dangerSoftHover()`,
+`onDangerSoft()`, `dangerWash()`, `warningSoft()`, `warningWash()`,
+`onWarningSoft()`, `successSoft()`, `successWash()`, `onSuccessSoft()`. `warning`
+and `success` are theme tokens now, so the chat's tool-card dots, an error card's
+tint and a status pill all come from one place.
+
+**The lift bands**, asserted in `tokens_contrast_tests.zig`:
+
+- a chip-sized tint lifts **1.6–2.2:1** off `surface_0` (it has to be found);
+- a panel-sized tint lifts **1.15–1.45:1** (it has to stay a tint).
+
+`danger_soft_mix` is 0.68, not the 0.70 it was drafted at: at 0.70 `destructive`
+lifts only 1.58:1, a hair under the floor, while 0.68 puts all three of
+danger/warning/success inside 1.64–2.06. `danger_wash_mix` 0.84 lands
+`destructive` at 1.22:1 — where the old alpha wash sat — but mixed, so it no
+longer takes its hue from whatever is behind it.
+
+**Status ink is not the status colour.** `destructive` on its own tint is
+**3.90:1**, under the body bar, so `onStatusSoft` lifts it 20 % towards white.
+0.20 is the *smallest* lift that clears 4.5:1 in all three places the ink is
+really drawn — on the tint (4.90), on the tint under the pointer (4.51), and on
+the approval card, where a fill-less danger button sits on a blue-tinted panel
+(5.24). The base red only reaches 4.18 there, so "just use `destructive`" was
+never right either. Smallest, because every step towards white is a step away
+from reading as red.
+
+**The evidence.** `ds-screenshots/colors_status.png` shows the swatches and, at
+the bottom, the same tint at panel size both ways: `statusSoft` reads as a brick,
+`statusWash` as a tint. That picture is why the second constant exists.
 
 ### Glass
 

@@ -69,6 +69,10 @@ pub const Theme = struct {
     // ── Destructive ──────────────────────────────────────────────────────────
     destructive: Color, // Dangerous actions
     destructive_muted: Color, // Hover/pressed destructive
+    /// A caution — a running tool, a non-fatal diagnostic.
+    warning: Color = .fromHex("#E8B86D"),
+    /// A completed, healthy outcome.
+    success: Color = .fromHex("#6FCF97"),
 
     // ── Borders ──────────────────────────────────────────────────────────────
     border: Color, // Default borders (rgba 255,255,255,0.10)
@@ -286,6 +290,104 @@ pub const Theme = struct {
     pub fn accentPressed(self: Theme) Color {
         return self.accent_pressed orelse color.mix(self.accent, self.surface_0, pressed_mix);
     }
+
+    // ── Status surfaces ──────────────────────────────────────────────────────
+    //
+    // Danger, warning and success are built the same way as the accent — mixed
+    // towards `surface_0`, never the colour at a low alpha — but with their own,
+    // *larger* mix. The accent marks the one thing you are meant to reach for,
+    // so its surface sits close: a selected row reads blue. A script error is
+    // not something to reach for, and an error card is a panel, not a chip. At
+    // `soft_mix` a panel-sized red lands at a saturated brick and a column with
+    // two of them becomes the loudest thing on screen. `danger_soft_mix` is
+    // what keeps it a tint. **Never reach for `soft_mix` for a status colour.**
+
+    /// The tonal surface behind status content, for any status colour.
+    ///
+    ///   .color_fill = .{ .color = theme.statusSoft(theme.destructive) },
+    pub fn statusSoft(self: Theme, base: Color) Color {
+        return color.mix(base, self.surface_0, danger_soft_mix);
+    }
+
+    /// `statusSoft` under the pointer.
+    pub fn statusSoftHover(self: Theme, base: Color) Color {
+        return color.mix(base, self.surface_0, danger_soft_hover_mix);
+    }
+
+    /// The tint behind a *panel* — an error card, a warning banner — rather than
+    /// behind a chip.
+    ///
+    /// Size is the reason this is a second constant and not a preference. A
+    /// tonal chip is 24 px tall and has to be found; the same distance from the
+    /// background across a 400x90 card is a slab, and a column with two of them
+    /// in it is the loudest thing on screen. Measured on the fixture rather
+    /// than argued: `chat_error_card.png` at `statusSoft` reads as a brick,
+    /// at `statusWash` as a tint. The rule generalises — the bigger the
+    /// surface, the further it sits from the background.
+    ///
+    ///   .color_fill = .{ .color = theme.statusWash(theme.destructive) },
+    pub fn statusWash(self: Theme, base: Color) Color {
+        return color.mix(base, self.surface_0, danger_wash_mix);
+    }
+
+    /// The tint behind an error panel.
+    pub fn dangerWash(self: Theme) Color {
+        return self.statusWash(self.destructive);
+    }
+
+    /// The tint behind a caution panel.
+    pub fn warningWash(self: Theme) Color {
+        return self.statusWash(self.warning);
+    }
+
+    /// The tint behind a healthy-outcome panel.
+    pub fn successWash(self: Theme) Color {
+        return self.statusWash(self.success);
+    }
+
+    /// Text and icons on `statusSoft`. The base colour itself only reaches
+    /// 3.90:1 on its own tint for `destructive` — under the body-text bar — so
+    /// status ink is lightened the way `accentOnSoft` is.
+    pub fn onStatusSoft(self: Theme, base: Color) Color {
+        _ = self;
+        return color.mix(base, .white, on_danger_mix);
+    }
+
+    /// The tonal surface behind an error: an error card, a danger pill, the
+    /// danger button's fill.
+    pub fn dangerSoft(self: Theme) Color {
+        return self.statusSoft(self.destructive);
+    }
+
+    /// `dangerSoft` under the pointer.
+    pub fn dangerSoftHover(self: Theme) Color {
+        return self.statusSoftHover(self.destructive);
+    }
+
+    /// Text and icons on `dangerSoft`.
+    pub fn onDangerSoft(self: Theme) Color {
+        return self.onStatusSoft(self.destructive);
+    }
+
+    /// The tonal surface behind a caution.
+    pub fn warningSoft(self: Theme) Color {
+        return self.statusSoft(self.warning);
+    }
+
+    /// Text and icons on `warningSoft`.
+    pub fn onWarningSoft(self: Theme) Color {
+        return self.onStatusSoft(self.warning);
+    }
+
+    /// The tonal surface behind a healthy outcome.
+    pub fn successSoft(self: Theme) Color {
+        return self.statusSoft(self.success);
+    }
+
+    /// Text and icons on `successSoft`.
+    pub fn onSuccessSoft(self: Theme) Color {
+        return self.onStatusSoft(self.success);
+    }
 };
 
 /// How far each derived accent surface sits between `accent` and its anchor.
@@ -296,6 +398,31 @@ pub const soft_hover_mix: f32 = 0.50;
 pub const on_soft_mix: f32 = 0.60;
 pub const hover_mix: f32 = 0.18;
 pub const pressed_mix: f32 = 0.18;
+
+/// How far a *status* tonal surface sits from the background — deliberately
+/// further than `soft_mix`, so a red panel stays a tint next to a blue control.
+///
+/// 0.68, not the 0.70 it was drafted at: at 0.70 `destructive` lifts only
+/// 1.58:1 off `surface_0`, a hair under the 1.6 floor the band asks for, while
+/// 0.68 puts all three of danger / warning / success inside 1.64–2.06. The
+/// numbers are asserted in `tokens_contrast_tests.zig`.
+pub const danger_soft_mix: f32 = 0.68;
+pub const danger_soft_hover_mix: f32 = 0.64;
+/// How far a panel-sized status tint sits from the background. Further again
+/// than `danger_soft_mix`, because area is loudness: at 0.68 an error card is a
+/// brick. 0.84 lands destructive at 1.22:1 — where the old alpha wash sat — but
+/// mixed, so it no longer takes its hue from whatever is behind it.
+pub const danger_wash_mix: f32 = 0.84;
+/// How far status ink is lifted off its base towards white. `destructive` on
+/// its own tint is 3.90:1 — under the body bar — so it cannot be its own ink.
+///
+/// 0.20 is the smallest lift that clears 4.5:1 everywhere the ink is actually
+/// drawn: on the tint (4.90), on the tint under the pointer (4.51), and on the
+/// approval card, where a *fill-less* danger button sits on a blue-tinted panel
+/// (5.24 — the base red only reaches 4.18 there, so "just use `destructive`"
+/// was never right either). Smallest, because every step towards white is a
+/// step away from reading as red.
+pub const on_danger_mix: f32 = 0.20;
 
 /// Active theme — set via `ds.init()`.
 pub var current: Theme = default_theme;
@@ -410,6 +537,11 @@ pub const default_theme: Theme = blk: {
         // Destructive
         .destructive = .fromHex("#E87070"),
         .destructive_muted = .fromHex("#B85555"),
+
+        // Status — the same lightness family as the accent, so a row of status
+        // dots reads as one set.
+        .warning = .fromHex("#E8B86D"),
+        .success = .fromHex("#6FCF97"),
 
         // Borders (approximated as solid for dvui — original uses rgba)
         .border = .fromHex("#2A2C33"), // ~rgba(255,255,255,0.10) on #0C0E14

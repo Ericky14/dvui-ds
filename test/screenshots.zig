@@ -137,10 +137,14 @@ test "buttons" {
             _ = ds.button(@src(), "Primary").variant(.filled).draw();
             _ = ds.button(@src(), "Outlined").variant(.outlined).draw();
             _ = ds.button(@src(), "Ghost").variant(.ghost).draw();
+            // The danger variant belongs in the same picture: its tint has to
+            // read as a status, not compete with the solid accent next to it.
+            _ = ds.button(@src(), "Delete").variant(.danger).draw();
+            _ = ds.button(@src(), "Primary").variant(.filled).disabled(true).idExtra(1).draw();
             return .ok;
         }
     };
-    try capture("buttons.png", 320, 90, Local.frame);
+    try capture("buttons.png", 560, 90, Local.frame);
 }
 
 test "labels" {

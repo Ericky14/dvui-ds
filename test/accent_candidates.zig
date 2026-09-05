@@ -289,3 +289,61 @@ fn paletteFrame() !dvui.App.Result {
 test "accent palette" {
     try shots.captureAt("colors_accent.png", 900, 200, 1.75, paletteFrame);
 }
+
+// ---------------------------------------------------------------------------
+// The status family, and the two size classes it needs.
+
+fn statusFrame() !dvui.App.Result {
+    const t = ds.tokens.current;
+    var page = dvui.box(@src(), .{}, .{
+        .expand = .both,
+        .background = true,
+        .color_fill = .{ .color = t.surface_0 },
+        .padding = ds.padding(t.space_lg),
+    });
+    defer page.deinit();
+
+    ds.label(@src(), "status surfaces — a chip is not a panel").style(.primary).font(.heading).draw();
+    ds.gap(@src(), t.space_md);
+    {
+        var strip = ds.row(@src()).gap(t.space_md).draw();
+        defer strip.deinit();
+        paletteSwatch("destructive", t.destructive, 10);
+        paletteSwatch("dangerSoft", t.dangerSoft(), 11);
+        paletteSwatch("dangerWash", t.dangerWash(), 12);
+        paletteSwatch("onDangerSoft", t.onDangerSoft(), 13);
+        paletteSwatch("warningSoft", t.warningSoft(), 14);
+        paletteSwatch("successSoft", t.successSoft(), 15);
+    }
+    ds.gap(@src(), t.space_md);
+    // The reason for the second class, at the size it matters: the same tint
+    // across a panel is a slab, and a column of them is the loudest thing on
+    // screen. Left is `statusSoft`, right is `statusWash`.
+    {
+        var strip = ds.row(@src()).gap(t.space_md).draw();
+        defer strip.deinit();
+        inline for ([_]struct { name: []const u8, fill: enum { soft, wash } }{
+            .{ .name = "statusSoft at panel size", .fill = .soft },
+            .{ .name = "statusWash at panel size", .fill = .wash },
+        }, 0..) |case, index| {
+            var panel = dvui.box(@src(), .{ .dir = .vertical, .gap = t.space_2xs }, .{
+                .id_extra = index,
+                .background = true,
+                .color_fill = .{ .color = if (case.fill == .soft) t.dangerSoft() else t.dangerWash() },
+                .color_border = .{ .color = t.destructive },
+                .border = ds.border(t.border_width),
+                .corners = dvui.CornerRect.round(t.radius_md),
+                .padding = ds.padding(t.space_sm),
+                .min_size_content = .{ .w = 340, .h = 64 },
+            });
+            defer panel.deinit();
+            ds.label(@src(), case.name).style(.primary).draw();
+            ds.label(@src(), "attempt to index a nil value (global 'ball')").style(.secondary).draw();
+        }
+    }
+    return .ok;
+}
+
+test "status surfaces" {
+    try shots.captureAt("colors_status.png", 900, 300, 1.75, statusFrame);
+}

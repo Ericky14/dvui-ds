@@ -110,7 +110,7 @@ pub const Badge = struct {
         return switch (self.badge_variant) {
             .neutral => ds.alpha(.white, theme.opacity_subtle_rest),
             .accent => theme.accentSoft(),
-            .danger => ds.alpha(base, theme.opacity_tonal_fill),
+            .danger => theme.statusSoft(base),
         };
     }
 
@@ -119,7 +119,7 @@ pub const Badge = struct {
         return switch (self.badge_variant) {
             .neutral => theme.text_secondary,
             .accent => theme.accentOnSoft(),
-            .danger => base,
+            .danger => theme.onStatusSoft(base),
         };
     }
 };

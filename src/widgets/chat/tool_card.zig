@@ -26,12 +26,8 @@ const Color = dvui.Color;
 /// Lifecycle of a tool call as the agent stream reports it.
 pub const ToolStatus = enum { running, ok, failed, denied };
 
-/// Status colours the theme does not carry (it has `accent` and `destructive` but no
-/// warn / success tokens). These two are the chat status palette until the theme
-/// grows semantic status colours; they sit at the same lightness as the Cosmic Teal
-/// `accent` / `destructive` so the four dots read as one family.
-const status_warn: Color = .fromHex("#E8B86D");
-const status_ok: Color = .fromHex("#6FCF97");
+// The status palette lives in the theme now (`warning` / `success`), so a tool
+// card's dots, an error card's tint and a status pill all come from one place.
 
 /// The running dot breathes between full opacity and this floor.
 const pulse_floor: f32 = 0.35;
@@ -148,8 +144,8 @@ pub const ToolCard = struct {
 /// The dot colour for a status (before the running pulse is applied).
 pub fn statusColor(status: ToolStatus, theme: tokens.Theme) Color {
     return switch (status) {
-        .running => status_warn,
-        .ok => status_ok,
+        .running => theme.warning,
+        .ok => theme.success,
         .failed => theme.destructive,
         .denied => theme.text_muted,
     };
