@@ -163,6 +163,16 @@ pub fn build(b: *std.Build) void {
     shot_mod.addImport("dvui_ds", ds_testing_mod);
     shot_mod.addImport("editor_chrome", chrome_demo_mod);
 
+    // Same trick for the composer states page.
+    const composer_demo_mod = b.createModule(.{
+        .root_source_file = b.path("example/pages/composer.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    composer_demo_mod.addImport("dvui", dvui_testing_mod);
+    composer_demo_mod.addImport("dvui_ds", ds_testing_mod);
+    shot_mod.addImport("composer_demo", composer_demo_mod);
+
     const shot_tests = b.addTest(.{ .root_module = shot_mod });
     const run_shots = b.addRunArtifact(shot_tests);
     const shot_step = b.step("screenshots", "Render DS components to PNGs under ds-screenshots/");
@@ -196,6 +206,17 @@ pub fn build(b: *std.Build) void {
 
     const lint_tests = b.addTest(.{ .root_module = lint_mod });
     test_step.dependOn(&b.addRunArtifact(lint_tests).step);
+
+    // The chat composer's geometry, measured off a real captured frame.
+    const composer_mod = b.createModule(.{
+        .root_source_file = b.path("test/composer_layout_tests.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    composer_mod.addImport("dvui", dvui_testing_mod);
+    composer_mod.addImport("dvui_ds", ds_testing_mod);
+    const composer_tests = b.addTest(.{ .root_module = composer_mod });
+    test_step.dependOn(&b.addRunArtifact(composer_tests).step);
 
     const cost_mod = b.createModule(.{
         .root_source_file = b.path("test/blur_cost.zig"),

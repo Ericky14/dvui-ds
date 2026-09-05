@@ -4,6 +4,7 @@ const std = @import("std");
 const dvui = @import("dvui");
 const ds = @import("dvui_ds");
 const shots = @import("screenshots.zig");
+const composer_demo = @import("composer_demo");
 
 var composer_buffer: [128]u8 = @splat(0);
 var busy_buffer: [128]u8 = @splat(0);
@@ -159,4 +160,22 @@ test "chat composer" {
     const draft = "make the ball red and\nhave it bounce";
     @memcpy(composer_buffer[0..draft.len], draft);
     try shots.capture("chat_composer.png", 420, 210, Local.frame);
+}
+
+// The composer's five states, from the same page the storybook runs, at the two
+// scales the chrome has to survive. 1.75 is where the owner's display sits and
+// where a half-pixel inset shows.
+/// Click the last composer so the "focused" state in the fixture is real focus,
+/// not a flag.
+fn focusLastComposer() anyerror!void {
+    try dvui.testing.moveTo("composer.focused");
+    try dvui.testing.click(.left);
+}
+
+test "composer states at scale 1.0" {
+    try shots.captureDriven("composer_states_1x.png", 470, 660, 1.0, composer_demo.frame, focusLastComposer);
+}
+
+test "composer states at scale 1.75" {
+    try shots.captureDriven("composer_states_175x.png", 470, 660, 1.75, composer_demo.frame, focusLastComposer);
 }

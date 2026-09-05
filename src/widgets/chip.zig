@@ -157,7 +157,7 @@ pub const Chip = struct {
 /// are inset identically.
 pub fn chipMetrics(scale: f32) pixels.Square {
     const theme = tokens.current;
-    return pixels.squareMetrics(theme.chrome_chip_size, theme.icon_md, scale);
+    return pixels.squareMetrics(theme.chrome_chip_size, theme.chrome_chip_size * theme.icon_button_ratio, scale);
 }
 
 const StateColors = struct { fill: Color, fill_hover: Color, fill_press: Color, icon: Color };

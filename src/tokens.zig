@@ -203,11 +203,30 @@ pub const Theme = struct {
     chrome_toolbar_height: f32 = 40,
     /// Status strip height.
     chrome_status_height: f32 = 28,
+    /// The one height every control in a control *row* takes — a composer's
+    /// attach button, its text entry and its Send button; a toolbar's buttons
+    /// and its readouts. It is the `sm` button height, so a row of mixed
+    /// controls lines up without anyone padding anything by hand.
+    ///
+    /// The chat composer is the case that named it: three controls of three
+    /// different heights (28.00, 32.50, 26.11) in one row, each dropped to the
+    /// bottom by a spacer, is what "not uniform" looked like.
+    chrome_control_height: f32 = 28,
     /// Square icon chip. Matches the `sm` button height, and is comfortably
     /// over the 24 px minimum hit target.
     chrome_chip_size: f32 = 28,
     /// Status / selection pill height.
     chrome_pill_height: f32 = 24,
+    /// A glyph inside an icon-only button or a chip, as a fraction of that
+    /// control's height: 0.5 puts a 14 px glyph in a 28 px button.
+    ///
+    /// A ratio rather than a size, because the thing being matched is the
+    /// *button*, not the type beside it. The old value — `icon_sm`, 11 px in a
+    /// 28 px button — is a 0.39 ratio, which reads as a small mark adrift in a
+    /// big empty square; modern chrome sits at 0.5–0.6. `icon_sm` keeps its own
+    /// job: a glyph standing next to caption text, where 11 next to 11 is
+    /// right and 14 would tower over it.
+    icon_button_ratio: f32 = 0.5,
 
     // ── Sidebar ──────────────────────────────────────────────────────────────
     sidebar_min_width: f32 = 160,

@@ -182,22 +182,12 @@ test "the composer's rows are on the grid and snapped" {
             return .ok;
         }
     };
-    // Residual: 3 `snapped` findings above scale 1, all of them a *top* edge.
-    //
-    // The composer's frame is as tall as the text entry inside it, and a text
-    // entry is as tall as its font's line box — a font metric, fractional in
-    // physical pixels at 175 %. Everything laid out under it then starts on a
-    // fraction, and no amount of snapping the composer's own paddings, borders
-    // or gaps (all of which are snapped now) moves it, because the fraction is
-    // inherited, not produced here.
-    //
-    // Fixing it means rounding a *multi-line* text block's height, which the
-    // design system cannot do without owning text layout: pinning the height
-    // would cap the composer at one line. The right fix is one level down —
-    // dvui rounding a widget's resolved rect to physical pixels when
-    // `snap_to_pixels` is on, which moves every widget in every dvui app by up
-    // to half a pixel and is not a change to make on the way past.
-    try expectFindings(.{ .w = 420, .h = 160 }, "composer.zig", Local.frame, .{ .at_175 = 3, .at_200 = 3 });
+    // Clean at every scale, and it did not use to be: this widget carried three
+    // `snapped` findings — the frame's bottom edge and both buttons' tops — for
+    // as long as its height was "however tall the text entry came out". Giving
+    // the row one control height took the font metric out of the composer's
+    // geometry entirely, so there is no fraction left to inherit.
+    try expectClean(.{ .w = 420, .h = 160 }, "composer.zig", Local.frame);
 }
 
 test "a plan card's action row shares a centre line, a column and the grid" {

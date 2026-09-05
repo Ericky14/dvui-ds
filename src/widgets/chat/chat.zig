@@ -17,6 +17,9 @@ pub const codeBlock = @import("code_block.zig").codeBlock;
 pub const CodeBlock = @import("code_block.zig").CodeBlock;
 
 pub const composer = @import("composer.zig").composer;
+pub const composerMetrics = @import("composer.zig").composerMetrics;
+pub const composerFont = @import("composer.zig").composerFont;
+pub const ComposerMetrics = @import("composer.zig").Metrics;
 pub const Composer = @import("composer.zig").Composer;
 pub const ComposerResult = @import("composer.zig").ComposerResult;
 

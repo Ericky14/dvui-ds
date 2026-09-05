@@ -92,6 +92,9 @@ const tools = [_]Entry{
     .{ .name = "camera", .bytes = ds.icons.camera, .state = .rest },
 };
 
+/// The composer's buffer. Empty, so the review shows the placeholder state.
+var composer_buffer: [256]u8 = @splat(0);
+
 /// Width of the docked inspect drawer, shared with the toolbar maths.
 const drawer_width: f32 = 216;
 
@@ -163,20 +166,9 @@ fn chatColumn(src: std.builtin.SourceLocation, width: f32) void {
     var filler = dvui.box(@src(), .{}, .{ .expand = .vertical });
     filler.deinit();
 
-    {
-        var composer = ds.glass(@src())
-            .horizontal()
-            .gap(theme.space_sm)
-            .expand(.horizontal)
-            .padding(theme.space_sm)
-            .radius(theme.radius_md)
-            .draw();
-        defer composer.deinit();
-        glyph(@src(), "paperclip", ds.icons.paperclip, .muted);
-        ds.label(@src(), "@ / Ask for anything…").style(.weak).gravityY(0.5).draw();
-        stretch(@src());
-        _ = ds.button(@src(), "Send").variant(.filled).icon("send", ds.icons.send).draw();
-    }
+    // The real widget, not a mock of it: this page is the design review, so the
+    // composer it shows has to be the composer the editor gets.
+    _ = ds.chat.composer(@src(), &composer_buffer).placeholder("@ / Ask for anything…").draw();
 }
 
 fn statusStrip(src: std.builtin.SourceLocation) void {
@@ -194,7 +186,7 @@ fn statusStrip(src: std.builtin.SourceLocation) void {
     glyph(@src(), "check", ds.icons.check, .accent);
     ds.label(@src(), "no errors").style(.muted).gravityY(0.5).draw();
     stretch(@src());
-    ds.label(@src(), "enter send · shift+enter newline · esc stop").style(.weak).font(.mono).gravityY(0.5).draw();
+    ds.label(@src(), "wgpu · 2450×1505 · 1.75×").style(.weak).font(.mono).gravityY(0.5).draw();
 }
 
 /// A hairline rule that reads on glass: white at low alpha, one physical pixel.

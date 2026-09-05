@@ -37,6 +37,22 @@ pub fn capture(name: []const u8, w: f32, h: f32, frame: dvui.App.frameFunction) 
 /// a window of `logical × scale / 2` and setting the window's own content scale
 /// to `scale / 2` — the two multiply back to exactly `scale`.
 pub fn captureAt(name: []const u8, logical_w: f32, logical_h: f32, scale: f32, frame: dvui.App.frameFunction) !void {
+    return captureDriven(name, logical_w, logical_h, scale, frame, null);
+}
+
+/// `captureAt` with a chance to drive the UI once it has settled — click a
+/// widget by tag, type into it — before the frame that is written out. A state
+/// that only exists after an interaction (focus, hover, a pressed button) is not
+/// a state a fixture can pass in as data, and mocking it with a flag would be a
+/// screenshot of the mock rather than of the widget.
+pub fn captureDriven(
+    name: []const u8,
+    logical_w: f32,
+    logical_h: f32,
+    scale: f32,
+    frame: dvui.App.frameFunction,
+    drive: ?*const fn () anyerror!void,
+) !void {
     var t = try dvui.testing.init(.{
         .image_dir = image_dir,
         .window_size = .{ .w = logical_w * scale / 2, .h = logical_h * scale / 2 },
@@ -48,6 +64,11 @@ pub fn captureAt(name: []const u8, logical_w: f32, logical_h: f32, scale: f32, f
     // the next `begin` picks the new one up before anything is measured.
     _ = try dvui.testing.step(frame);
     try dvui.testing.settle(frame);
+    if (drive) |act| {
+        try act();
+        _ = try dvui.testing.step(frame);
+        try dvui.testing.settle(frame);
+    }
     try savePng(name, frame);
 }
 

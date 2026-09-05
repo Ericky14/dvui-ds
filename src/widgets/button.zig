@@ -37,6 +37,7 @@ pub const Button = struct {
     override_fill_hover: ?Color = null,
     override_fill_press: ?Color = null,
     override_gravity_x: ?f32 = null,
+    override_gravity_y: ?f32 = null,
     override_expand: ?dvui.Options.Expand = null,
     override_padding: ?dvui.Rect = null,
     override_icon_size: ?f32 = null,
@@ -123,6 +124,15 @@ pub const Button = struct {
         return btn;
     }
 
+    /// Override vertical gravity (0 = top, 0.5 = middle, 1 = bottom). A chat
+    /// composer's buttons use 1 so they stay on the bottom edge as the entry
+    /// beside them grows.
+    pub fn gravityY(self: Button, val: f32) Button {
+        var btn = self;
+        btn.override_gravity_y = val;
+        return btn;
+    }
+
     /// Override expand behavior.
     pub fn expand(self: Button, val: dvui.Options.Expand) Button {
         var btn = self;
@@ -180,6 +190,7 @@ pub const Button = struct {
         if (self.override_fill_hover) |c| options.color_fill_hover = .{ .color = c };
         if (self.override_fill_press) |c| options.color_fill_press = .{ .color = c };
         if (self.override_gravity_x) |g| options.gravity_x = g;
+        if (self.override_gravity_y) |g| options.gravity_y = g;
         if (self.override_expand) |e| options.expand = e;
         if (self.override_padding) |p| options.padding = p;
         options.id_extra = self.id_extra;

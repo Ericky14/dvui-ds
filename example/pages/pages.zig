@@ -39,3 +39,4 @@ pub const editor_chrome = @import("editor_chrome.zig");
 // ─── Chat (zigame editor) ─────────────────────────────────────────────────────
 pub const chat = @import("chat.zig");
 pub const chat_cards = @import("chat_cards.zig");
+pub const composer = @import("composer.zig");

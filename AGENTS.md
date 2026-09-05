@@ -289,6 +289,39 @@ strip line up instead of each picking its own number: `chrome_titlebar_height`
 (matches the `sm` button, comfortably over the 24 px minimum hit target),
 `chrome_pill_height` 24.
 
+**`chrome_control_height` (28) is the one that governs a control *row*.** Every
+control on one line takes it — a composer's attach button, its text entry and
+its Send button; a toolbar's buttons and its readouts — so they share a top and
+a bottom edge without anyone padding anything by hand. A container built around
+such a row is that height plus one `space_sm` of inset (border *plus* padding)
+on each side: `ds.chat.composer` is 28 + 16 = **44 logical px** on one line, and
+whole physical pixels at 1.0, 1.75 and 2.0.
+
+The composer is what named the rule. It used to be 50.50 px tall for one line of
+text, holding three controls of three different heights — 28.00, 32.50, 26.11 —
+each dropped to the bottom by a spacer, so their tops were ragged. That is what
+"too tall and not uniform" looks like, and it is what a row with no agreed height
+always looks like eventually.
+
+Growth is the other half: when the entry runs to several lines the buttons take
+`gravity_y = 1` and stay on the bottom edge beside its last line. A spacer above
+each one does the same thing on paper and none of it on one line, because each
+control starts falling from a different height.
+
+### Icons in buttons
+
+`icon_button_ratio` (0.5) sizes the glyph inside an icon-*only* button or a chip
+as a fraction of that control: 14 px in a 28 px button. The thing being matched
+is the button, not the type beside it — `icon_sm` (11) in a 28 px button is a
+0.39 ratio, which reads as a small mark adrift in a big empty square, and modern
+chrome sits at 0.5–0.6.
+
+`icon_sm` keeps its own job: a glyph standing next to caption text — a pill's
+leading icon, a status strip, and the icon inside an icon **plus label** button,
+where 11 beside 11 px type is right and 14 would tower over it. So the two paths
+are sized by different rules on purpose, and `ds.chip` and an `sm`
+`ds.iconButton` come out as the same square by construction.
+
 ### Elevation
 
 One three-step scale (`elevation_1..3_offset` / `_fade`) shared by every raised

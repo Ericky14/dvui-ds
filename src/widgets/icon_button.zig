@@ -36,6 +36,7 @@ pub const IconButton = struct {
     btn_size: tokens.Size = .sm,
     is_disabled: bool = false,
     is_loading: bool = false,
+    gravity_y: ?f32 = null,
     id_extra: ?usize = null,
 
     pub fn variant(self: IconButton, val: tokens.Variant) IconButton {
@@ -64,6 +65,13 @@ pub const IconButton = struct {
         return btn;
     }
 
+    /// Override vertical gravity (0 = top, 0.5 = middle, 1 = bottom).
+    pub fn gravityY(self: IconButton, val: f32) IconButton {
+        var btn = self;
+        btn.gravity_y = val;
+        return btn;
+    }
+
     /// Disambiguate this instance when icon buttons share a `@src()` (loops/toolbars).
     pub fn idExtra(self: IconButton, val: usize) IconButton {
         var btn = self;
@@ -86,7 +94,10 @@ pub const IconButton = struct {
             .md => 32,
             .lg => 40,
         };
-        return pixels.squareMetrics(target_height, icon_mod.iconSize(btn_size), scale);
+        // The glyph is sized against the *button*, not against caption text:
+        // `icon_sm` in a 28 px button is a 0.39 ratio, a small mark adrift in a
+        // big square. See `theme.icon_button_ratio`.
+        return pixels.squareMetrics(target_height, target_height * tokens.current.icon_button_ratio, scale);
     }
 
     pub fn draw(self: IconButton) bool {
@@ -99,6 +110,7 @@ pub const IconButton = struct {
             .loading(self.is_loading)
             .iconSize(square.content)
             .padding(dvui.Rect.all(square.inset));
+        if (self.gravity_y) |g| btn = btn.gravityY(g);
         if (self.id_extra) |ie| btn = btn.idExtra(ie);
         return btn.draw();
     }

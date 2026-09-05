@@ -45,7 +45,10 @@ pub const Counts = struct {
     }
 };
 
-const Node = struct {
+/// One captured widget, with its rects converted to logical px alongside the
+/// physical ones the `snapped` rule measures.
+pub const Node = struct {
+    id: u64,
     name: []const u8,
     src_file: []const u8,
     src_line: u32,
@@ -132,12 +135,21 @@ fn orientationOf(nodes: []const Node, children: []const usize) Orientation {
 /// `only_file`, when given, limits the report to widgets registered from that
 /// source file, so a fixture can hold a page's worth of scaffolding and still
 /// assert about exactly one widget.
-pub fn run(allocator: std.mem.Allocator, scale: f32, only_file: ?[]const u8, print: bool) !Counts {
+/// The frame dvui has just built, as a flat array of `Node` in registration
+/// order. Arm the capture with `dvui.debug.captureFrame()` before that frame.
+/// The caller owns the slice.
+///
+/// Exposed so a test can assert about a widget's actual rect — "these three
+/// controls share a top and a bottom edge" — with the same numbers the rules
+/// below are measured in, instead of a second, differently-wrong measurement.
+pub fn snapshot(allocator: std.mem.Allocator, scale: f32) ![]Node {
     const captured = dvui.debug.lastCapture() orelse return error.NoCapture;
-    const raw = captured.widgets.items;
+    return build(allocator, captured.widgets.items, scale);
+}
 
+fn build(allocator: std.mem.Allocator, raw: []const dvui.Debug.CapturedWidget, scale: f32) ![]Node {
     var nodes = try allocator.alloc(Node, raw.len);
-    defer allocator.free(nodes);
+    errdefer allocator.free(nodes);
 
     var positions: std.AutoHashMapUnmanaged(u64, usize) = .empty;
     defer positions.deinit(allocator);
@@ -151,6 +163,7 @@ pub fn run(allocator: std.mem.Allocator, scale: f32, only_file: ?[]const u8, pri
         const id = node.id.asU64();
         const parent_id = node.parent_id.asU64();
         nodes[index] = .{
+            .id = id,
             .name = node.name orelse "",
             .src_file = std.fs.path.basename(node.src_file),
             .src_line = node.src_line,
@@ -164,9 +177,16 @@ pub fn run(allocator: std.mem.Allocator, scale: f32, only_file: ?[]const u8, pri
     for (nodes) |node| {
         if (node.parent) |slot| nodes[slot].children += 1;
     }
+    return nodes;
+}
+
+pub fn run(allocator: std.mem.Allocator, scale: f32, only_file: ?[]const u8, print: bool) !Counts {
+    const nodes = try snapshot(allocator, scale);
+    defer allocator.free(nodes);
+    const raw_len = nodes.len;
 
     // children of each node, in registration order
-    var children_of = try allocator.alloc(std.ArrayListUnmanaged(usize), raw.len);
+    var children_of = try allocator.alloc(std.ArrayListUnmanaged(usize), raw_len);
     defer {
         for (children_of) |*list| list.deinit(allocator);
         allocator.free(children_of);

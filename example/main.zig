@@ -52,6 +52,7 @@ const Page = enum {
     editor_chrome,
     chat,
     chat_cards,
+    composer,
 };
 
 var router = ds.Router(Page).init(.buttons);
@@ -119,6 +120,7 @@ fn storybookFrame() bool {
         router.section(@src(), "CHAT");
         router.link(@src(), .chat, "Messages");
         router.link(@src(), .chat_cards, "Cards");
+        router.link(@src(), .composer, "Composer");
     }
 
     // ─── Content Area ────────────────────────────────────────────────────────
@@ -157,6 +159,7 @@ fn storybookFrame() bool {
             .editor_chrome => pages.editor_chrome.draw(),
             .chat => pages.chat.draw(),
             .chat_cards => pages.chat_cards.draw(),
+            .composer => pages.composer.draw(),
         }
     }
 

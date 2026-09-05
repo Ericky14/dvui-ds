@@ -57,7 +57,7 @@ test "frameOpts: surface_1 fill, round(radius_md), border_strong idle and accent
     try std.testing.expectEqual(theme.border_strong, idle.color_border.?.toColor());
     try std.testing.expectEqual(dvui.Corner.Style.round, idle.corners.?.tl.kind);
     try std.testing.expectApproxEqAbs(theme.radius_md, idle.corners.?.tl.rx, 0.001);
-    try std.testing.expectApproxEqAbs(theme.border_width, idle.border.?.x, 0.001);
+    try std.testing.expectApproxEqAbs(widget.composerMetrics(1.0).border, idle.border.?.x, 0.001);
     try std.testing.expectEqual(dvui.Options.Expand.horizontal, idle.expand.?);
 
     const focused = widget.frameOpts(true);
@@ -68,16 +68,35 @@ test "frameOpts: surface_1 fill, round(radius_md), border_strong idle and accent
     try std.testing.expect(ring.a < theme.accent.a);
 }
 
-test "entryOpts: grows from one to eight rows of the given font" {
+test "entryOpts: one row on open, and room to grow to eight" {
     const font = dvui.Font{};
-    const row: f32 = 15;
-    const opts = widget.entryOpts(font, row);
-    try std.testing.expectApproxEqAbs(row * widget.min_rows, opts.min_size_content.?.h, 0.001);
-    try std.testing.expectApproxEqAbs(row * widget.max_rows, opts.max_size_content.?.h, 0.001);
+    const metrics = widget.composerMetrics(1.0);
+    const opts = widget.entryOpts(font, metrics);
+    try std.testing.expectApproxEqAbs(metrics.entry_row * widget.min_rows, opts.min_size_content.?.h, 0.001);
+    try std.testing.expect(opts.max_size_content.?.h > metrics.entry_row * (widget.max_rows - 1));
     try std.testing.expectApproxEqAbs(@as(f32, 0), opts.min_size_content.?.w, 0.001);
     try std.testing.expectApproxEqAbs(dvui.max_float_safe, opts.max_size_content.?.w, 0.001);
     try std.testing.expect(!opts.background.?);
     try std.testing.expectEqual(tokens.current.text_primary, opts.color_text.?.toColor());
+    // The entry's outer height on one row is exactly the row's control height,
+    // which is the whole point: it must not tower over the buttons beside it.
+    try std.testing.expectApproxEqAbs(
+        metrics.control_height,
+        metrics.entry_row + opts.padding.?.y + opts.padding.?.h,
+        0.001,
+    );
+}
+
+test "composerMetrics: one control height, one space_sm of inset, 44 in total" {
+    const theme = tokens.current;
+    for ([_]f32{ 1.0, 1.75, 2.0 }) |scale| {
+        const metrics = widget.composerMetrics(scale);
+        try std.testing.expectApproxEqAbs(theme.chrome_control_height, metrics.control_height, 0.51);
+        // Border + padding is one space_sm, so the border's thickness at this
+        // scale never changes the composer's height.
+        try std.testing.expectApproxEqAbs(theme.space_sm, metrics.frame_padding + metrics.border, 0.51);
+        try std.testing.expectApproxEqAbs(@as(f32, 44), metrics.single_line_height, 0.51);
+    }
 }
 
 test "wrapOpts: pins min and max width to the natural width, height unbounded" {
