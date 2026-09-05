@@ -183,4 +183,17 @@ pub fn build(b: *std.Build) void {
 
     const layout_tests = b.addTest(.{ .root_module = layout_mod });
     test_step.dependOn(&b.addRunArtifact(layout_tests).step);
+
+    // The geometry gate: the same rules `zigame ui lint` runs over an editor
+    // pane, run here over one ds widget at a time. See test/ds_lint.zig.
+    const lint_mod = b.createModule(.{
+        .root_source_file = b.path("test/lint_tests.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    lint_mod.addImport("dvui", dvui_testing_mod);
+    lint_mod.addImport("dvui_ds", ds_testing_mod);
+
+    const lint_tests = b.addTest(.{ .root_module = lint_mod });
+    test_step.dependOn(&b.addRunArtifact(lint_tests).step);
 }

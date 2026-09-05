@@ -51,7 +51,7 @@ fn bodyOpts() dvui.Options {
     return .{
         .color_fill = .{ .color = theme.surface_1 },
         .color_border = .{ .color = theme.border },
-        .border = dvui.Rect.all(theme.border_width),
+        .border = ds.border(theme.border_width),
         .padding = dvui.Rect.all(0),
         .expand = .both,
     };

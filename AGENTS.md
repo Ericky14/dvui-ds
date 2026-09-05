@@ -246,6 +246,32 @@ Gaps between siblings are on the **4 px grid**: `space_2xs` 4, `space_sm` 8,
 (the gap between an icon and its label inside one chip, a 6 px inset inside a
 toolbar) — never for the gap *between* siblings in a row or column.
 
+### The geometry gate
+
+`test/lint_tests.zig` runs the same four rules the engine's `zigame ui lint`
+runs over an editor pane — `snapped`, `grid`, `row_centre`, `hit_target`, at the
+same tolerances (`test/ds_lint.zig`) — over one ds widget at a time, at 1.0,
+1.75 and 2.0. It is part of `zig build test`.
+
+It exists because the engine can only see this repo through a pinned commit: a
+finding it reports against `plan_card.zig:63` has to be reproducible and fixable
+*here*, before any pin moves, or the fix is a guess.
+
+Where a widget still reports something, the test records the exact count with the
+reason written beside it and asserts **equality** — fixing one more fails the
+test as loudly as breaking one, so the number only moves on purpose. Today the
+whole residual is one cause: a widget whose *top* edge inherits a fraction from
+text stacked above it. Font metrics are fractional, dvui does not round a
+resolved rect to physical pixels, and a design system cannot round a multi-line
+text block's height without owning text layout — pinning it would cap the
+composer at one line.
+
+What the ds *is* responsible for, and does keep exact: its own paddings, margins,
+borders, gaps, control sizes, hit targets and centre lines. `ds.padding` /
+`paddingXY` / `paddingEach` / `border` all snap; `ds.button` is the height its
+size names whatever variant and padding it wears; `ds.iconButton` and `ds.chip`
+share `pixels.squareMetrics`, which leaves no remainder for `gravity` to split.
+
 ### Chrome metrics
 
 Shared so the title bar, the floating toolbar, the status strip and the history

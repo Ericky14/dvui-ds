@@ -36,7 +36,11 @@ pub const Checkpoint = struct {
         var row = dvui.box(self.src, .{ .dir = .horizontal, .gap = theme.space_sm }, rowOpts(theme, self.id_extra));
         defer row.deinit();
 
-        drawHairline(@src(), theme);
+        // Left-anchored, not centred between two rules. Centring puts the label
+        // and the button at `(row - group) / 2`, which is a half physical pixel
+        // whenever that leftover is odd — every other window width — and a
+        // button on a half pixel renders soft. It also reads better: everything
+        // else in a chat transcript starts at the same left edge.
         dvui.labelNoFmt(@src(), self.label_text, .{}, labelOpts(theme));
         const clicked = ds.button(@src(), "Undo")
             .variant(.accent_ghost)
@@ -49,16 +53,30 @@ pub const Checkpoint = struct {
     }
 };
 
-/// A 1px `border_subtle` line that takes the leftover width, centred on the row.
+/// A `border_subtle` rule that takes the leftover width, centred on the row.
+///
+/// The box only claims the space; the line itself is painted into a rect that
+/// has been rounded to whole physical pixels. Letting a 1 px box be *laid out*
+/// puts its height at 1.75 physical px at 175 % and its centred top edge on a
+/// half pixel, which renders the rule as two rows of grey instead of one row of
+/// line. Taking the pixel by hand is the only way to be sure of it.
 fn drawHairline(src: std.builtin.SourceLocation, theme: tokens.Theme) void {
     var line = dvui.box(src, .{}, .{
-        .expand = .horizontal,
-        .background = true,
-        .color_fill = .{ .color = theme.border_subtle },
-        .min_size_content = .{ .w = 0, .h = theme.border_width },
-        .gravity_y = 0.5,
+        .expand = .both,
+        .min_size_content = .{ .w = 0, .h = ds.hairline(ds.pixelScale()) },
     });
+    const area = line.data().borderRectScale().r;
     line.deinit();
+    if (area.w < 1 or area.h < 1) return;
+
+    const thickness = @max(1, @round(ds.pixelScale()));
+    const rule: dvui.Rect.Physical = .{
+        .x = @round(area.x),
+        .y = @round(area.y + (area.h - thickness) / 2),
+        .w = @round(area.w),
+        .h = thickness,
+    };
+    rule.fill(.{}, .{ .color = .{ .color = theme.border_subtle } });
 }
 
 fn rowOpts(theme: tokens.Theme, id_extra: usize) dvui.Options {

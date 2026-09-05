@@ -14,6 +14,7 @@ const tokens = @import("../tokens.zig");
 const anim = @import("../anim/anim.zig");
 const icon_mod = @import("icon.zig");
 const loader_mod = @import("loader.zig");
+const pixels = @import("../helpers/pixels.zig");
 pub const Source = @import("../source.zig");
 
 const Color = dvui.Color;
@@ -38,6 +39,8 @@ pub const Button = struct {
     override_gravity_x: ?f32 = null,
     override_expand: ?dvui.Options.Expand = null,
     override_padding: ?dvui.Rect = null,
+    override_icon_size: ?f32 = null,
+    tag_val: ?[]const u8 = null,
     id_extra: ?usize = null,
 
     pub fn variant(self: Button, val: tokens.Variant) Button {
@@ -134,6 +137,22 @@ pub const Button = struct {
         return btn;
     }
 
+    /// Override the glyph size (logical px). `ds.iconButton` uses it to hand the
+    /// icon a box that is a whole number of physical pixels, so the glyph does
+    /// not end up centred on a half pixel at a fractional display scale.
+    pub fn iconSize(self: Button, logical_px: f32) Button {
+        var btn = self;
+        btn.override_icon_size = logical_px;
+        return btn;
+    }
+
+    /// Name this button for tests and UI automation (`dvui.tagGet`).
+    pub fn tag(self: Button, name: []const u8) Button {
+        var btn = self;
+        btn.tag_val = name;
+        return btn;
+    }
+
     /// Disambiguate this instance when buttons share a `@src()` (loops/toolbars).
     pub fn idExtra(self: Button, val: usize) Button {
         var btn = self;
@@ -164,6 +183,16 @@ pub const Button = struct {
         if (self.override_expand) |e| options.expand = e;
         if (self.override_padding) |p| options.padding = p;
         options.id_extra = self.id_extra;
+        options.tag = self.tag_val;
+        const fixed = contentHeight(self.btn_size, options);
+        options.min_size_content = fixed;
+        // Capped as well as floored: `min_size_content` is only a floor, so a
+        // caption whose line box is taller than the room left inside an
+        // `outlined` button's border pushed that button 1 px taller than the
+        // filled one beside it — which is what knocked a whole action row off
+        // its centre line. The glyphs are far shorter than their line box, so
+        // the cap clips nothing that is drawn.
+        options.max_size_content = .height(fixed.h);
 
         // Loading state: show spinner + label, no interaction
         if (self.is_loading) {
@@ -181,11 +210,11 @@ pub const Button = struct {
                     if (self.label_str.len == 0) {
                         // Icon-only button (TVG)
                         const colors = iconColors(self.btn_variant);
-                        const icon_sz = icon_mod.iconSize(self.btn_size);
+                        const icon_sz = self.override_icon_size orelse icon_mod.iconSize(self.btn_size);
                         return drawAnimatedIconButton(self.src, tvg.name, tvg.bytes, icon_sz, colors.fill, colors.stroke, options);
                     } else {
                         // Icon + text button (TVG)
-                        return drawAnimatedLabelAndIcon(self.src, self.label_str, tvg.bytes, self.icon_first_flag, self.btn_size, options);
+                        return drawAnimatedLabelAndIcon(self.src, self.label_str, tvg.bytes, self.icon_first_flag, self.btn_size, self.override_icon_size, options);
                     }
                 },
                 .image => |image_source| {
@@ -242,8 +271,37 @@ pub const Button = struct {
     }
 };
 
+/// A DS button is the height its size names — sm 28, md 32, lg 40 — whatever it
+/// is padded with and whichever variant it wears. Two reasons, both of them
+/// found by measuring rather than by looking:
+///
+///  * 24 logical px is the minimum hit target, and a button padded
+///    horizontally only (the chat checkpoint row's "Undo") came out 14 px tall,
+///    because with no vertical padding the height was just the caption's line
+///    box;
+///  * `outlined` adds a 1 px border on each edge, so in a row of buttons it was
+///    2 px taller than its neighbours and every button in that row sat off the
+///    row's centre line.
+///
+/// Pinning the *content* height — target minus this button's own padding and
+/// border — fixes both at once and makes a row of mixed variants line up.
+fn contentHeight(btn_size: tokens.Size, options: dvui.Options) dvui.Size {
+    const target: f32 = switch (btn_size) {
+        .sm => 28,
+        .md => 32,
+        .lg => 40,
+    };
+    const pad = options.padding orelse dvui.Rect.all(0);
+    const border = options.border orelse dvui.Rect.all(0);
+    const chrome = pad.y + pad.h + border.y + border.h;
+    return .{ .w = 0, .h = @max(0, target - chrome) };
+}
+
 pub fn opts(btn_variant: tokens.Variant, btn_size: tokens.Size) dvui.Options {
     const theme = tokens.current;
+    // Snapped: a 6 px inset is 10.5 physical px at 175 %, which puts the
+    // button's own edge — and everything laid out after it — on a half pixel.
+    const scale = pixels.pixelScale();
 
     // DS spec — button sizes:
     // Small:  h-7 = 28px, 11px font
@@ -252,9 +310,9 @@ pub fn opts(btn_variant: tokens.Variant, btn_size: tokens.Size) dvui.Options {
     // Using .pixel size_mode so font sizes match CSS exactly.
     // padding_v = (target_height - text_line_height) / 2
     const padding = switch (btn_size) {
-        .sm => ds.paddingXY(theme.space_md, theme.space_xs),
-        .md => ds.paddingXY(theme.space_lg, theme.space_sm),
-        .lg => ds.paddingXY(theme.space_xl, theme.space_md),
+        .sm => ds.paddingXY(pixels.snapPx(theme.space_md, scale), pixels.snapPx(theme.space_xs, scale)),
+        .md => ds.paddingXY(pixels.snapPx(theme.space_lg, scale), pixels.snapPx(theme.space_sm, scale)),
+        .lg => ds.paddingXY(pixels.snapPx(theme.space_xl, scale), pixels.snapPx(theme.space_md, scale)),
     };
 
     // font-medium (500) = Geist Medium mapped as .bold in dvui
@@ -292,7 +350,7 @@ pub fn opts(btn_variant: tokens.Variant, btn_size: tokens.Size) dvui.Options {
             .color_text = .{ .color = theme.text_secondary },
             .color_border = .{ .color = theme.border_subtle },
             .corners = radius,
-            .border = dvui.Rect.all(theme.border_width),
+            .border = ds.border(theme.border_width),
             .margin = dvui.Rect.all(0),
             .padding = padding,
             .font = font,
@@ -429,7 +487,7 @@ fn drawAnimatedIconButton(src: std.builtin.SourceLocation, name: [:0]const u8, t
 }
 
 /// Animated label + icon button.
-fn drawAnimatedLabelAndIcon(src: std.builtin.SourceLocation, label_str: []const u8, tvg_bytes: []const u8, icon_first: bool, btn_size: tokens.Size, options: dvui.Options) bool {
+fn drawAnimatedLabelAndIcon(src: std.builtin.SourceLocation, label_str: []const u8, tvg_bytes: []const u8, icon_first: bool, btn_size: tokens.Size, icon_size_override: ?f32, options: dvui.Options) bool {
     var bw: dvui.ButtonWidget = undefined;
     bw.init(src, .{ .draw_focus = ds.focusVisible() }, options);
     defer bw.deinit();
@@ -444,9 +502,9 @@ fn drawAnimatedLabelAndIcon(src: std.builtin.SourceLocation, label_str: []const 
 
     const style = options.strip().override(bw.style()).override(.{ .color_text = .{ .color = text_color } });
     {
-        var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = tokens.current.space_sm }, .{ .gravity_x = options.gravity_x orelse 0.5, .gravity_y = 0.5 });
+        var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = tokens.current.space_sm }, .{ .gravity_x = options.gravity_x orelse 0.5, .gravity_y = 0.5, .expand = .vertical });
         defer row.deinit();
-        const icon_sz = icon_mod.iconSize(btn_size);
+        const icon_sz = pixels.snapPx(icon_size_override orelse icon_mod.iconSize(btn_size), pixels.pixelScale());
         if (icon_first) {
             _ = dvui.icon(@src(), "", tvg_bytes, .{}, style.override(.{ .min_size_content = .{ .w = icon_sz, .h = icon_sz }, .gravity_y = 0.5 }));
             dvui.labelNoFmt(@src(), label_str, .{}, style.override(.{ .gravity_y = 0.5 }));
@@ -474,7 +532,7 @@ fn drawLoadingButton(src: std.builtin.SourceLocation, label_str: []const u8, btn
     bw.data().borderAndBackground(.{ .fill_color = .{ .color = targetFillColor(&bw).opacity(theme.opacity_disabled) } });
 
     {
-        var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_sm }, .{ .gravity_x = 0.5, .gravity_y = 0.5 });
+        var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_sm }, .{ .gravity_x = 0.5, .gravity_y = 0.5, .expand = .vertical });
         defer row.deinit();
 
         // Draw spinner inline — color matches variant text color at 40% opacity
@@ -504,8 +562,8 @@ fn drawDisabledButton(src: std.builtin.SourceLocation, label_str: []const u8, bt
     bw.data().borderAndBackground(.{ .fill_color = .{ .color = targetFillColor(&bw).opacity(tokens.current.opacity_disabled) } });
 
     const dim_text = options.color(.text).toColor().opacity(tokens.current.opacity_disabled);
-    const style = options.strip().override(bw.style()).override(.{ .color_text = .{ .color = dim_text } });
-    const icon_sz = icon_mod.iconSize(btn_size);
+    const style = options.strip().override(bw.style()).override(.{ .color_text = .{ .color = dim_text }, .gravity_y = 0.5 });
+    const icon_sz = pixels.snapPx(icon_mod.iconSize(btn_size), pixels.pixelScale());
 
     if (btn_source) |asset| {
         const tvg_bytes: ?[]const u8 = switch (asset.kind) {
@@ -515,7 +573,7 @@ fn drawDisabledButton(src: std.builtin.SourceLocation, label_str: []const u8, bt
         };
         if (tvg_bytes) |bytes| {
             if (label_str.len > 0) {
-                var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = tokens.current.space_sm }, .{ .gravity_x = 0.5, .gravity_y = 0.5 });
+                var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = tokens.current.space_sm }, .{ .gravity_x = 0.5, .gravity_y = 0.5, .expand = .vertical });
                 defer row.deinit();
                 if (icon_first) {
                     _ = dvui.icon(@src(), "", bytes, .{}, style.override(.{ .min_size_content = .{ .w = icon_sz, .h = icon_sz } }));

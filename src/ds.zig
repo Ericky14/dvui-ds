@@ -108,6 +108,11 @@ pub const cachedTvg = @import("helpers/svg.zig").cachedTvg;
 pub const pixelScale = @import("helpers/pixels.zig").pixelScale;
 pub const snapPx = @import("helpers/pixels.zig").snapPx;
 pub const hairline = @import("helpers/pixels.zig").hairline;
+pub const borderPx = @import("helpers/pixels.zig").borderPx;
+
+/// A uniform border of `logical` px, snapped to whole physical pixels.
+/// `ds.border(theme.border_width)` is what every ds widget outlines with.
+pub const border = @import("helpers/padding.zig").border;
 pub const isSnapped = @import("helpers/pixels.zig").isSnapped;
 
 pub const alpha = @import("helpers/color.zig").alpha;

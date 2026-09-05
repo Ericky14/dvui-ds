@@ -84,7 +84,7 @@ pub const Composer = struct {
             var frame = dvui.box(@src(), .{ .dir = .vertical }, frameOpts(was_focused.*));
             defer frame.deinit();
 
-            var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_xs }, .{ .expand = .horizontal });
+            var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_sm }, .{ .expand = .horizontal });
             defer row.deinit();
 
             {
@@ -215,7 +215,7 @@ pub fn frameOpts(focused: bool) dvui.Options {
         .background = true,
         .color_fill = .{ .color = theme.surface_1 },
         .color_border = .{ .color = if (focused) theme.accent.opacity(0.6) else theme.border_strong },
-        .border = dvui.Rect.all(theme.border_width),
+        .border = ds.border(theme.border_width),
         .corners = dvui.CornerRect.round(theme.radius_md),
         .padding = dvui.Rect.all(theme.space_sm),
         .margin = dvui.Rect.all(0),

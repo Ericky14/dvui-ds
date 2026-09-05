@@ -115,7 +115,7 @@ pub const Dropdown = struct {
         return .{
             .color_fill = .{ .color = theme.surface_2 },
             .color_border = .{ .color = theme.border_input },
-            .border = dvui.Rect.all(theme.border_width),
+            .border = ds.border(theme.border_width),
             .corners = dvui.CornerRect.round(theme.radius_md),
             .color_text = .{ .color = theme.text_primary },
             .padding = ds.paddingXY(theme.space_md, theme.space_sm),

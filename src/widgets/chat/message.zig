@@ -227,7 +227,13 @@ fn drawCaret(block_id: dvui.Id, line_height: f32) void {
         .corners = dvui.CornerRect.round(caret_width / 2),
         .margin = dvui.Rect.all(0),
         .padding = dvui.Rect.all(0),
-        .min_size_content = .{ .w = caret_width, .h = line_height },
+        // Snapped: the caret is a 2 px bar next to text, and a bar whose edges
+        // land mid-pixel is a smudge rather than a cursor. `line_height` comes
+        // from the font and is fractional as often as not.
+        .min_size_content = .{
+            .w = ds.snapPx(caret_width, ds.pixelScale()),
+            .h = ds.snapPx(line_height, ds.pixelScale()),
+        },
     });
     caret.deinit();
 }

@@ -107,7 +107,7 @@ pub const QuestionCard = struct {
         defer card.deinit();
 
         for (self.questions, 0..) |question, question_index| {
-            var block = dvui.box(@src(), .{ .dir = .vertical, .gap = theme.space_3xs }, .{ .id_extra = question_index, .expand = .horizontal });
+            var block = dvui.box(@src(), .{ .dir = .vertical, .gap = theme.space_2xs }, .{ .id_extra = question_index, .expand = .horizontal });
             defer block.deinit();
 
             {
@@ -165,7 +165,7 @@ fn containerOpts(theme: tokens.Theme, id_extra: usize) dvui.Options {
         .background = true,
         .color_fill = .{ .color = theme.surface_1 },
         .color_border = .{ .color = theme.border },
-        .border = dvui.Rect.all(theme.border_width),
+        .border = ds.border(theme.border_width),
         .corners = dvui.CornerRect.round(theme.radius_md),
         .padding = ds.padding(theme.space_sm),
     };

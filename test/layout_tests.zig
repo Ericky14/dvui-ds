@@ -315,3 +315,35 @@ test "a strip of chips keeps an even pitch at every scale" {
         try atScale(scale, .{ .w = 220, .h = 80 }, Local.frame, Local.check);
     }
 }
+
+// ─── button heights ──────────────────────────────────────────────────────────
+
+test "buttons of one size are the same height whatever variant they wear" {
+    // An `outlined` button carries a border the others do not. Left to the
+    // font, that made it taller than its neighbours, which is what put every
+    // button in a chat card's action row off the row's centre line.
+    const Local = struct {
+        fn frame() !dvui.App.Result {
+            var page = dvui.box(@src(), .{}, .{ .expand = .both, .background = true });
+            defer page.deinit();
+            var row = ds.row(@src()).gap(8).padding(8).draw();
+            defer row.deinit();
+            _ = ds.button(@src(), "Approve").variant(.filled).size(.sm).tag("b.filled").draw();
+            _ = ds.button(@src(), "Edit").variant(.outlined).size(.sm).tag("b.outlined").draw();
+            _ = ds.button(@src(), "Reject").variant(.danger).size(.sm).tag("b.danger").draw();
+            return .ok;
+        }
+
+        fn check() anyerror!void {
+            const filled = try tagRect("b.filled");
+            const outlined = try tagRect("b.outlined");
+            const danger = try tagRect("b.danger");
+            try std.testing.expectApproxEqAbs(filled.h, outlined.h, 0.02);
+            try std.testing.expectApproxEqAbs(filled.h, danger.h, 0.02);
+            try std.testing.expectApproxEqAbs(filled.y, outlined.y, 0.02);
+        }
+    };
+    for (scales) |scale| {
+        try atScale(scale, .{ .w = 320, .h = 90 }, Local.frame, Local.check);
+    }
+}

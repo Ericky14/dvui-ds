@@ -58,7 +58,7 @@ pub const PlanCard = struct {
         markdown_mod.markdown(@src(), self.body_markdown).draw();
 
         {
-            var actions = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_xs }, actionsOpts(theme));
+            var actions = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_sm }, actionsOpts(theme));
             defer actions.deinit();
             if (ds.button(@src(), "Approve").variant(.filled).size(.sm).draw()) choice = .approve;
             if (ds.button(@src(), "Edit").variant(.outlined).size(.sm).draw()) choice = .edit;
@@ -79,7 +79,7 @@ fn containerOpts(theme: tokens.Theme, id_extra: usize) dvui.Options {
         .background = true,
         .color_fill = .{ .color = theme.surface_1 },
         .color_border = .{ .color = theme.border },
-        .border = dvui.Rect.all(theme.border_width),
+        .border = ds.border(theme.border_width),
         .corners = dvui.CornerRect.round(theme.radius_md),
         .padding = ds.paddingEach(theme.space_sm, theme.space_sm, theme.space_sm, theme.space_md),
     };
@@ -95,7 +95,7 @@ fn drawAccentBar(data: *const dvui.WidgetData, theme: tokens.Theme) void {
     const height = rect_scale.r.h - 2 * inset_y;
     if (height <= 0) return;
     const bar: dvui.Rect.Physical = .{
-        .x = rect_scale.r.x + theme.border_width * scale,
+        .x = @round(rect_scale.r.x + ds.borderPx(theme.border_width, scale) * scale),
         .y = rect_scale.r.y + inset_y,
         .w = accent_bar_width * scale,
         .h = height,
@@ -106,7 +106,7 @@ fn drawAccentBar(data: *const dvui.WidgetData, theme: tokens.Theme) void {
 /// "PLAN" in mono muted caption, letter-spaced by drawing each glyph as its own
 /// label separated by a space_3xs gap.
 fn drawEyebrow(theme: tokens.Theme) void {
-    var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_3xs }, .{});
+    var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_2xs }, .{});
     defer row.deinit();
     for (0..eyebrow_text.len) |index| {
         dvui.labelNoFmt(@src(), eyebrow_text[index .. index + 1], .{}, eyebrowGlyphOpts(theme, index));

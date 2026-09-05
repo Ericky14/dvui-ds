@@ -60,7 +60,7 @@ pub const ApprovalCard = struct {
         const theme = tokens.current;
         var choice: ApprovalChoice = .none;
 
-        var card = dvui.box(self.src, .{ .dir = .vertical, .gap = theme.space_xs }, containerOpts(theme, self.id_extra));
+        var card = dvui.box(self.src, .{ .dir = .vertical, .gap = theme.space_sm }, containerOpts(theme, self.id_extra));
         defer card.deinit();
 
         dvui.labelNoFmt(@src(), self.title, .{}, titleOpts(theme));
@@ -69,7 +69,7 @@ pub const ApprovalCard = struct {
         }
 
         {
-            var actions = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_xs }, actionsOpts(theme));
+            var actions = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_sm }, actionsOpts(theme));
             defer actions.deinit();
             if (ds.button(@src(), "Allow once").variant(.filled).size(.sm).draw()) choice = .allow_once;
             if (ds.button(@src(), "Always allow").variant(.outlined).size(.sm).draw()) choice = .allow_always;
@@ -123,7 +123,7 @@ fn containerOpts(theme: tokens.Theme, id_extra: usize) dvui.Options {
         .background = true,
         .color_fill = .{ .color = ds.alpha(theme.accent, theme.opacity_tonal_fill) },
         .color_border = .{ .color = theme.accent },
-        .border = dvui.Rect.all(theme.border_width),
+        .border = ds.border(theme.border_width),
         .corners = dvui.CornerRect.round(theme.radius_md),
         .padding = ds.padding(theme.space_sm),
     };

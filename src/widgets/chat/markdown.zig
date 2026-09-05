@@ -259,6 +259,12 @@ fn markerOpts(font: dvui.Font) dvui.Options {
     const theme = tokens.current;
     return .{
         .font = font,
+        // A full-height gutter cell, not a one-line label: a list marker belongs
+        // beside the item's *first* line, so when the item wraps to three lines
+        // a marker that is only one line tall and vertically centred ends up
+        // floating in the middle of the paragraph. Filling the row puts it back
+        // on the first line and gives the row nothing left to centre.
+        .expand = .vertical,
         .color_text = .{ .color = theme.text_muted },
         .padding = dvui.Rect.all(0),
         .margin = dvui.Rect.all(0),

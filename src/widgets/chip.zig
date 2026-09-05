@@ -111,7 +111,7 @@ pub const Chip = struct {
             .tag = self.tag_val,
             .corners = dvui.CornerRect.round(theme.radius_sm),
             .margin = dvui.Rect.all(0),
-            .padding = dvui.Rect.all(metrics.padding),
+            .padding = dvui.Rect.all(metrics.inset),
             .min_size_content = .{ .w = metrics.content, .h = metrics.content },
             .color_fill = .{ .color = colors.fill },
             .color_fill_hover = .{ .color = colors.fill_hover },
@@ -152,14 +152,12 @@ pub const Chip = struct {
     }
 };
 
-/// The chip's physical-pixel geometry: padding and content are each snapped, so
-/// their sum — the chip's outer size — is a whole number of physical pixels and
-/// the icon sits exactly in the middle of it.
-pub fn chipMetrics(scale: f32) struct { padding: f32, content: f32, outer: f32 } {
+/// The chip's physical-pixel geometry — the same `squareMetrics` an icon button
+/// uses, so a chip and an `sm` icon button are the same square and their icons
+/// are inset identically.
+pub fn chipMetrics(scale: f32) pixels.Square {
     const theme = tokens.current;
-    const outer = pixels.snapPx(theme.chrome_chip_size, scale);
-    const padding = pixels.snapPx((theme.chrome_chip_size - theme.icon_md) / 2, scale);
-    return .{ .padding = padding, .content = outer - 2 * padding, .outer = outer };
+    return pixels.squareMetrics(theme.chrome_chip_size, theme.icon_md, scale);
 }
 
 const StateColors = struct { fill: Color, fill_hover: Color, fill_press: Color, icon: Color };

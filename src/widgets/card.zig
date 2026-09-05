@@ -117,7 +117,7 @@ pub const Card = struct {
                 // the SDF pipeline now renders evenly on all edges.
                 options.background = false;
                 options.color_border = .{ .color = theme.border };
-                options.border = dvui.Rect.all(theme.border_width);
+                options.border = ds.border(theme.border_width);
             },
         }
         return options;

@@ -14,6 +14,7 @@ const dvui = @import("dvui");
 const tokens = @import("../tokens.zig");
 const button_mod = @import("button.zig");
 const icon_mod = @import("icon.zig");
+const pixels = @import("../helpers/pixels.zig");
 
 pub const Source = button_mod.Source;
 
@@ -70,26 +71,34 @@ pub const IconButton = struct {
         return btn;
     }
 
-    /// Square padding so the icon button matches the DS button height for its
-    /// size: width = icon + 2·pad = height.
-    fn squarePadding(btn_size: tokens.Size) f32 {
+    /// Square geometry so the icon button matches the DS button height for its
+    /// size (sm 28 / md 32 / lg 40) — and so both the inset and what is left in
+    /// the middle are whole physical pixels at the display's scale.
+    ///
+    /// The naive `(height - icon) / 2` is a *logical* number: at 175 % a 7 px
+    /// inset is 12.25 physical px, the icon centred in the remainder lands on a
+    /// half pixel, and every icon in the chrome renders a half-pixel blurry.
+    /// `squareMetrics` gives an inset and a content box that both land whole
+    /// and leave no remainder for `gravity` to split.
+    pub fn metrics(btn_size: tokens.Size, scale: f32) pixels.Square {
         const target_height: f32 = switch (btn_size) {
             .sm => 28,
             .md => 32,
             .lg => 40,
         };
-        return (target_height - icon_mod.iconSize(btn_size)) / 2;
+        return pixels.squareMetrics(target_height, icon_mod.iconSize(btn_size), scale);
     }
 
     pub fn draw(self: IconButton) bool {
-        const pad = squarePadding(self.btn_size);
+        const square = metrics(self.btn_size, pixels.pixelScale());
         var btn = button_mod.button(self.src, "")
             .source(self.icon_source)
             .variant(self.btn_variant)
             .size(self.btn_size)
             .disabled(self.is_disabled)
             .loading(self.is_loading)
-            .padding(dvui.Rect.all(pad));
+            .iconSize(square.content)
+            .padding(dvui.Rect.all(square.inset));
         if (self.id_extra) |ie| btn = btn.idExtra(ie);
         return btn.draw();
     }

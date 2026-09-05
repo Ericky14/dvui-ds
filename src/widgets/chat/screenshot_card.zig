@@ -102,7 +102,7 @@ fn imageOpts(theme: tokens.Theme, fitted: dvui.Size, border_color: dvui.Color) d
     return .{
         .min_size_content = fitted,
         .corners = dvui.CornerRect.round(theme.radius_md),
-        .border = dvui.Rect.all(theme.border_width),
+        .border = ds.border(theme.border_width),
         .color_border = .{ .color = border_color },
     };
 }
@@ -112,7 +112,7 @@ fn imageOpts(theme: tokens.Theme, fitted: dvui.Size, border_color: dvui.Color) d
 fn vectorHolderOpts(theme: tokens.Theme, border_color: dvui.Color) dvui.Options {
     return .{
         .corners = dvui.CornerRect.round(theme.radius_md),
-        .border = dvui.Rect.all(theme.border_width),
+        .border = ds.border(theme.border_width),
         .color_border = .{ .color = border_color },
         .padding = ds.padding(theme.space_lg),
     };

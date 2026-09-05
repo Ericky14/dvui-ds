@@ -104,7 +104,7 @@ pub const Modal = struct {
         }, .{
             .color_fill = .{ .color = theme.surface_2 },
             .corners = radius,
-            .border = dvui.Rect.all(theme.border_width),
+            .border = ds.border(theme.border_width),
             .color_border = .{ .color = theme.border },
             .padding = ds.padding(theme.space_lg),
             .box_shadow = .{

@@ -33,12 +33,12 @@ test "chip geometry is whole physical pixels and symmetric at 1.0, 1.75 and 2.0"
     for ([_]f32{ 1.0, 1.75, 2.0 }) |scale| {
         const metrics = chip_mod.chipMetrics(scale);
         try std.testing.expect(pixels.isSnapped(metrics.outer, scale));
-        try std.testing.expect(pixels.isSnapped(metrics.padding, scale));
+        try std.testing.expect(pixels.isSnapped(metrics.inset, scale));
         try std.testing.expect(pixels.isSnapped(metrics.content, scale));
         // The content sits exactly between two equal paddings.
         try std.testing.expectApproxEqAbs(
             metrics.outer,
-            metrics.content + 2 * metrics.padding,
+            metrics.content + 2 * metrics.inset,
             0.0001,
         );
         try std.testing.expect(metrics.content > 0);

@@ -95,7 +95,7 @@ fn containerOpts(theme: tokens.Theme, id_extra: usize) dvui.Options {
         .background = true,
         .color_fill = .{ .color = ds.alpha(theme.destructive, theme.opacity_tonal_fill) },
         .color_border = .{ .color = theme.destructive },
-        .border = dvui.Rect.all(theme.border_width),
+        .border = ds.border(theme.border_width),
         .corners = dvui.CornerRect.round(theme.radius_md),
         .padding = ds.padding(theme.space_sm),
     };

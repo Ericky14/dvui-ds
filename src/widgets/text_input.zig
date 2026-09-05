@@ -192,7 +192,7 @@ pub const TextInput = struct {
             .color_border = .{ .color = border_color },
             .color_text = .{ .color = tokens.current.text_primary },
             .corners = dvui.CornerRect.round(tokens.current.radius_md),
-            .border = dvui.Rect.all(tokens.current.border_width),
+            .border = ds.border(tokens.current.border_width),
             .padding = pad,
             .font = ds.font(font_size),
             .expand = if (self.input_expand) |e| e else .horizontal,

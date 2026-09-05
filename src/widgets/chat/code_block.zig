@@ -87,7 +87,7 @@ pub const CodeBlock = struct {
             .background = true,
             .color_fill = .{ .color = theme.surface_0 },
             .color_border = .{ .color = theme.border_subtle },
-            .border = dvui.Rect.all(theme.border_width),
+            .border = ds.border(theme.border_width),
             .corners = dvui.CornerRect.round(theme.radius_md),
             .margin = dvui.Rect.all(0),
             .padding = dvui.Rect.all(0),
