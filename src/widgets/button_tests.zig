@@ -3,6 +3,7 @@ const std = @import("std");
 const dvui = @import("dvui");
 const btn = @import("button.zig");
 const tokens = @import("../tokens.zig");
+const ds = @import("../ds.zig");
 
 const Color = dvui.Color;
 const Button = btn.Button;
@@ -136,11 +137,44 @@ test "opts outlined has 1px border" {
     try std.testing.expectApproxEqAbs(@as(f32, 1), border.x, 0.001);
 }
 
-test "opts filled sm has accent-based fill" {
+test "opts filled sm paints the solid accent with dark ink" {
     const o = btn.opts(.filled, .sm);
-    const fill = o.color_fill.?;
-    // Alpha should be 30 (accent at ~12% opacity)
-    try std.testing.expectEqual(@as(u8, 30), fill.toColor().a);
+    const fill = o.color_fill.?.toColor();
+    const theme = tokens.current;
+    // Opaque on purpose. The fill was once the accent at 12 % over whatever was
+    // behind it, which over a near-black surface composites to ~2 % luminance —
+    // navy, however bright the accent. Now it is the accent itself, at full
+    // strength, with dark ink on top: the M3 / iOS filled-button convention.
+    try std.testing.expectEqual(@as(u8, 255), fill.a);
+    try std.testing.expectEqual(theme.accent, fill);
+    try std.testing.expectEqual(theme.surface_0, o.color_text.?.toColor());
+    try std.testing.expectEqual(theme.accentHover(), o.color_fill_hover.?.toColor());
+    try std.testing.expectEqual(theme.accentPressed(), o.color_fill_press.?.toColor());
+    // Every state clears the body-text bar with the same ink.
+    try std.testing.expect(ds.contrastRatio(theme.surface_0, theme.accent) >= 4.5);
+    try std.testing.expect(ds.contrastRatio(theme.surface_0, theme.accentHover()) >= 4.5);
+    try std.testing.expect(ds.contrastRatio(theme.surface_0, theme.accentPressed()) >= 4.5);
+}
+
+test "a disabled filled button drops the colour instead of dimming it" {
+    const theme = tokens.current;
+    const enabled = btn.opts(.filled, .sm);
+    const off = btn.disabledColors(.filled);
+
+    // The trap this pins: the generic disabled path multiplies the variant fill
+    // by `opacity_disabled`. On a *solid* accent that composites to roughly the
+    // old tonal fill — a disabled button that looks like an enabled one — and
+    // the dark ink on it falls to 1.57:1. So `.filled` names its own opaque
+    // disabled pair instead, and it is neutral, not a quieter blue.
+    try std.testing.expectEqual(@as(u8, 255), off.fill.a);
+    try std.testing.expectEqual(theme.surface_3, off.fill);
+    try std.testing.expectEqual(theme.text_muted, off.label);
+
+    // Off must not read as on: the two fills are far apart, and the disabled
+    // label still resolves against its own fill.
+    try std.testing.expect(ds.contrastRatio(enabled.color_fill.?.toColor(), off.fill) >= 4.5);
+    try std.testing.expect(ds.relativeLuminance(enabled.color_fill.?.toColor()) / ds.relativeLuminance(off.fill) > 10.0);
+    try std.testing.expect(ds.contrastRatio(off.label, off.fill) >= 2.5);
 }
 
 test "opts sm padding uses space_md x space_xs" {

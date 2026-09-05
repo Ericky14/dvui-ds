@@ -125,7 +125,7 @@ pub const Chip = struct {
         button.data().borderAndBackground(.{ .fill_color = .{ .color = fill } });
 
         if (self.chip_state == .current) {
-            drawCurrentRing(&button, theme.radius_sm, scale, theme.accent);
+            drawCurrentRing(&button, theme.radius_sm, scale, currentRingColor());
         }
 
         const glyph = anim.color(button.data().id, "icon", colors.icon, .{});
@@ -160,9 +160,12 @@ pub fn chipMetrics(scale: f32) pixels.Square {
     return pixels.squareMetrics(theme.chrome_chip_size, theme.chrome_chip_size * theme.icon_button_ratio, scale);
 }
 
-const StateColors = struct { fill: Color, fill_hover: Color, fill_press: Color, icon: Color };
+pub const StateColors = struct { fill: Color, fill_hover: Color, fill_press: Color, icon: Color };
 
-fn stateColors(chip_state: ChipState) StateColors {
+/// The four colours a chip is painted with in one state.
+///
+///   const on = ds.chipStateColors(.active); // solid accent, dark glyph
+pub fn stateColors(chip_state: ChipState) StateColors {
     const theme = tokens.current;
     return switch (chip_state) {
         .rest, .faded => .{
@@ -171,19 +174,24 @@ fn stateColors(chip_state: ChipState) StateColors {
             .fill_press = ds.alpha(.white, theme.opacity_ghost_press),
             .icon = theme.text_secondary,
         },
-        .active => .{
-            .fill = ds.alpha(theme.accent, theme.opacity_fill_rest),
-            .fill_hover = ds.alpha(theme.accent, theme.opacity_fill_hover),
-            .fill_press = ds.alpha(theme.accent, theme.opacity_fill_press),
-            .icon = theme.accent,
-        },
-        .current => .{
-            .fill = ds.alpha(theme.accent, theme.opacity_subtle_rest),
-            .fill_hover = ds.alpha(theme.accent, theme.opacity_subtle_hover),
-            .fill_press = ds.alpha(theme.accent, theme.opacity_subtle_press),
-            .icon = theme.text_primary,
+        // The held tool and the current mode are both "this one is on", and a
+        // toolbar only ever shows one of them per tool, so they share the
+        // loudest treatment the palette has: the accent itself with dark ink,
+        // the same as `button(.filled)` and `pill(.accent)`. What separates them
+        // is the ring, not the fill.
+        .active, .current => .{
+            .fill = theme.accent,
+            .fill_hover = theme.accentHover(),
+            .fill_press = theme.accentPressed(),
+            .icon = theme.surface_0,
         },
     };
+}
+
+/// The ink the `.current` ring is stroked in. An accent ring on an accent chip
+/// would be invisible, so it is the same dark ink as the glyph.
+pub fn currentRingColor() Color {
+    return tokens.current.surface_0;
 }
 
 fn targetFill(button: *dvui.ButtonWidget) Color {

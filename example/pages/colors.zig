@@ -68,6 +68,20 @@ pub fn draw() void {
     }
 
     ds.gap(@src(), theme.space_lg);
+    ds.label(@src(), "Accent surfaces (derived)").style(.secondary).font(.heading).draw();
+    ds.label(@src(), "What a selected row, a filled button or an active chip is actually painted with. Never the accent at a low alpha over the background: that composites to navy whatever the accent was. See AGENTS.md, \"The accent, and why a hex is not the decision\".").style(.muted).draw();
+    ds.gap(@src(), theme.space_sm);
+    {
+        var row = ds.row(@src()).gap(theme.space_sm).draw();
+        defer row.deinit();
+        swatch(40, "accentSoft", theme.accentSoft());
+        swatch(41, "accentSoftHover", theme.accentSoftHover());
+        swatch(42, "accentOnSoft", theme.accentOnSoft());
+        swatch(43, "accentHover", theme.accentHover());
+        swatch(44, "accentPressed", theme.accentPressed());
+    }
+
+    ds.gap(@src(), theme.space_lg);
     ds.label(@src(), "Borders").style(.secondary).font(.heading).draw();
     ds.gap(@src(), theme.space_sm);
     {

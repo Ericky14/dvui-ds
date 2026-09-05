@@ -4,6 +4,7 @@
 /// pass it to `ds.init()`. Widgets read `tokens.current` at draw time.
 const dvui = @import("dvui");
 const ds = @import("ds.zig");
+const color = @import("helpers/color.zig");
 
 pub const Color = dvui.Color;
 
@@ -40,6 +41,30 @@ pub const Theme = struct {
     // ── Accent ───────────────────────────────────────────────────────────────
     accent: Color, // Primary interactive
     accent_muted: Color, // Hover/pressed accent
+
+    // Accent *surfaces*: what a selected row, an active chip, an accent pill or
+    // a filled button is actually painted with.
+    //
+    // These exist because the obvious construction does not work. Painting the
+    // accent at a low alpha over the app background — 16 % over `#0C0E14` —
+    // lands at about 2 % luminance whatever the accent was, so a selected row
+    // came out a murky navy and changing the blue did nothing to it. A surface
+    // *mixed* towards the accent keeps the luminance the palette asked for, and
+    // a selected row reads as a light blue tint.
+    //
+    // All optional: leave them null and they are derived from `accent` and
+    // `surface_0`, so a custom theme still only has to name one blue.
+    /// The tonal surface behind accent content.
+    accent_soft: ?Color = null,
+    /// …hovered.
+    accent_soft_hover: ?Color = null,
+    /// Text and icons drawn on `accent_soft`. Lighter than `accent`, which is
+    /// tuned to read on the app background and only reaches 3.58:1 on the soft
+    /// surface — under the 4.5 body-text bar.
+    accent_on_soft: ?Color = null,
+    /// The accent itself, hovered and pressed.
+    accent_hover: ?Color = null,
+    accent_pressed: ?Color = null,
 
     // ── Destructive ──────────────────────────────────────────────────────────
     destructive: Color, // Dangerous actions
@@ -235,7 +260,42 @@ pub const Theme = struct {
 
     // ── Animation ────────────────────────────────────────────────────────────
     spinner_duration: i32 = 700_000,
+
+    /// The tonal surface behind accent content: a selected row, an active chip,
+    /// an accent pill, a filled button.
+    pub fn accentSoft(self: Theme) Color {
+        return self.accent_soft orelse color.mix(self.accent, self.surface_0, soft_mix);
+    }
+
+    /// `accentSoft` under the pointer.
+    pub fn accentSoftHover(self: Theme) Color {
+        return self.accent_soft_hover orelse color.mix(self.accent, self.surface_0, soft_hover_mix);
+    }
+
+    /// Text and icons on `accentSoft`.
+    pub fn accentOnSoft(self: Theme) Color {
+        return self.accent_on_soft orelse color.mix(self.accent, .white, on_soft_mix);
+    }
+
+    /// The accent under the pointer.
+    pub fn accentHover(self: Theme) Color {
+        return self.accent_hover orelse color.mix(self.accent, .white, hover_mix);
+    }
+
+    /// The accent while held.
+    pub fn accentPressed(self: Theme) Color {
+        return self.accent_pressed orelse color.mix(self.accent, self.surface_0, pressed_mix);
+    }
 };
+
+/// How far each derived accent surface sits between `accent` and its anchor.
+/// Tuned against the WCAG table in `tokens_contrast_tests.zig`, which is what
+/// stops any of them drifting under the thresholds.
+pub const soft_mix: f32 = 0.56;
+pub const soft_hover_mix: f32 = 0.50;
+pub const on_soft_mix: f32 = 0.60;
+pub const hover_mix: f32 = 0.18;
+pub const pressed_mix: f32 = 0.18;
 
 /// Active theme — set via `ds.init()`.
 pub var current: Theme = default_theme;
@@ -336,9 +396,16 @@ pub const default_theme: Theme = blk: {
         .text_muted = .fromHex("#646A78"),
         .text_ghost = .fromHex("#3D4250"),
 
-        // Accent (Cosmic Teal)
-        .accent = .fromHex("#6EB5FF"),
-        .accent_muted = .fromHex("#4A96E0"),
+        // Accent — a light modern azure. Chosen over the darker #3B9DFF /
+        // #4DA6FF / #5AB0FF candidates in `test/accent_candidates.zig`: all
+        // three are *less* luminous than the blue they would have replaced, and
+        // the picture shows it — their selected rows read deeper navy, not
+        // lighter. Rationale + the WCAG table: AGENTS.md, "The accent, and
+        // why a hex is not the decision".
+        .accent = .fromHex("#7CC0FF"),
+        // The darker step, used for the text-selection highlight under the
+        // pointer. Kept in step with `accentPressed()`.
+        .accent_muted = .fromHex("#68A0D5"),
 
         // Destructive
         .destructive = .fromHex("#E87070"),

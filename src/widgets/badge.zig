@@ -109,7 +109,8 @@ pub const Badge = struct {
     fn fillColor(self: Badge, theme: tokens.Theme, base: Color) Color {
         return switch (self.badge_variant) {
             .neutral => ds.alpha(.white, theme.opacity_subtle_rest),
-            .accent, .danger => ds.alpha(base, theme.opacity_tonal_fill),
+            .accent => theme.accentSoft(),
+            .danger => ds.alpha(base, theme.opacity_tonal_fill),
         };
     }
 
@@ -117,7 +118,8 @@ pub const Badge = struct {
     fn labelColor(self: Badge, theme: tokens.Theme, base: Color) Color {
         return switch (self.badge_variant) {
             .neutral => theme.text_secondary,
-            .accent, .danger => base,
+            .accent => theme.accentOnSoft(),
+            .danger => base,
         };
     }
 };

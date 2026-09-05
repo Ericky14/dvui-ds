@@ -88,6 +88,17 @@ pub const PillTone = @import("widgets/pill.zig").PillTone;
 /// rounded to whole physical pixels at the scale you pass.
 pub const chipMetrics = @import("widgets/chip.zig").chipMetrics;
 pub const pillMetrics = @import("widgets/pill.zig").pillMetrics;
+
+/// The fill/hover/press/glyph colours one chip state is painted with, so an app
+/// drawing its own toolbar square matches a `ds.chip` exactly.
+pub const chipStateColors = @import("widgets/chip.zig").stateColors;
+/// The ink the `.current` chip's ring is stroked in.
+pub const chipCurrentRingColor = @import("widgets/chip.zig").currentRingColor;
+/// The fill and text one pill tone is painted with.
+pub const pillToneColors = @import("widgets/pill.zig").toneColors;
+/// What a button that cannot be pressed is painted with. `.filled` drops the
+/// colour rather than dimming it — see the function's own comment.
+pub const buttonDisabledColors = @import("widgets/button.zig").disabledColors;
 pub const Square = @import("helpers/pixels.zig").Square;
 
 // ─── Chat widgets (ds.chat.*) ────────────────────────────────────────────────
@@ -129,6 +140,15 @@ pub const isSnapped = @import("helpers/pixels.zig").isSnapped;
 pub const alpha = @import("helpers/color.zig").alpha;
 pub const withOpacity = @import("helpers/color.zig").withOpacity;
 pub const Opacity = @import("helpers/color.zig").Opacity;
+
+/// Blend two colours: `t = 0` is `a`, `t = 1` is `b`. This — not an alpha over
+/// the background — is how an accent surface is built; see `tokens.Theme.accentSoft`.
+pub const mix = @import("helpers/color.zig").mix;
+/// WCAG relative luminance, 0 (black) to 1 (white).
+pub const relativeLuminance = @import("helpers/color.zig").relativeLuminance;
+/// WCAG contrast ratio, 1:1 to 21:1. 4.5 for body text, 3.0 for large text and
+/// non-text.
+pub const contrastRatio = @import("helpers/color.zig").contrastRatio;
 
 /// CSS `:focus-visible` — true only after keyboard input (auto-detected from the
 /// frame's events; no backend cooperation required).
@@ -199,6 +219,7 @@ test {
     _ = @import("widgets/preview_frame_tests.zig");
     _ = @import("widgets/chip_tests.zig");
     _ = @import("widgets/pill_tests.zig");
+    _ = @import("tokens_contrast_tests.zig");
     _ = @import("helpers/pixels.zig");
     _ = @import("platform/window_chrome_tests.zig");
     _ = @import("anim/anim_tests.zig");

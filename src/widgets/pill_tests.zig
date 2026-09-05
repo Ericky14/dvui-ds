@@ -3,6 +3,7 @@ const pill_mod = @import("pill.zig");
 const tokens = @import("../tokens.zig");
 const pixels = @import("../helpers/pixels.zig");
 const icons = @import("../icons.zig");
+const ds = @import("../ds.zig");
 
 test "pill defaults to a neutral text-only readout" {
     const readout = pill_mod.pill(@src(), "60 fps");
@@ -56,4 +57,19 @@ test "chrome heights sit on the 4px grid" {
     }) |value| {
         try std.testing.expectApproxEqAbs(@as(f32, 0), @mod(value, 4), 0.0001);
     }
+}
+
+test "an accent pill is the solid accent with dark text" {
+    const theme = tokens.current;
+    const colors = pill_mod.toneColors(.accent);
+    try std.testing.expectEqual(@as(u8, 255), colors.fill.a);
+    try std.testing.expectEqual(theme.accent, colors.fill);
+    try std.testing.expectEqual(theme.surface_0, colors.text);
+    try std.testing.expect(ds.contrastRatio(colors.text, colors.fill) >= 4.5);
+}
+
+test "the other pill tones keep their own hue" {
+    const theme = tokens.current;
+    try std.testing.expectEqual(theme.destructive, pill_mod.toneColors(.danger).text);
+    try std.testing.expectEqual(theme.text_secondary, pill_mod.toneColors(.neutral).text);
 }

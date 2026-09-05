@@ -340,12 +340,19 @@ pub fn opts(btn_variant: tokens.Variant, btn_size: tokens.Size) dvui.Options {
     };
 
     return switch (btn_variant) {
-        // Primary: accent text, accent 25% hover
+        // Primary: the solid accent with dark ink — the M3 / iOS filled-button
+        // convention, and the loudest control on the page.
         .filled => .{
-            .color_fill = .{ .color = ds.alpha(theme.accent, theme.opacity_fill_rest) },
-            .color_fill_hover = .{ .color = ds.alpha(theme.accent, theme.opacity_fill_hover) },
-            .color_fill_press = .{ .color = ds.alpha(theme.accent, theme.opacity_fill_press) },
-            .color_text = .{ .color = theme.accent },
+            // The accent itself, at full strength. Not the accent at a low
+            // alpha: over a near-black background that composite lands at ~2 %
+            // luminance and reads navy however bright the accent is. A *tonal*
+            // surface (`Theme.accentSoft`) is the right call for something that
+            // sits behind a whole row of content — a selected tree row — but a
+            // button is a single small target and wants the full colour.
+            .color_fill = .{ .color = theme.accent },
+            .color_fill_hover = .{ .color = theme.accentHover() },
+            .color_fill_press = .{ .color = theme.accentPressed() },
+            .color_text = .{ .color = theme.surface_0 },
             .color_border = .{ .color = .transparent },
             .corners = radius,
             .border = dvui.Rect.all(0),
@@ -408,7 +415,8 @@ pub fn opts(btn_variant: tokens.Variant, btn_size: tokens.Size) dvui.Options {
 fn iconColors(btn_variant: tokens.Variant) struct { fill: tokens.Color, stroke: tokens.Color } {
     const theme = tokens.current;
     return switch (btn_variant) {
-        .filled => .{ .fill = theme.accent, .stroke = theme.accent },
+        // Dark ink, because `.filled` is painted with the accent itself.
+        .filled => .{ .fill = theme.surface_0, .stroke = theme.surface_0 },
         .outlined => .{ .fill = theme.text_secondary, .stroke = theme.text_secondary },
         .ghost => .{ .fill = theme.text_secondary, .stroke = theme.text_secondary },
         .danger => .{ .fill = theme.destructive, .stroke = theme.destructive },
@@ -420,11 +428,34 @@ fn iconColors(btn_variant: tokens.Variant) struct { fill: tokens.Color, stroke: 
 fn variantTextColor(btn_variant: tokens.Variant) Color {
     const theme = tokens.current;
     return switch (btn_variant) {
-        .filled => theme.accent,
+        .filled => theme.surface_0,
         .outlined => theme.text_secondary,
         .ghost => theme.text_secondary,
         .danger => theme.destructive,
         .accent_ghost => theme.accent,
+    };
+}
+
+/// What a button that cannot be pressed is painted with.
+///
+/// The generic treatment — the variant's own colours at `opacity_disabled` —
+/// works for a variant whose rest fill is already a wash. It does **not** work
+/// for `.filled`: the accent at 40 % over the app background composites to
+/// roughly the *tonal* accent surface, so the off state lands on what the on
+/// state used to be, and the dark ink on top falls to 1.57:1. So `.filled`
+/// names an opaque, **neutral** pair instead — losing the colour entirely is
+/// what says "off", and it is what M3 specifies too.
+///
+///   const off = ds.buttonDisabledColors(.filled);
+///   // off.fill == theme.surface_3, off.label == theme.text_muted
+pub fn disabledColors(btn_variant: tokens.Variant) struct { fill: Color, label: Color } {
+    const theme = tokens.current;
+    return switch (btn_variant) {
+        .filled => .{ .fill = theme.surface_3, .label = theme.text_muted },
+        else => .{
+            .fill = opts(btn_variant, .md).color(.fill).toColor().opacity(theme.opacity_disabled),
+            .label = variantTextColor(btn_variant).opacity(theme.opacity_disabled),
+        },
     };
 }
 
@@ -538,7 +569,10 @@ fn drawAnimatedLabelAndIcon(src: std.builtin.SourceLocation, label_str: []const 
 /// Applies uniform 40% opacity over entire button (disabled:opacity-40).
 fn drawLoadingButton(src: std.builtin.SourceLocation, label_str: []const u8, btn_variant: tokens.Variant, btn_size: tokens.Size, options: dvui.Options) bool {
     const theme = tokens.current;
-    const text_color = variantTextColor(btn_variant).opacity(theme.opacity_disabled);
+    // Same pair as disabled: a button that cannot be pressed looks the same
+    // whether it is busy or off, and neither may be mistaken for pressable.
+    const off = disabledColors(btn_variant);
+    const text_color = off.label;
 
     var bw: dvui.ButtonWidget = undefined;
     bw.init(src, .{ .draw_focus = ds.focusVisible() }, options);
@@ -546,7 +580,7 @@ fn drawLoadingButton(src: std.builtin.SourceLocation, label_str: []const u8, btn
     defer bw.drawFocus();
 
     // Don't process events — loading buttons are non-interactive
-    bw.data().borderAndBackground(.{ .fill_color = .{ .color = targetFillColor(&bw).opacity(theme.opacity_disabled) } });
+    bw.data().borderAndBackground(.{ .fill_color = .{ .color = off.fill } });
 
     {
         var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_sm }, .{ .gravity_x = 0.5, .gravity_y = 0.5, .expand = .vertical });
@@ -568,7 +602,7 @@ fn drawLoadingButton(src: std.builtin.SourceLocation, label_str: []const u8, btn
 /// Button in disabled state: reduced opacity, no interaction.
 /// Applies uniform 40% opacity over entire button (disabled:opacity-40).
 fn drawDisabledButton(src: std.builtin.SourceLocation, label_str: []const u8, btn_source: ?Source, icon_first: bool, btn_variant: tokens.Variant, btn_size: tokens.Size, options: dvui.Options) bool {
-    _ = btn_variant;
+    const off = disabledColors(btn_variant);
 
     var bw: dvui.ButtonWidget = undefined;
     bw.init(src, .{ .draw_focus = ds.focusVisible() }, options);
@@ -576,9 +610,9 @@ fn drawDisabledButton(src: std.builtin.SourceLocation, label_str: []const u8, bt
     defer bw.drawFocus();
 
     // Don't process events — disabled buttons are non-interactive
-    bw.data().borderAndBackground(.{ .fill_color = .{ .color = targetFillColor(&bw).opacity(tokens.current.opacity_disabled) } });
+    bw.data().borderAndBackground(.{ .fill_color = .{ .color = off.fill } });
 
-    const dim_text = options.color(.text).toColor().opacity(tokens.current.opacity_disabled);
+    const dim_text = off.label;
     const style = options.strip().override(bw.style()).override(.{ .color_text = .{ .color = dim_text }, .gravity_y = 0.5 });
     const row_height = contentHeight(btn_size, options).h;
     const icon_sz = pixels.squareMetrics(row_height, icon_mod.iconSize(btn_size), pixels.pixelScale()).content;

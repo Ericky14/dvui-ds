@@ -121,7 +121,7 @@ fn containerOpts(theme: tokens.Theme, id_extra: usize) dvui.Options {
         .id_extra = id_extra,
         .expand = .horizontal,
         .background = true,
-        .color_fill = .{ .color = ds.alpha(theme.accent, theme.opacity_tonal_fill) },
+        .color_fill = .{ .color = ds.mix(theme.accentSoft(), theme.surface_1, 0.55) },
         .color_border = .{ .color = theme.accent },
         .border = ds.border(theme.border_width),
         .corners = dvui.CornerRect.round(theme.radius_md),

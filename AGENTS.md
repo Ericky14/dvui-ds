@@ -102,6 +102,10 @@ so dvui-native widgets match.
 - Theme fields: surfaces (`surface_0..4`), text (`text_primary/secondary/muted/ghost`),
   `accent`/`accent_muted`, `destructive`/`destructive_muted`, borders, `space_*`,
   `radius_*`, `icon_*`, `font_size_*`, opacity tokens. See `tokens.zig`.
+- **Accent surfaces are derived, not literal:** `accentSoft()`, `accentSoftHover()`,
+  `accentOnSoft()`, `accentHover()`, `accentPressed()`. Never paint the accent at a
+  low alpha over `surface_0` to get a tonal fill — see "The accent, and why a hex
+  is not the decision".
 
 ## Storybook (the dev loop)
 
@@ -149,6 +153,102 @@ to zero height and its text won't show — see the dvui CLAUDE.md gotcha).
 ## The Look
 
 The chrome language the design system draws windows in. Dark first.
+
+### The accent, and why a hex is not the decision
+
+The accent is **`#7CC0FF`** — a light azure. What a "selected row" or a "filled
+button" actually looks like is *not* that hex, though: it is a **tonal surface**
+derived from it, and that derivation is where the colour is really decided.
+
+**The trap this replaced.** A tonal accent used to be the accent painted at a low
+alpha over the app background. `#6EB5FF` at `40/255` over `#0C0E14` composites to
+`#1B2839` — relative luminance **0.021**, contrast **1.30:1** against the
+background it sits on. That is the "dark blue" that got flagged. And it is not
+the hue's fault: `#3B9DFF`, `#4DA6FF` and `#5AB0FF` land at `#132439`, `#162639`
+and `#182739` under the same construction — every candidate blue turns into the
+same murky navy, because near-black dominates the mix. **Never build an accent
+surface out of alpha over the background.**
+
+**What replaced it.** Five derived surfaces on `tokens.Theme`, each a *mix* (not
+an alpha) and each overridable, so a downstream theme still only names one blue:
+
+| Method | Mix | Value | Used by |
+| --- | --- | --- | --- |
+| `accentSoft()` | `mix(accent, surface_0, 0.56)` | `#3D5C7B` | selected tree/sheet row, `badge(.accent)`, the approval card's tint |
+| `accentSoftHover()` | `mix(accent, surface_0, 0.50)` | `#44678A` | the same, under the pointer |
+| `accentOnSoft()` | `mix(accent, white, 0.60)` | `#CBE6FF` | text and glyphs on those surfaces |
+| `accentHover()` | `mix(accent, white, 0.18)` | `#94CBFF` | a solid accent control, hovered |
+| `accentPressed()` | `mix(accent, surface_0, 0.18)` | `#68A0D5` | a solid accent control, held |
+
+`soft_mix` is the load-bearing number: it is *how far the tonal surface sits from
+the background*, and it decides whether a selected row reads "blue" or "dark
+blue" far more than the accent hex does. At `0.64` the row was `#344E69`
+(luminance 0.072, 2.24:1 over the background); at **`0.56`** it is `#3D5C7B`
+(0.102, **2.78:1**) — a 41 % luminance lift with the same hue.
+
+**Why `#7CC0FF` and not the darker candidates.** `#3B9DFF` / `#4DA6FF` /
+`#5AB0FF` are all *less* luminous than the blue they would have replaced (0.323 /
+0.361 / 0.404 vs 0.436), so they push the surfaces the wrong way; the picture
+shows it — their rows are deeper navy. `#7CC0FF` is 0.492, **+13 %** on the old
+accent, and stays in the blue family: `#38BDF8` (sky) matches it for luminance
+but shifts the hue to teal, which reads as a different product next to the
+red/amber/green trio. Danger, warning and success are untouched.
+
+**Two tiers, and the rule that picks one.** A *control* — something you click,
+that is small and wants to be found — is painted with the **solid accent and
+dark ink**: `button(.filled)`, `chip(.active)`, `chip(.current)`, `pill(.accent)`.
+That is the Material 3 / iOS filled convention and it is what makes a Send button
+or a held tool the loudest thing on the page. A *background* — something that
+sits behind a row of content you have to read — stays **tonal**: the selected
+tree row, the selected sheet row, `badge(.accent)`, the approval card's tint. The
+test is "does text sit *on* it or *next to* it": solid for the former, tonal for
+the latter. `chip(.current)` keeps its ring, and the ring is stroked in
+`surface_0` — an accent ring on an accent chip is invisible.
+
+**Disabled drops the colour; it does not dim it.** The generic disabled path
+multiplies a variant's own colours by `opacity_disabled`. That works for a
+variant whose rest fill is already a wash. It does **not** work for a solid
+accent: `#7CC0FF` at 40 % over the composer background composites to `#3C5976` —
+within a hair of the *enabled tonal* fill this design just moved away from — and
+the dark ink on top falls to **1.57:1**. So `.filled` names its own opaque,
+neutral pair (`surface_3` fill, `text_muted` label, 2.93:1), which is also what
+M3 specifies. Off and on are then 8.21:1 apart and 30.7x in luminance, which is
+what "reads at a glance" means as a number. `ds.buttonDisabledColors`,
+`ds.chipStateColors`, `ds.pillToneColors` and `ds.chipCurrentRingColor` expose all
+of it, so an app drawing its own control matches exactly.
+
+**The evidence.** `ds-screenshots/colors_candidates.png` — six accents, the same
+real widgets, at 1.75. `ds-screenshots/colors_soft_mix.png` — the chosen accent at
+four values of `soft_mix`. Both are rendered by `test/accent_candidates.zig`.
+
+**The contrast table** (WCAG 2.1, dark theme; body ≥ 4.5, captions/icons/
+decoration ≥ 3.0). Asserted in `src/tokens_contrast_tests.zig`, pair by pair, so
+re-tuning a mix constant cannot quietly push a real pairing under:
+
+| Pair | Ratio | Needs |
+| --- | --- | --- |
+| `accentOnSoft` on `accentSoft` | 5.37 | 4.5 |
+| `accentOnSoft` on `accentSoftHover` | 4.58 | 4.5 |
+| `text_primary` on `accentSoft` | 5.76 | 4.5 |
+| `text_primary` on `chip(.current)` fill | 9.81 | 4.5 |
+| `accent` on `surface_0` | 9.96 | 4.5 |
+| `accent` on `surface_2` | 8.90 | 4.5 |
+| `accentOnSoft` on `surface_0` | 14.95 | 4.5 |
+| `text_secondary` on the approval card's fill | 5.09 | 4.5 |
+| `accent` on `chip(.current)` fill | 6.09 | 3.0 (ring) |
+| `surface_0` on `accent` | 9.96 | 3.0 (checkbox tick) |
+| `accentSoft` on `surface_0` | 2.78 | — (surface lift, min 2.5) |
+| `surface_0` on `accent` (solid control, rest) | 9.96 | 4.5 |
+| `surface_0` on `accentHover` | 11.27 | 4.5 |
+| `surface_0` on `accentPressed` | 6.95 | 4.5 |
+| `accent` on `surface_1` (the control's own edge) | 9.50 | 4.5 |
+| `accent` on `accentSoft` (a pill on a selected row) | 3.58 | 3.0 |
+| `text_muted` on `surface_3` (disabled `.filled`) | 2.93 | — (inactive; exempt) |
+| `accent` vs `surface_3` (on vs off fill) | 8.21 | — (states must not be confusable) |
+
+The last row is not a WCAG rule — it is the "reads as a lit surface, not as a
+shadow" rule, and 2.5 is the floor because 2.12 is what the version that got
+flagged measured.
 
 ### Glass
 

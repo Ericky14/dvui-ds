@@ -186,9 +186,12 @@ pub fn pillMetrics(scale: f32) struct { height: f32, padding_x: f32, gap: f32 } 
     };
 }
 
-const ToneColors = struct { fill: Color, text: Color };
+pub const ToneColors = struct { fill: Color, text: Color };
 
-fn toneColors(pill_tone: PillTone) ToneColors {
+/// The fill and ink one pill tone is painted with.
+///
+///   const on = ds.pillToneColors(.accent); // solid accent, dark text
+pub fn toneColors(pill_tone: PillTone) ToneColors {
     const theme = tokens.current;
     return switch (pill_tone) {
         .neutral => .{
@@ -196,8 +199,11 @@ fn toneColors(pill_tone: PillTone) ToneColors {
             .text = theme.text_secondary,
         },
         .accent => .{
-            .fill = ds.alpha(theme.accent, theme.opacity_tonal_fill),
-            .text = theme.accent,
+            // The solid accent with dark text — the same treatment as
+            // `button(.filled)` and an on chip, so a status bar and a toolbar
+            // agree about what "this is the live one" looks like.
+            .fill = theme.accent,
+            .text = theme.surface_0,
         },
         .danger => .{
             .fill = ds.alpha(theme.destructive, theme.opacity_tonal_fill),

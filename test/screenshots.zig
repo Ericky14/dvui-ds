@@ -573,4 +573,5 @@ test {
     _ = @import("chat_screenshots.zig");
     _ = @import("card_screenshots.zig");
     _ = @import("chrome_screenshots.zig");
+    _ = @import("accent_candidates.zig");
 }

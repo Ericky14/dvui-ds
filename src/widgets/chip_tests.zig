@@ -3,6 +3,7 @@ const chip_mod = @import("chip.zig");
 const tokens = @import("../tokens.zig");
 const pixels = @import("../helpers/pixels.zig");
 const icons = @import("../icons.zig");
+const ds = @import("../ds.zig");
 
 test "chip defaults to rest with no tooltip" {
     const entry = chip_mod.chip(@src(), "undo", icons.undo);
@@ -52,4 +53,42 @@ test "the chip is the size the theme asked for, in physical pixels" {
         const physical = metrics.outer * scale;
         try std.testing.expectApproxEqAbs(@round(theme.chrome_chip_size * scale), physical, 0.0001);
     }
+}
+
+test "the on chips are the solid accent with dark glyphs" {
+    const theme = tokens.current;
+    // A held tool and the current mode are the loudest thing in a toolbar, so
+    // they get the accent itself rather than a tonal wash of it — the same
+    // treatment `button(.filled)` and `pill(.accent)` use, so a strip of chips
+    // and the Send button read as one family.
+    for ([_]chip_mod.ChipState{ .active, .current }) |on| {
+        const colors = chip_mod.stateColors(on);
+        try std.testing.expectEqual(@as(u8, 255), colors.fill.a);
+        try std.testing.expectEqual(theme.accent, colors.fill);
+        try std.testing.expectEqual(theme.accentHover(), colors.fill_hover);
+        try std.testing.expectEqual(theme.accentPressed(), colors.fill_press);
+        try std.testing.expectEqual(theme.surface_0, colors.icon);
+        // An 11 px glyph needs 3:1; this pairing is well past it.
+        try std.testing.expect(ds.contrastRatio(colors.icon, colors.fill) >= 4.5);
+        try std.testing.expect(ds.contrastRatio(colors.icon, colors.fill_hover) >= 4.5);
+        try std.testing.expect(ds.contrastRatio(colors.icon, colors.fill_press) >= 4.5);
+    }
+}
+
+test "an off chip stays neutral so the on chips are the only blue in the strip" {
+    const theme = tokens.current;
+    for ([_]chip_mod.ChipState{ .rest, .faded }) |off| {
+        const colors = chip_mod.stateColors(off);
+        try std.testing.expectEqual(@as(u8, 0), colors.fill.a);
+        try std.testing.expectEqual(theme.text_secondary, colors.icon);
+    }
+}
+
+test "the current ring reads against the solid fill it is drawn on" {
+    const theme = tokens.current;
+    // `.current` keeps its ring, and on a solid accent chip an accent ring
+    // would be invisible. It is drawn in the same dark ink as the glyph.
+    const ring = chip_mod.currentRingColor();
+    try std.testing.expectEqual(theme.surface_0, ring);
+    try std.testing.expect(ds.contrastRatio(ring, chip_mod.stateColors(.current).fill) >= 3.0);
 }
