@@ -35,6 +35,12 @@ pub const panel = @import("widgets/panel.zig").panel;
 pub const panelHeader = @import("widgets/panel.zig").panelHeader;
 pub const label = @import("widgets/label.zig").label;
 pub const toolbar = @import("widgets/toolbar.zig").toolbar;
+pub const glass = @import("widgets/glass.zig").glass;
+pub const glassScene = @import("widgets/glass.zig").glassScene;
+pub const windowFrame = @import("widgets/window_frame.zig").windowFrame;
+pub const previewFrame = @import("widgets/preview_frame.zig").previewFrame;
+pub const chip = @import("widgets/chip.zig").chip;
+pub const pill = @import("widgets/pill.zig").pill;
 pub const spacer = @import("widgets/spacer.zig").spacer;
 pub const gap = @import("widgets/spacer.zig").gap;
 pub const gapH = @import("widgets/spacer.zig").gapH;
@@ -63,6 +69,18 @@ pub const Radio = @import("widgets/radio.zig").Radio;
 pub const ScrollArea = @import("widgets/scroll_area.zig").ScrollArea;
 pub const ScrollAreaHandle = @import("widgets/scroll_area.zig").Handle;
 pub const Router = @import("widgets/router.zig").Router;
+pub const Glass = @import("widgets/glass.zig").Glass;
+pub const GlassHandle = @import("widgets/glass.zig").Handle;
+pub const GlassScene = @import("widgets/glass.zig").GlassScene;
+pub const GlassSceneHandle = @import("widgets/glass.zig").Scene;
+pub const WindowFrame = @import("widgets/window_frame.zig").WindowFrame;
+pub const PreviewFrame = @import("widgets/preview_frame.zig").PreviewFrame;
+pub const PreviewFrameHandle = @import("widgets/preview_frame.zig").Handle;
+pub const PreviewEdge = @import("widgets/preview_frame.zig").Edge;
+pub const Chip = @import("widgets/chip.zig").Chip;
+pub const ChipState = @import("widgets/chip.zig").ChipState;
+pub const Pill = @import("widgets/pill.zig").Pill;
+pub const PillTone = @import("widgets/pill.zig").PillTone;
 
 // ─── Chat widgets (ds.chat.*) ────────────────────────────────────────────────
 pub const chat = @import("widgets/chat/chat.zig");
@@ -85,6 +103,12 @@ pub const fontMonoMedium = @import("helpers/fonts.zig").fontMonoMedium;
 // ─── Color helpers ───────────────────────────────────────────────────────────
 
 pub const cachedTvg = @import("helpers/svg.zig").cachedTvg;
+
+/// Physical-pixel snapping — see `helpers/pixels.zig`.
+pub const pixelScale = @import("helpers/pixels.zig").pixelScale;
+pub const snapPx = @import("helpers/pixels.zig").snapPx;
+pub const hairline = @import("helpers/pixels.zig").hairline;
+pub const isSnapped = @import("helpers/pixels.zig").isSnapped;
 
 pub const alpha = @import("helpers/color.zig").alpha;
 pub const withOpacity = @import("helpers/color.zig").withOpacity;
@@ -139,6 +163,12 @@ test {
     _ = @import("widgets/scroll_area_tests.zig");
     _ = @import("widgets/text_input_tests.zig");
     _ = @import("widgets/textarea_tests.zig");
+    _ = @import("widgets/glass_tests.zig");
+    _ = @import("widgets/window_frame_tests.zig");
+    _ = @import("widgets/preview_frame_tests.zig");
+    _ = @import("widgets/chip_tests.zig");
+    _ = @import("widgets/pill_tests.zig");
+    _ = @import("helpers/pixels.zig");
     _ = @import("anim/anim_tests.zig");
     _ = @import("helpers/fonts.zig");
     _ = @import("widgets/chat/chat.zig");

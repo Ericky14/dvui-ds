@@ -44,6 +44,12 @@ const Page = enum {
     modal,
     badge,
     tooltip,
+    glass,
+    window_frame,
+    preview_frame,
+    chip,
+    pill,
+    editor_chrome,
     chat,
     chat_cards,
 };
@@ -100,6 +106,16 @@ fn storybookFrame() bool {
 
         router.gap(@src(), ds.tokens.current.space_lg);
 
+        router.section(@src(), "CHROME");
+        router.link(@src(), .glass, "Glass");
+        router.link(@src(), .window_frame, "Window Frame");
+        router.link(@src(), .preview_frame, "Preview Frame");
+        router.link(@src(), .chip, "Chip");
+        router.link(@src(), .pill, "Pill");
+        router.link(@src(), .editor_chrome, "Editor Chrome");
+
+        router.gap(@src(), ds.tokens.current.space_lg);
+
         router.section(@src(), "CHAT");
         router.link(@src(), .chat, "Messages");
         router.link(@src(), .chat_cards, "Cards");
@@ -133,6 +149,12 @@ fn storybookFrame() bool {
             .modal => pages.modal.draw(),
             .badge => pages.badge.draw(),
             .tooltip => pages.tooltip.draw(),
+            .glass => pages.glass.draw(),
+            .window_frame => pages.window_frame.draw(),
+            .preview_frame => pages.preview_frame.draw(),
+            .chip => pages.chip.draw(),
+            .pill => pages.pill.draw(),
+            .editor_chrome => pages.editor_chrome.draw(),
             .chat => pages.chat.draw(),
             .chat_cards => pages.chat_cards.draw(),
         }

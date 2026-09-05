@@ -28,6 +28,14 @@ pub const badge = @import("badge.zig");
 pub const tooltip = @import("tooltip.zig");
 pub const radio = @import("radio.zig");
 
+// ─── Window chrome ────────────────────────────────────────────────────────────
+pub const glass = @import("glass.zig");
+pub const window_frame = @import("window_frame.zig");
+pub const preview_frame = @import("preview_frame.zig");
+pub const chip = @import("chip.zig");
+pub const pill = @import("pill.zig");
+pub const editor_chrome = @import("editor_chrome.zig");
+
 // ─── Chat (zigame editor) ─────────────────────────────────────────────────────
 pub const chat = @import("chat.zig");
 pub const chat_cards = @import("chat_cards.zig");

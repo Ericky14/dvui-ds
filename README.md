@@ -24,6 +24,12 @@ Design system widget library for [dvui](https://github.com/david-vanderson/dvui)
 | `label` | `ds.label(@src(), "Hello").style(.muted).draw();` |
 | `icon` | `ds.icon(@src(), "name", bytes).style(.accent).draw();` |
 | `spacer` | `ds.spacer(@src());` |
+| `glass` | `var g = ds.glass(@src()).rect(r).behind(); …; var s = g.draw(); defer s.deinit();` |
+| `glassScene` | `var scene = ds.glassScene(@src()).rect(viewport).begin(); …; scene.end();` |
+| `windowFrame` | `var f = ds.windowFrame(@src()).focused(true).draw(); defer f.deinit();` |
+| `previewFrame` | `var p = ds.previewFrame(@src()).draw(); defer p.deinit();` |
+| `chip` | `if (ds.chip(@src(), "undo", ds.icons.undo).state(.current).draw()) { … }` |
+| `pill` | `ds.pill(@src(), "60 fps").mono(true).draw();` |
 
 ## Variants & Sizes
 

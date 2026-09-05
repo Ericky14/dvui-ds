@@ -87,8 +87,8 @@ pub const Tooltip = struct {
             .box_shadow = .{
                 .color = theme.shadow_color,
                 .corners = radius,
-                .offset = .{ .x = 0, .y = 2 },
-                .fade = 12,
+                .offset = .{ .x = 0, .y = theme.elevation_2_offset },
+                .fade = theme.elevation_2_fade,
                 .alpha = theme.shadow_alpha,
             },
         };

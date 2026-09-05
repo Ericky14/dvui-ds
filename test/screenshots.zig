@@ -10,16 +10,89 @@ const std = @import("std");
 const dvui = @import("dvui");
 const ds = @import("dvui_ds");
 
+/// Where every fixture's PNG lands.
+pub const image_dir = "ds-screenshots";
+
 /// Render `frame` once (settled) and write it to ds-screenshots/<name>.
+/// The dvui testing backend always rasterises at 2 physical pixels per logical
+/// pixel, so this is `captureAt(..., 2.0, ...)`.
 pub fn capture(name: []const u8, w: f32, h: f32, frame: dvui.App.frameFunction) !void {
     var t = try dvui.testing.init(.{
-        .image_dir = "ds-screenshots",
+        .image_dir = image_dir,
         .window_size = .{ .w = w, .h = h },
         .window_init_opts = .{ .theme = ds.tokens.dvuiTheme() },
     });
     defer t.deinit();
     try dvui.testing.settle(frame);
-    try t.saveImage(frame, null, name);
+    try savePng(name, frame);
+}
+
+/// Render `frame` at a chosen scale — for fixtures that have to prove chrome
+/// stays aligned on a fractional-DPI display (the owner's is 1.75), not only on
+/// the clean 1.0 and 2.0 the maths is easy at.
+///
+/// `logical_w`/`logical_h` are the layout size the widgets see; the PNG comes
+/// out `logical × scale` pixels. The testing backend hard-wires its framebuffer
+/// to 2× the window size it is handed, so the scale is dialled in by asking for
+/// a window of `logical × scale / 2` and setting the window's own content scale
+/// to `scale / 2` — the two multiply back to exactly `scale`.
+pub fn captureAt(name: []const u8, logical_w: f32, logical_h: f32, scale: f32, frame: dvui.App.frameFunction) !void {
+    var t = try dvui.testing.init(.{
+        .image_dir = image_dir,
+        .window_size = .{ .w = logical_w * scale / 2, .h = logical_h * scale / 2 },
+        .window_init_opts = .{ .theme = ds.tokens.dvuiTheme() },
+    });
+    defer t.deinit();
+    t.window.content_scale = scale / 2;
+    // `dvui.testing.init` already opened a frame at the old scale; burn one so
+    // the next `begin` picks the new one up before anything is measured.
+    _ = try dvui.testing.step(frame);
+    try dvui.testing.settle(frame);
+    try savePng(name, frame);
+}
+
+/// Render one frame into an offscreen target and write it out as a PNG.
+///
+/// This is `dvui.testing.saveImage` minus its `dvui.Picture`, and the
+/// difference is not cosmetic. `Picture.start` installs its own deferred-render
+/// queue, so *every* deferred draw in the frame lands in one flat list that is
+/// replayed by `Picture.stop()` — which `capturePng` calls **after**
+/// `endRendering`. Anything that renders out of a subwindow (`FloatingWidget`,
+/// and so every `ds.glass` overlay) is drawn by `endRendering` and then painted
+/// straight over by the background it was supposed to float on. The app, which
+/// has no Picture, orders those correctly; a screenshot taken through a Picture
+/// does not, and a design system whose review artefact is the screenshot cannot
+/// afford the two to disagree. Rendering to a plain target keeps dvui's own
+/// subwindow ordering, so the PNG shows what the window shows.
+fn savePng(name: []const u8, frame: dvui.App.frameFunction) !void {
+    const cw = dvui.currentWindow();
+    const area = dvui.windowRectPixels();
+    const width: u32 = @intFromFloat(@round(area.w));
+    const height: u32 = @intFromFloat(@round(area.h));
+
+    const target = try dvui.textureCreateTarget(.{ .width = width, .height = height });
+    const previous = dvui.renderTarget(.{ .texture = target, .offset = .{} });
+    if (try frame() == .close) return error.closed;
+    cw.endRendering(.{});
+    _ = dvui.renderTarget(previous);
+
+    // Frame arena, not the LIFO one: the PNG writer allocates after this and a
+    // LIFO arena can only give back its most recent block.
+    const premultiplied = try dvui.textureReadTarget(cw.arena(), target);
+    const rgba = dvui.Color.PMA.sliceToRGBA(premultiplied);
+    target.destroyLater();
+
+    var dir = try std.Io.Dir.cwd().createDirPathOpen(dvui.io, image_dir, .{});
+    defer dir.close(dvui.io);
+    const file = try dir.createFile(dvui.io, name, .{});
+    defer file.close(dvui.io);
+    var buffer: [512]u8 = undefined;
+    var writer = file.writer(dvui.io, &buffer);
+    try dvui.PNGEncoder.write(&writer.interface, rgba, width, height);
+    try writer.end();
+
+    _ = try cw.end(.{});
+    try cw.begin(cw.frame_time_ns + 100 * std.time.ns_per_ms);
 }
 
 /// Full-window themed background so components sit on the app surface.
@@ -478,4 +551,5 @@ test "icon grid" {
 test {
     _ = @import("chat_screenshots.zig");
     _ = @import("card_screenshots.zig");
+    _ = @import("chrome_screenshots.zig");
 }

@@ -27,10 +27,15 @@ src/
 │   ├── menu_bar.zig    # Menu bar wrapper
 │   ├── menu_item.zig   # Menu item + floatingMenu
 │   ├── toolbar.zig     # Horizontal toolbar
+│   ├── glass.zig       # Blurred-backdrop surface + glassScene (see "The Look")
+│   ├── window_frame.zig # The window's double border
+│   ├── preview_frame.zig # Frame + vignette + slots around a picture
+│   ├── chip.zig        # Square icon chip for dense strips
+│   ├── pill.zig        # Rounded status / selection readout
 │   ├── loader.zig      # Spinner / loading indicator
 │   ├── spacer.zig      # gap / gapH spacers
 │   └── router.zig      # Router(PageEnum): sidebar nav for the storybook / app shells
-├── helpers/            # padding.zig, fonts.zig (font/fontMedium/...), color.zig, svg.zig (cachedTvg)
+├── helpers/            # padding.zig, fonts.zig, color.zig, svg.zig, pixels.zig (snapPx/hairline)
 ├── anim/               # animation primitives (anim.zig, color, float, options, utils)
 ├── icons/lucide/       # Lucide icon set (TVG)
 ├── icons.zig           # icon byte re-exports (ds.icons.save, ...)
@@ -109,6 +114,11 @@ zig build screenshots   # render each component to ds-screenshots/*.png (headles
 
 ## Component screenshots (visual verification)
 
+Fixtures live in `test/screenshots.zig` and, per area, `test/chat_screenshots.zig`,
+`test/card_screenshots.zig` and `test/chrome_screenshots.zig`. `shots.capture`
+renders at scale 2.0; `shots.captureAt` takes an explicit scale, which is how the
+editor-chrome page is published at both 1.0 and 1.75.
+
 `zig build screenshots` renders each DS component to a PNG under `ds-screenshots/`
 with **no GPU or window** — it builds against dvui's testing backend, which
 rasterizes on the CPU. Deterministic, so the PNGs double as visual-regression
@@ -135,6 +145,121 @@ to zero height and its text won't show — see the dvui CLAUDE.md gotcha).
 `switch (router.active)` that dispatches to a page's `draw()`. Each page is
 `example/pages/<name>.zig` exposing `pub fn draw() void`, registered in
 `example/pages/pages.zig`.
+
+## The Look
+
+The chrome language the design system draws windows in. Dark first.
+
+### Glass
+
+`ds.glass` is a translucent surface floating over a blurred copy of what is
+behind it — CSS `backdrop-filter: blur()`, via dvui's `BlurBackdrop`. Three
+layers, and all three matter: the blurred capture, a **tint** over it, and a
+**1 px inner highlight along the top edge**. The highlight is the layer that
+sells it; without it a translucent panel reads as a weak fill rather than as a
+pane of glass.
+
+- **Use glass** for a surface that floats over *content*: a drawer or sheet over
+  a live view, a toolbar over a picture, a popover over a document.
+- **Do not use glass** over an opaque column — a blur of a flat fill is the flat
+  fill. `ds.glass` without a `.rect()` gives you the inline version (tint +
+  hairline + highlight, no blur), which is the right call for a composer or a
+  bar that wants the family look without pretending to be transparent.
+- **Text on glass uses `.secondary` or `.primary`**, never `.muted` / `.weak`.
+  Those are tuned for an opaque dark surface and disappear over a bright blur.
+- `glass_alpha` is 214 (≈84 %) on purpose. Prettier values exist; they cost
+  legibility over a bright render, which an inspector does not get to trade.
+  `.solid(true)` (or a backend with no render targets) falls back to
+  `glass_alpha_opaque`.
+
+**The bracket.** A backdrop must be captured *before* the surface draws, so
+glass is two calls, not one:
+
+```zig
+// one panel
+var drawer = ds.glass(@src()).rect(r).witness(frame_no).behind();
+drawPreview();
+var surface = drawer.draw();
+defer surface.deinit();
+
+// several panels over the same content — one capture, one blur per frame
+var scene = ds.glassScene(@src()).rect(viewport).witness(frame_no).begin();
+drawPreview();
+var bar = ds.glass(@src()).rect(bar_rect).scene(scene).draw();
+bar.deinit();
+scene.end();   // AFTER the panels
+```
+
+⚠ **The panels go inside the bracket.** An open bracket is what makes dvui defer
+the background's drawing, and only draws made while it is open land in their own
+subwindow queue and therefore *above* that background. Close the scene first and
+the panels are painted straight onto the target, then the deferred background
+replays over them and they vanish — no error, just nothing.
+
+**Cost.** The capture is cached and only redone when `rect` or `witness` change.
+Over a live 3-D preview that means the caller passes the preview's frame counter
+**only while it is playing**, and a constant while it is paused; pass a constant
+and the glass keeps showing the last frame it captured, at the price of one
+textured quad per panel per frame. While it *is* changing, every frame costs one
+replay of the background's render commands plus ~2·log2(radius) half-resolution
+passes — real CPU work in dvui's deferred renderer, not a GPU blit, so measure it
+against your frame budget before blurring a 4K viewport every frame.
+
+### The double border
+
+`ds.windowFrame` draws two hairlines, not one: a near-black outer ring that
+separates the app from the desktop, and a white inner ring at ~10 % that lifts
+the app off that separation. Either alone reads badly — the dark one as a smudge,
+the light one as a cheap outline. `focused(false)` dims the inner ring so an
+unfocused window recedes.
+
+### The preview frame
+
+`ds.previewFrame` is what stops a render from looking like a hole in the app:
+a gutter, a rounded corner from the same radius family as the panels, an inner
+vignette so a bright render stops bleeding into the chrome, and a hairline drawn
+*over* the picture's edge so the boundary is a deliberate line. `toolbarRect` /
+`statusRect` hand out the slots along the edges; `reserve(.right, px)` shrinks
+those slots when a drawer is docked over part of the picture.
+
+### Pixel snapping
+
+Chrome is where fractional scaling shows. Every ds length is authored in logical
+pixels and multiplied by the window scale; at 1.0 and 2.0 that lands on whole
+physical pixels by accident, at **1.75** it does not, and a 1 px hairline becomes
+a 1.75 px smear. `src/helpers/pixels.zig` is the arithmetic:
+
+- `ds.pixelScale()` — the scale in force right now.
+- `ds.snapPx(logical, scale)` — a length that lands on whole physical pixels.
+- `ds.hairline(scale)` — the thinnest line the display can draw un-antialiased.
+
+A widget owns its **size** and its internal insets; where it is *placed* is the
+parent's business, so both halves have to keep the discipline. `test/layout_tests.zig`
+asserts it numerically at 1.0 / 1.75 / 2.0 (part of `zig build test`, not
+`screenshots` — a PNG cannot claim a widget is centred, only that it looks it).
+
+### Spacing
+
+Gaps between siblings are on the **4 px grid**: `space_2xs` 4, `space_sm` 8,
+`space_md` 12, `space_lg` 16, `space_xl` 20, `space_2xl` 24. `space_3xs` (2) and
+`space_xs` (6) are **off-grid on purpose and are for a control's own internals**
+(the gap between an icon and its label inside one chip, a 6 px inset inside a
+toolbar) — never for the gap *between* siblings in a row or column.
+
+### Chrome metrics
+
+Shared so the title bar, the floating toolbar, the status strip and the history
+strip line up instead of each picking its own number: `chrome_titlebar_height`
+36, `chrome_toolbar_height` 40, `chrome_status_height` 28, `chrome_chip_size` 28
+(matches the `sm` button, comfortably over the 24 px minimum hit target),
+`chrome_pill_height` 24.
+
+### Elevation
+
+One three-step scale (`elevation_1..3_offset` / `_fade`) shared by every raised
+surface, so a card, a dialog and a popover agree. Glass casts no shadow: over a
+live view a cast shadow on a translucent panel is physically wrong and reads as
+dirt — the blur and the hairline are the separation.
 
 ## Adding a widget (checklist)
 

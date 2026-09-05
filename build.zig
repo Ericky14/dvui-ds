@@ -142,6 +142,18 @@ pub fn build(b: *std.Build) void {
     ds_testing_mod.addImport("dvui", dvui_testing_mod);
     ds_testing_mod.addImport("ds_focus", focus_mod);
 
+    // The editor-chrome mock is one file used twice: the storybook draws it as
+    // a page, and the screenshot fixtures render it at two scales. Sharing the
+    // source is the point — a design-review screenshot of a *copy* of the page
+    // is worth nothing.
+    const chrome_demo_mod = b.createModule(.{
+        .root_source_file = b.path("example/pages/editor_chrome.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    chrome_demo_mod.addImport("dvui", dvui_testing_mod);
+    chrome_demo_mod.addImport("dvui_ds", ds_testing_mod);
+
     const shot_mod = b.createModule(.{
         .root_source_file = b.path("test/screenshots.zig"),
         .target = target,
@@ -149,9 +161,26 @@ pub fn build(b: *std.Build) void {
     });
     shot_mod.addImport("dvui", dvui_testing_mod);
     shot_mod.addImport("dvui_ds", ds_testing_mod);
+    shot_mod.addImport("editor_chrome", chrome_demo_mod);
 
     const shot_tests = b.addTest(.{ .root_module = shot_mod });
     const run_shots = b.addRunArtifact(shot_tests);
     const shot_step = b.step("screenshots", "Render DS components to PNGs under ds-screenshots/");
     shot_step.dependOn(&run_shots.step);
+
+    // ─── Layout tests (headless, but asserted numerically) ────────────────────
+    // Widget geometry — centring, pixel snapping, the 4 px grid — is checked by
+    // laying real widgets out through dvui's testing backend and reading their
+    // physical rects back, at 1.0, 1.75 and 2.0. A screenshot cannot make that
+    // claim, so these run as part of `zig build test`, not `screenshots`.
+    const layout_mod = b.createModule(.{
+        .root_source_file = b.path("test/layout_tests.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    layout_mod.addImport("dvui", dvui_testing_mod);
+    layout_mod.addImport("dvui_ds", ds_testing_mod);
+
+    const layout_tests = b.addTest(.{ .root_module = layout_mod });
+    test_step.dependOn(&b.addRunArtifact(layout_tests).step);
 }

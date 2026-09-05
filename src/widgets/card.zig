@@ -103,8 +103,8 @@ pub const Card = struct {
                 options.box_shadow = .{
                     .color = theme.shadow_color,
                     .corners = radius,
-                    .offset = .{ .x = 0, .y = 3 },
-                    .fade = 16,
+                    .offset = .{ .x = 0, .y = theme.elevation_2_offset },
+                    .fade = theme.elevation_2_fade,
                     .alpha = theme.shadow_alpha,
                 };
             },

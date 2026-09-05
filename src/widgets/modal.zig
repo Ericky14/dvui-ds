@@ -110,8 +110,8 @@ pub const Modal = struct {
             .box_shadow = .{
                 .color = theme.shadow_color,
                 .corners = radius,
-                .offset = .{ .x = 0, .y = 4 },
-                .fade = 14,
+                .offset = .{ .x = 0, .y = theme.elevation_3_offset },
+                .fade = theme.elevation_3_fade,
                 .alpha = theme.shadow_alpha,
             },
             .max_size_content = .width(self.width_val),

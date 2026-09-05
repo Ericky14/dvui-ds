@@ -120,6 +120,95 @@ pub const Theme = struct {
     shadow_color: Color = .black,
     shadow_alpha: f32 = 0.4,
 
+    // ── Glass (backdrop-filter surfaces) ──────────────────────────────
+    // A glass surface is three layers: the blurred capture of whatever is
+    // behind it, a tint over that (or the blur reads as mush and text loses
+    // contrast), and a 1 px highlight along the top inside edge. The highlight
+    // is the layer that actually sells it — it is the specular line a real
+    // pane of glass catches, and without it a translucent panel just looks
+    // like a weak fill.
+    /// Tint painted over the blurred capture. `null` → the theme's `surface_1`,
+    /// so a custom theme gets coherent glass without naming a new colour.
+    glass_tint: ?Color = null,
+    /// Alpha of that tint when the blur is live (≈84 %). Measured against a
+    /// bright render, not a mockup: at ≈55 % the blur is prettier and the small
+    /// text on top of it is genuinely hard to read, which is not a trade a
+    /// tool's inspector gets to make. The blur still reads clearly through it —
+    /// and the rule that goes with this number is that text *on* glass uses
+    /// `.secondary` or `.primary`, never `.muted`/`.weak`, which are tuned for
+    /// an opaque dark surface and vanish over a bright one.
+    glass_alpha: u8 = 214,
+    /// Alpha of the tint when there is no blur — a backend without render
+    /// targets, or a caller that asked for `.solid()` / reduced transparency.
+    /// Near-opaque, because an un-blurred 55 % panel over a 3-D scene is
+    /// unreadable.
+    glass_alpha_opaque: u8 = 250,
+    /// CSS `backdrop-filter: blur(<radius>)`, in logical px.
+    glass_blur: f32 = 24,
+    /// White alpha of the 1 px inner highlight along the top edge (≈12 %).
+    glass_edge_alpha: u8 = 30,
+    /// White alpha of the hairline around a glass surface (≈8 %).
+    glass_border_alpha: u8 = 20,
+
+    // ── Window chrome (the double border) ───────────────────────────
+    // Two hairlines, not one: a near-black outer ring separates the app from
+    // whatever is on the desktop behind it, and a light inner ring lifts the
+    // app off that ring. One line alone reads as either a smudge (dark) or a
+    // cheap outline (light); the pair reads as a machined edge.
+    /// Outer ring. `null` → black.
+    border_outer: ?Color = null,
+    /// White alpha of the inner ring when the window has focus (≈10 %).
+    border_inner_alpha: u8 = 26,
+    /// …and when it does not. The window visibly recedes when you click away.
+    border_inner_alpha_unfocused: u8 = 12,
+    /// Corner radius of the window itself.
+    radius_window: f32 = 12,
+
+    // ── Preview frame (the picture) ───────────────────────────────
+    /// Corner radius of the framed picture.
+    preview_radius: f32 = 10,
+    /// Gutter between the pane and the picture. On the 4 px grid.
+    preview_inset: f32 = 8,
+    /// Black alpha at the corners of the inner vignette (≈35 %). The vignette
+    /// is what stops a bright render from bleeding into the chrome — and what
+    /// keeps the corners, where floating panels live, from being the brightest
+    /// part of the picture.
+    preview_vignette_alpha: u8 = 90,
+    /// Fraction of the way to the corner at which the vignette starts. Below
+    /// this the picture is untouched.
+    preview_vignette_start: f32 = 0.55,
+    /// White alpha of the hairline drawn *over* the picture's edge (≈15 %).
+    preview_hairline_alpha: u8 = 38,
+
+    // ── Elevation ───────────────────────────────────────────
+    // A three-step shadow scale, shared so every raised surface agrees.
+    // `shadow_color`/`shadow_alpha` above give the colour; these give the
+    // geometry (y offset and blur fade, both in logical px).
+    /// Resting chips, pills, toolbars.
+    elevation_1_offset: f32 = 1,
+    elevation_1_fade: f32 = 8,
+    /// Cards, popovers.
+    elevation_2_offset: f32 = 3,
+    elevation_2_fade: f32 = 16,
+    /// Dialogs, drawers, anything floating over a live view.
+    elevation_3_offset: f32 = 6,
+    elevation_3_fade: f32 = 28,
+
+    // ── Chrome metrics ─────────────────────────────────────
+    // Shared heights so the title bar, the floating toolbar, the status strip
+    // and the history strip line up instead of each picking its own number.
+    /// Title bar height.
+    chrome_titlebar_height: f32 = 36,
+    /// Floating toolbar height: a `chrome_chip_size` chip plus 6 px either side.
+    chrome_toolbar_height: f32 = 40,
+    /// Status strip height.
+    chrome_status_height: f32 = 28,
+    /// Square icon chip. Matches the `sm` button height, and is comfortably
+    /// over the 24 px minimum hit target.
+    chrome_chip_size: f32 = 28,
+    /// Status / selection pill height.
+    chrome_pill_height: f32 = 24,
+
     // ── Sidebar ──────────────────────────────────────────────────────────────
     sidebar_min_width: f32 = 160,
     sidebar_padding_x: f32 = 16,
