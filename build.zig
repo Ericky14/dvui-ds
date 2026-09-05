@@ -196,4 +196,16 @@ pub fn build(b: *std.Build) void {
 
     const lint_tests = b.addTest(.{ .root_module = lint_mod });
     test_step.dependOn(&b.addRunArtifact(lint_tests).step);
+
+    const cost_mod = b.createModule(.{
+        .root_source_file = b.path("test/blur_cost.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    cost_mod.addImport("dvui", dvui_testing_mod);
+    cost_mod.addImport("dvui_ds", ds_testing_mod);
+    cost_mod.addImport("editor_chrome", chrome_demo_mod);
+    const cost_tests = b.addTest(.{ .root_module = cost_mod });
+    const cost_step = b.step("blur-cost", "Measure one BlurBackdrop capture");
+    cost_step.dependOn(&b.addRunArtifact(cost_tests).step);
 }

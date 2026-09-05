@@ -196,7 +196,16 @@ subwindow queue and therefore *above* that background. Close the scene first and
 the panels are painted straight onto the target, then the deferred background
 replays over them and they vanish — no error, just nothing.
 
-**Cost.** The capture is cached and only redone when `rect` or `witness` change.
+**Cost.** Measured, with `zig build blur-cost -Doptimize=ReleaseFast`: over a
+1400×860 logical viewport at 1.75 (2450×1505 physical), a *cached* capture costs
+0.02 ms/frame — one textured quad, indistinguishable from drawing nothing — and
+a *re-capture* costs 0.96 s/frame **on dvui's CPU testing backend**, which is a
+software rasteriser and not the wgpu path the app runs. Take the ratio, not the
+number: cached is free, re-capturing is not, on any backend, because it replays
+the background's render commands (real glyph shaping and path triangulation, not
+a blit) and then resamples the whole area ~2·log2(radius) times.
+
+The capture is cached and only redone when `rect` or `witness` change.
 Over a live 3-D preview that means the caller passes the preview's frame counter
 **only while it is playing**, and a constant while it is paused; pass a constant
 and the glass keeps showing the last frame it captured, at the price of one
