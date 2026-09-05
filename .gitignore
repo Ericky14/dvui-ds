@@ -2,4 +2,6 @@
 .zig-cache/
 zig-out/
 zig-pkg
-ds-screenshots/
+# ds-screenshots/*.png are the committed review artefacts (AGENTS.md); only scratch output is ignored
+ds-screenshots/*.actual.png
+ds-screenshots/*.diff.png
