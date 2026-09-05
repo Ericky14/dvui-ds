@@ -76,6 +76,81 @@ test "a border is whole physical pixels and never disappears" {
     }
 }
 
+/// The logical length of a line that is **exactly one physical pixel** at
+/// `scale` — never rounded up.
+///
+/// The difference from `hairline` is weight, and it matters for anything
+/// *decorative*. `hairline` rounds up so a structural edge — a window's rings, a
+/// picture's frame — never disappears, which makes it 2 physical px at 1.75.
+/// Over a dark scene a 2 px white line at 8 % is twice the ink of a 1 px one,
+/// and a glass panel's edge stops reading as a hint and starts reading as a
+/// ring. Decoration takes the thin one; structure takes `hairline`.
+pub fn thinLine(scale: f32) f32 {
+    if (scale <= 0) return 1;
+    return 1 / scale;
+}
+
+test "a thin line is one physical pixel at every scale, a hairline is at least one" {
+    for ([_]f32{ 1.0, 1.25, 1.5, 1.75, 2.0, 3.0 }) |scale| {
+        try std.testing.expectApproxEqAbs(@as(f32, 1), thinLine(scale) * scale, 0.0001);
+        // …and it is never thicker than the structural one, which is the whole
+        // reason to have both.
+        try std.testing.expect(thinLine(scale) <= hairline(scale) + 0.0001);
+    }
+    // At a whole scale they agree; at 1.75 they do not, which is the case that
+    // made the difference visible.
+    try std.testing.expectApproxEqAbs(hairline(1.0), thinLine(1.0), 0.0001);
+    try std.testing.expect(hairline(1.75) > thinLine(1.75));
+}
+
+/// Options that round a container's height to whole physical pixels, using the
+/// height it had last frame.
+///
+/// The one fraction a widget cannot snap by arithmetic is the one it *measures*:
+/// a block of text is n × a font's line box, the line box is fractional, and
+/// everything laid out under it then starts on a fraction — which is what a
+/// chat card's action row inherited, and no amount of snapping the row could
+/// move. dvui already remembers what a widget measured last frame, so the block
+/// can round *itself*: read that, snap it, and pin the height to it.
+///
+/// Rounding to nearest can clip by up to half a physical pixel — sub-pixel, so
+/// nothing visible — and content that grows is one frame late before the pin
+/// catches up. Height only, never width, so it can never change how text wraps
+/// and therefore can never oscillate.
+///
+/// ⚠ The `src` here must be the **same** `@src()` the box is created with, or
+/// the id will not be the box's and the pin silently does nothing. Prefer
+/// `ds.snapHeightBox`, which cannot be called wrong; reach for the options
+/// directly only when the box needs its own init options too (a direction, a
+/// gap), and then pass one `src` to both.
+///
+///   var block = ds.snapHeightBox(@src(), 0);
+///   defer block.deinit();
+pub fn snapHeightOpts(src: std.builtin.SourceLocation, id_extra: usize) dvui.Options {
+    var options: dvui.Options = .{
+        .id_extra = id_extra,
+        .expand = .horizontal,
+        .padding = dvui.Rect.all(0),
+        .margin = dvui.Rect.all(0),
+        .border = dvui.Rect.all(0),
+    };
+    if (dvui.current_window == null) return options;
+    const id = dvui.parentGet().extendId(src, id_extra);
+    const measured = dvui.minSizeGet(id) orelse return options;
+    const snapped = snapPx(measured.h, pixelScale());
+    if (!(snapped > 0)) return options;
+    options.min_size_content = .{ .w = 0, .h = snapped };
+    options.max_size_content = .height(snapped);
+    return options;
+}
+
+/// A container that rounds its own height to whole physical pixels. Wrap a
+/// block of text in it so what follows starts on a pixel. See
+/// `snapHeightOpts` for why, and `deinit()` the result.
+pub fn snapHeightBox(src: std.builtin.SourceLocation, id_extra: usize) *dvui.BoxWidget {
+    return dvui.box(src, .{}, snapHeightOpts(src, id_extra));
+}
+
 /// True when `logical` × `scale` is a whole number of physical pixels (within
 /// float tolerance). The assertion the alignment tests make.
 pub fn isSnapped(logical: f32, scale: f32) bool {

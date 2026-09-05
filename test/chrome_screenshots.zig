@@ -165,6 +165,37 @@ test "pills" {
     try shots.capture("pills.png", 340, 130, Local.frame);
 }
 
+test "pills on black" {
+    // The headless fixtures put chrome over a black picture, where every white
+    // alpha reads at full contrast. A highlight that is subtle over a lit scene
+    // and a bright ring over black is not subtle — it is unmeasured.
+    const Local = struct {
+        fn frame() !dvui.App.Result {
+            var page = dvui.box(@src(), .{}, .{
+                .expand = .both,
+                .background = true,
+                .color_fill = .{ .color = .black },
+            });
+            defer page.deinit();
+            const theme = ds.tokens.current;
+            var strip = ds.glass(@src())
+                .rect(.{ .x = 20, .y = 20, .w = 300, .h = theme.chrome_toolbar_height })
+                .solid(true)
+                .horizontal()
+                .gap(theme.space_sm)
+                .padding(theme.space_xs)
+                .radius(theme.radius_md)
+                .draw();
+            defer strip.deinit();
+            ds.pill(@src(), "Ground · 2").tone(.accent).icon("box", ds.icons.box).draw();
+            ds.pill(@src(), "60 fps").mono(true).draw();
+            ds.pill(@src(), "7 entities").draw();
+            return .ok;
+        }
+    };
+    try shots.captureAt("pills_on_black.png", 340, 90, 1.75, Local.frame);
+}
+
 // ─── The composed editor chrome ──────────────────────────────────────────────
 // Rendered from `example/pages/editor_chrome.zig` — the same source the
 // storybook runs, so the review screenshots and the live page cannot drift.

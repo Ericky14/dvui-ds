@@ -76,8 +76,19 @@ pub const PlanCard = struct {
         defer card.deinit();
         drawAccentBar(card.data(), theme);
 
-        drawEyebrow(theme);
-        dvui.labelNoFmt(@src(), self.title, .{}, titleOpts(theme));
+        // Each text block rounds its own height, so the action row below them
+        // starts on a whole physical pixel instead of inheriting the sum of
+        // three fractional line boxes. See `ds.snapHeightOpts`.
+        {
+            var eyebrow = ds.snapHeightBox(@src(), 0);
+            defer eyebrow.deinit();
+            drawEyebrow(theme);
+        }
+        {
+            var title = ds.snapHeightBox(@src(), 0);
+            defer title.deinit();
+            dvui.labelNoFmt(@src(), self.title, .{}, titleOpts(theme));
+        }
         markdown_mod.markdown(@src(), self.body_markdown).draw();
 
         {

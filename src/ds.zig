@@ -116,6 +116,9 @@ pub const cachedTvg = @import("helpers/svg.zig").cachedTvg;
 pub const pixelScale = @import("helpers/pixels.zig").pixelScale;
 pub const snapPx = @import("helpers/pixels.zig").snapPx;
 pub const hairline = @import("helpers/pixels.zig").hairline;
+pub const thinLine = @import("helpers/pixels.zig").thinLine;
+pub const snapHeightOpts = @import("helpers/pixels.zig").snapHeightOpts;
+pub const snapHeightBox = @import("helpers/pixels.zig").snapHeightBox;
 pub const borderPx = @import("helpers/pixels.zig").borderPx;
 
 /// A uniform border of `logical` px, snapped to whole physical pixels.

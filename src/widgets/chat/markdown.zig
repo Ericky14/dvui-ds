@@ -47,10 +47,11 @@ pub const Markdown = struct {
     /// Draw the widget: one dvui widget per block, keyed by block index.
     pub fn draw(self: Markdown) void {
         const theme = tokens.current;
-        var box = dvui.box(self.src, .{ .dir = .vertical, .gap = theme.space_sm }, .{
-            .id_extra = self.id_extra,
-            .expand = .horizontal,
-        });
+        // The block rounds its own height to whole physical pixels. A markdown
+        // body is n x a fractional line box, and everything laid out under it —
+        // a chat card's action row, the next message — inherits that fraction
+        // and cannot snap it away. See `ds.snapHeightOpts`.
+        var box = dvui.box(self.src, .{ .dir = .vertical, .gap = theme.space_sm }, ds.snapHeightOpts(self.src, self.id_extra));
         defer box.deinit();
 
         var blocks = BlockIterator.init(self.text);

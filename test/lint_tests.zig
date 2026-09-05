@@ -232,12 +232,12 @@ test "a plan card's action row shares a centre line, a column and the grid" {
             return .ok;
         }
     };
-    // Residual: 3 `snapped` findings above scale 1 — the three action buttons'
-    // top edge. Same single cause as the composer's: the markdown body stacked
-    // above them is n × a fractional line box tall, so the row under it starts
-    // on a fraction. Their left edges, widths, heights, gaps and centre line —
-    // everything this file actually controls — are exact.
-    try expectFindings(.{ .w = 420, .h = 260 }, "plan_card.zig", Local.frame, .{ .at_175 = 3, .at_200 = 3 });
+    // Clean at every scale. It was not: the action row inherited the sum of
+    // three fractional line boxes — an eyebrow, a title and a markdown body —
+    // and no amount of snapping the row could move it. Each of those blocks
+    // now rounds its own height (`ds.snapHeightBox`), so the row below them
+    // starts on a whole physical pixel.
+    try expectClean(.{ .w = 420, .h = 260 }, "plan_card.zig", Local.frame);
 }
 
 test "a markdown block keeps its rows centred and snapped" {
@@ -268,12 +268,10 @@ test "a chat message is snapped" {
             return .ok;
         }
     };
-    // Residual: 1 `snapped` finding above scale 1 — the streaming caret's top
-    // edge. Its own size is snapped now (it was a 2 px bar scaled from a font
-    // metric, i.e. 3.5 physical px at 175 %); what is left is the y it inherits
-    // from the text block above it, which is the same font-metric cause as the
-    // composer's and the plan card's.
-    try expectFindings(.{ .w = 420, .h = 160 }, "message.zig", Local.frame, .{ .at_175 = 0, .at_200 = 1 });
+    // Clean at every scale, caret included: its own size was already snapped,
+    // and the y it used to inherit from the markdown body above it is whole now
+    // that the body rounds its own height.
+    try expectClean(.{ .w = 420, .h = 160 }, "message.zig", Local.frame);
 }
 
 // ─── the new chrome widgets ──────────────────────────────────────────────────
@@ -341,4 +339,49 @@ test "a button's edges follow its container: hand-rolled insets put them on a ha
     try std.testing.expect(raw.snapped > 0);
     const raw_at_one = try lintAt(1.0, .{ .w = 300, .h = 90 }, "button.zig", Raw.frame);
     try std.testing.expectEqual(@as(usize, 0), raw_at_one.total());
+}
+
+test "a glass sheet puts its rows on whole pixels however its rect was computed" {
+    // A sheet's rect is rarely a round number: it comes from a pane split, a
+    // percentage, a `previewFrame.reserve`. If the panel keeps that fraction,
+    // every row inside inherits it and no amount of snapping the list or the
+    // rows can move them — which is what the editor's /assets sheet showed, six
+    // half-pixel rows that were not the rows' fault.
+    const Local = struct {
+        // Deliberately not a whole number of physical pixels at any scale.
+        const sheet_rect: dvui.Rect = .{ .x = 20.3, .y = 20.7, .w = 240.4, .h = 160.9 };
+
+        fn frame() !dvui.App.Result {
+            var background = page(@src());
+            defer background.deinit();
+            const theme = ds.tokens.current;
+            var sheet = ds.glass(@src())
+                .rect(sheet_rect)
+                .solid(true)
+                .gap(theme.space_2xs)
+                .draw();
+            defer sheet.deinit();
+            inline for (0..4) |index| {
+                // A list row pins its own height, the way every ds control
+                // does — a row as tall as whatever its text measured is the
+                // other half of the same problem.
+                const row_height = ds.snapPx(theme.chrome_control_height, ds.pixelScale());
+                var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_sm }, .{
+                    .id_extra = index,
+                    .expand = .horizontal,
+                    .background = true,
+                    .color_fill = .{ .color = ds.alpha(.white, 20) },
+                    .padding = ds.paddingXY(theme.space_sm, 0),
+                    .min_size_content = .{ .w = 0, .h = row_height },
+                    .max_size_content = .height(row_height),
+                });
+                defer row.deinit();
+                ds.label(@src(), "row").style(.secondary).gravityY(0.5).draw();
+            }
+            return .ok;
+        }
+    };
+    // Filtered to this file, so what is measured is the *rows* — the widgets
+    // that inherit the sheet's origin.
+    try expectClean(.{ .w = 300, .h = 220 }, "lint_tests.zig", Local.frame);
 }

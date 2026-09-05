@@ -11,9 +11,8 @@
 const std = @import("std");
 const dvui = @import("dvui");
 const ds = @import("dvui_ds");
-
 const scales = [_]f32{ 1.0, 1.75, 2.0 };
-
+const nl = "\n";
 /// Render one settled frame at `scale` and hand back its pixels.
 /// Caller owns the slice.
 fn renderFrame(
@@ -29,41 +28,33 @@ fn renderFrame(
     t.window.content_scale = scale / 2;
     _ = try dvui.testing.step(frame);
     try dvui.testing.settle(frame);
-
     const cw = dvui.currentWindow();
     const area = dvui.windowRectPixels();
     const width: u32 = @intFromFloat(@round(area.w));
     const height: u32 = @intFromFloat(@round(area.h));
-
     const target = try dvui.textureCreateTarget(.{ .width = width, .height = height });
     const previous = dvui.renderTarget(.{ .texture = target, .offset = .{} });
     if (try frame() == .close) return error.closed;
     cw.endRendering(.{});
     _ = dvui.renderTarget(previous);
-
     const captured = try dvui.textureReadTarget(std.testing.allocator, target);
     target.destroyLater();
     _ = try cw.end(.{});
     try cw.begin(cw.frame_time_ns + 100 * std.time.ns_per_ms);
-
     return .{ .pixels = captured, .width = width, .height = height };
 }
-
 fn pixelAt(shot: anytype, x: f32, y: f32) dvui.Color.PMA {
     const column: u32 = @min(shot.width - 1, @as(u32, @intFromFloat(@max(0, x))));
     const row: u32 = @min(shot.height - 1, @as(u32, @intFromFloat(@max(0, y))));
     return shot.pixels[row * shot.width + column];
 }
-
 fn channelDistance(a: dvui.Color.PMA, b: dvui.Color.PMA) u32 {
     const dr = @abs(@as(i32, a.r) - @as(i32, b.r));
     const dg = @abs(@as(i32, a.g) - @as(i32, b.g));
     const db = @abs(@as(i32, a.b) - @as(i32, b.b));
     return @intCast(dr + dg + db);
 }
-
 // ─── the three arms ──────────────────────────────────────────────────────────
-
 /// Three panels of identical size over one bright scene: blurred, `.solid`
 /// under that same scene, and `.solid` with no scene at all. The middle one is
 /// the case that was broken.
@@ -71,17 +62,14 @@ const Arms = struct {
     const stage: dvui.Rect = .{ .x = 0, .y = 0, .w = 300, .h = 120 };
     const panel_w: f32 = 80;
     const panel_h: f32 = 60;
-
     fn panelAt(index: f32) dvui.Rect {
         return .{ .x = 10 + index * 100, .y = 30, .w = panel_w, .h = panel_h };
     }
-
     /// Somewhere well inside a panel, in physical pixels.
     fn probe(index: f32, scale: f32) struct { x: f32, y: f32 } {
         const r = panelAt(index);
         return .{ .x = (r.x + r.w / 2) * scale, .y = (r.y + r.h / 2) * scale };
     }
-
     fn frame() !dvui.App.Result {
         var page = dvui.box(@src(), .{}, .{
             .expand = .both,
@@ -89,7 +77,6 @@ const Arms = struct {
             .color_fill = .{ .color = ds.tokens.current.surface_0 },
         });
         defer page.deinit();
-
         const scene = ds.glassScene(@src()).rect(stage).begin();
         // A bright, structured background, so "blurred" and "opaque" cannot
         // come out the same colour by accident.
@@ -108,7 +95,6 @@ const Arms = struct {
             bar.deinit();
         }
         canvas.deinit();
-
         {
             var blurred = ds.glass(@src()).rect(panelAt(0)).scene(scene).draw();
             blurred.deinit();
@@ -126,36 +112,88 @@ const Arms = struct {
         return .ok;
     }
 };
-
 test "solid is honoured on a panel that samples a shared scene" {
     for (scales) |scale| {
         const shot = try renderFrame(scale, .{ .w = 300, .h = 120 }, Arms.frame);
         defer std.testing.allocator.free(shot.pixels);
-
         const blurred_probe = Arms.probe(0, scale);
         const solid_scene_probe = Arms.probe(1, scale);
         const solid_alone_probe = Arms.probe(2, scale);
-
         const blurred = pixelAt(shot, blurred_probe.x, blurred_probe.y);
         const solid_scene = pixelAt(shot, solid_scene_probe.x, solid_scene_probe.y);
         const solid_alone = pixelAt(shot, solid_alone_probe.x, solid_alone_probe.y);
-
         // The two solid arms sit over differently-coloured bars, so they cannot
         // be compared to each other directly — what has to hold is that the one
         // under the scene is as opaque as the one without: it must be much
         // closer to the panel tint than the blurred arm is to it.
         const tint = ds.tokens.current.glass_tint orelse ds.tokens.current.surface_1;
         const opaque_tint: dvui.Color.PMA = .fromColor(tint);
-
         const solid_scene_gap = channelDistance(solid_scene, opaque_tint);
         const solid_alone_gap = channelDistance(solid_alone, opaque_tint);
         const blurred_gap = channelDistance(blurred, opaque_tint);
-
         // A `.solid` panel over a shared scene is as near the tint as a `.solid`
         // panel with no scene at all — within a few levels, not a bar's worth.
         try std.testing.expect(solid_scene_gap <= solid_alone_gap + 24);
         // …and the blurred one is visibly *not*, or the test would pass with
         // every arm drawing the same thing.
         try std.testing.expect(blurred_gap > solid_scene_gap + 24);
+    }
+}
+
+test "the glass edge over black is a one-pixel border and a one-pixel top line" {
+    // Headless fixtures put chrome over a black picture, where every white
+    // alpha reads at full contrast — the editor's status pills came back
+    // wearing a bright double ring. Measured, the profile has to be: one
+    // physical pixel of border, one physical pixel of highlight *inside it and
+    // only along the top*, and interior everywhere else. Rounded up to two
+    // physical pixels at 175 % (which `hairline` does, correctly, for
+    // structure) it is twice the ink and reads as a band.
+    const Local = struct {
+        const panel: dvui.Rect = .{ .x = 20, .y = 20, .w = 200, .h = 40 };
+        fn frame() !dvui.App.Result {
+            var page = dvui.box(@src(), .{}, .{
+                .expand = .both,
+                .background = true,
+                .color_fill = .{ .color = .black },
+            });
+            defer page.deinit();
+            var strip = ds.glass(@src()).rect(panel).solid(true).radius(8).draw();
+            strip.deinit();
+            return .ok;
+        }
+    };
+
+    for (scales) |scale| {
+        const shot = try renderFrame(scale, .{ .w = 260, .h = 90 }, Local.frame);
+        defer std.testing.allocator.free(shot.pixels);
+
+        const mid_x = (Local.panel.x + Local.panel.w / 2) * scale;
+        const left_x = Local.panel.x * scale;
+        const top_y = Local.panel.y * scale;
+        const mid_y = (Local.panel.y + Local.panel.h / 2) * scale;
+
+        const border = pixelAt(shot, mid_x, top_y);
+        const highlight = pixelAt(shot, mid_x, top_y + 1);
+        const below = pixelAt(shot, mid_x, top_y + 2);
+        const interior = pixelAt(shot, mid_x, mid_y);
+        const side_border = pixelAt(shot, left_x, mid_y);
+        const side_inside = pixelAt(shot, left_x + 1, mid_y);
+
+        // The border is one physical pixel: the row after it is not border.
+        try std.testing.expect(channelDistance(border, interior) > 0);
+        // The highlight is one physical pixel, and it is *brighter* than the
+        // interior — a hint, not a band.
+        try std.testing.expect(channelDistance(highlight, interior) > 0);
+        try std.testing.expectEqual(interior.r, below.r);
+        try std.testing.expectEqual(interior.g, below.g);
+        try std.testing.expectEqual(interior.b, below.b);
+        // …and it does not run down the sides: one pixel in from the left edge
+        // is already plain interior.
+        try std.testing.expect(channelDistance(side_border, interior) > 0);
+        try std.testing.expectEqual(interior.r, side_inside.r);
+        try std.testing.expectEqual(interior.g, side_inside.g);
+        try std.testing.expectEqual(interior.b, side_inside.b);
+        // The highlight is low alpha: a few levels over the tint, not white.
+        try std.testing.expect(channelDistance(highlight, interior) < 40);
     }
 }

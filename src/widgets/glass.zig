@@ -146,6 +146,14 @@ pub const Glass = struct {
     /// rect floats in its own subwindow *over* the content it blurs — which is
     /// what makes the ordering work at all — so overlays (drawers, sheets,
     /// floating toolbars) give a rect and inline surfaces do not.
+    ///
+    /// The rect is **rounded to whole physical pixels** before it is used. A
+    /// sheet's rect is rarely a round number — it comes from a pane split, a
+    /// percentage, a `previewFrame.reserve` — and a panel that keeps that
+    /// fraction hands it to everything inside it: every row in a list then
+    /// starts on a half pixel, and no amount of snapping the list or the rows
+    /// can move them. The panel is the boundary where that gets rounded, the
+    /// same way `ds.padding` rounds an inset.
     pub fn rect(self: Glass, value: dvui.Rect) Glass {
         var copy = self;
         copy.panel_rect = value;
@@ -257,12 +265,15 @@ pub const Glass = struct {
         const panel = self.panel_rect orelse return copy;
         if (self.is_solid) return copy;
 
+        const scale = pixels.pixelScale();
         const capture = dvui.BlurBackdrop.get(self.src);
         // `radius_px` is measured in physical pixels, so a CSS-style logical
         // radius has to be scaled or the blur weakens as the display gets
         // denser — the opposite of what a 24 px design token means.
-        capture.radius_px = (self.blur_val orelse tokens.current.glass_blur) * pixels.pixelScale();
-        capture.init(panel, .{ self.witness_val, capture.radius_px });
+        capture.radius_px = (self.blur_val orelse tokens.current.glass_blur) * scale;
+        // The *same* snapped rect the panel will use, or the blur is captured
+        // from one rectangle and drawn into another a fraction of a pixel away.
+        capture.init(snapRect(panel, scale), .{ self.witness_val, capture.radius_px });
         copy.backdrop = capture;
         copy.owns_backdrop = true;
         return copy;
@@ -275,7 +286,12 @@ pub const Glass = struct {
         const scale = pixels.pixelScale();
         const corner = self.radius_val orelse theme.radius_lg;
         const corners = dvui.CornerRect.round(corner);
-        const line = pixels.hairline(scale);
+        // A glass edge is decoration, not structure: exactly one physical
+        // pixel at every scale. Rounded up (`hairline`) it is 2 px at 1.75,
+        // which over a dark scene doubles the ink and turns the panel's edge
+        // from a hint into a ring — measured on a black backdrop, where every
+        // white alpha reads at full contrast.
+        const line = pixels.thinLine(scale);
 
         // The blur only counts as live once a capture actually exists: the
         // first frames of any panel, and every frame on a backend without
@@ -295,7 +311,8 @@ pub const Glass = struct {
         const fill = ds.alpha(tint, if (blur_live) theme.glass_alpha else theme.glass_alpha_opaque);
 
         var floater: ?*dvui.FloatingWidget = null;
-        if (self.panel_rect) |panel| {
+        if (self.panel_rect) |requested| {
+            const panel = snapRect(requested, scale);
             const window = dvui.widgetAlloc(dvui.FloatingWidget);
             window.init(self.src, .{}, .{ .rect = panel, .id_extra = self.id_extra });
             floater = window;
@@ -365,6 +382,23 @@ pub const Handle = struct {
     }
 };
 
+/// A panel rect rounded so all four of its edges land on whole physical pixels.
+///
+/// Width and height are rounded from the *far* edge rather than on their own,
+/// so the right and bottom edges are whole too — rounding a fractional origin
+/// and a fractional size independently can still leave the far edge on a half
+/// pixel.
+fn snapRect(rect: dvui.Rect, scale: f32) dvui.Rect {
+    const left = pixels.snapPx(rect.x, scale);
+    const top = pixels.snapPx(rect.y, scale);
+    return .{
+        .x = left,
+        .y = top,
+        .w = @max(0, pixels.snapPx(rect.x + rect.w, scale) - left),
+        .h = @max(0, pixels.snapPx(rect.y + rect.h, scale) - top),
+    };
+}
+
 /// The 1 px specular line along the top inside edge — the layer that makes a
 /// translucent panel read as glass instead of as a weak fill. Drawn as a
 /// stroke of the surface's own rounded rect under a top-to-transparent
@@ -374,7 +408,8 @@ fn drawEdgeHighlight(box: *dvui.BoxWidget, corner: f32, scale: f32, edge_alpha: 
     const rs = box.data().backgroundRectScale();
     if (rs.r.w < 2 or rs.r.h < 2) return;
 
-    const thickness = @max(1, @round(scale));
+    // One physical pixel, for the same reason the border is. See `thinLine`.
+    const thickness: f32 = 1;
     // A stroke straddles its path, so inset by half of it to keep the whole
     // line inside the fill instead of half-eating the border.
     const inset = thickness / 2;

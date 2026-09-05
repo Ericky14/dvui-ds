@@ -249,10 +249,45 @@ switch on the consumer's side, and that copies the *ladder* as well as the
 colours: it goes stale the moment a theme adds a rung, and then `ds.onGlass`
 and the copy quietly disagree about what "one rung up" means.
 
+### The two edges: structure and decoration
+
+`ds.hairline(scale)` rounds **up** — 2 physical px at 1.75 — so a structural
+edge never disappears: a window's two rings, a picture frame's line.
+`ds.thinLine(scale)` is **exactly one** physical pixel at every scale, for
+decoration: a glass panel's border and its top highlight. Over a dark scene a
+2 px white line at 8 % is twice the ink of a 1 px one, which is the difference
+between a hint and a ring — measured on a black backdrop, where every white
+alpha reads at full contrast (`test/glass_render_tests.zig` pins the profile:
+one pixel of border, one pixel of highlight inside it along the top only,
+interior everywhere else).
+
+### Rounding a height you had to measure
+
+The one fraction arithmetic cannot snap is a **measured** one: a block of text
+is n × a font's line box, and the line box is fractional. Everything under it
+then starts on a fraction, and snapping the thing that inherits it cannot help.
+
+`ds.snapHeightBox(@src(), id_extra)` is a container that rounds its own height
+to whole physical pixels using the height it had last frame. Wrap a text block
+in it and what follows starts on a pixel. `ds.chat.markdown` does this for
+itself; `ds.chat.planCard` wraps its eyebrow and title the same way, which is
+what finally closed that card's inherited-fraction findings.
+
+Height only, never width, so it can never change how text wraps and therefore
+can never oscillate. It rounds to nearest, so it can clip by up to half a
+physical pixel — sub-pixel, invisible — and content that grows is one frame late
+before the pin catches up. ⚠ If you use `ds.snapHeightOpts` directly, pass the
+**same** `@src()` you create the box with, or the id is not the box's and the
+pin silently does nothing; `snapHeightBox` cannot be called wrong.
+
 ### Where a `snapped` finding actually comes from
 
 A widget owns its **size** and its internal insets; its **origin** it inherits.
-So a `snapped` finding on a leaf usually names the wrong file. The pinned case
+So a `snapped` finding on a leaf usually names the wrong file. Two ds widgets
+now round on the way through, because they are the boundaries where a fraction
+would otherwise be handed on: `ds.glass` rounds **its own rect** (a sheet's rect
+comes from a pane split or a percentage, and a panel that keeps that fraction
+gives it to every row inside), and `ds.snapHeightBox` rounds a measured height. The pinned case
 is `test/lint_tests.zig` → "a button's edges follow its container": the same
 button, at the same scale, is clean inside a container padded with `ds.padding(5)`
 and reports a half-pixel edge inside one padded with a raw `dvui.Rect.all(5)`
