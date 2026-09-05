@@ -8,6 +8,10 @@ const dvui = @import("dvui");
 const sdl3 = @import("sdl3");
 const focus = @import("ds_focus");
 
+/// Files dragged onto the window, collected across SDL's four drop events
+/// (`platform/drop.zig`). Re-exported so a host can name the types.
+pub const drop = @import("ds_drop");
+
 pub const kind: dvui.enums.Backend = .custom;
 
 gpa: std.mem.Allocator,
@@ -16,6 +20,12 @@ window: sdl3.video.Window,
 cursor: ?sdl3.mouse.Cursor,
 quit: bool,
 scale: f32,
+/// **A drag-and-drop is not a dvui event.** dvui's event list is the mouse and
+/// the keyboard; a file being dragged over the window is neither, and SDL
+/// spreads one drop over four event kinds. They are collected here and read by
+/// the host once a frame (`droppedFiles`), which keeps the feature out of
+/// dvui's routing and lets a headless test hand an app the same answer.
+dropped: drop.Collector = .{},
 
 /// dvui reads clocks through the global `dvui.io` ("set by the backend when it
 /// is initialized"): `Window.mouseWheelBatch` calls `std.Io.Clock.awake.now(dvui.io)`
@@ -42,6 +52,18 @@ pub fn init(gpa: std.mem.Allocator, window: sdl3.video.Window, content_scale: f3
     };
 }
 
+/// **What was dragged onto the window, as of this frame.** Read it once per
+/// frame, after `addAllEvents`: `hovering` says a drag is over the window (draw
+/// the target), `completed` says the files arrived, and the point is in
+/// PHYSICAL pixels, the same units a dvui mouse event carries.
+///
+/// The returned slices point into `self`, so they are valid until the next
+/// `addAllEvents`. `slots` is the caller's scratch array, which keeps the
+/// collector allocation-free.
+pub fn droppedFiles(self: *const @This(), slots: *[drop.max_files][]const u8) drop.State {
+    return self.dropped.state(slots);
+}
+
 pub fn deinit(self: *@This()) void {
     if (self.cursor) |cur| cur.deinit();
     self.arena.deinit();
@@ -53,6 +75,9 @@ pub fn end(_: *@This()) !void {}
 
 /// Process all pending SDL3 events and feed them to dvui.
 pub fn addAllEvents(self: *@This(), win: *dvui.Window) void {
+    // A completed drop lives for exactly one frame, so the host imports it
+    // once (`platform/drop.zig`). A drag still hovering is kept.
+    self.dropped.beginFrame();
     while (sdl3.events.poll()) |event| {
         switch (event) {
             .quit, .window_close_requested => {
@@ -75,6 +100,22 @@ pub fn addAllEvents(self: *@This(), win: *dvui.Window) void {
             .window_display_scale_changed, .window_pixel_size_changed => {
                 self.scale = detectContentScale(self.window);
             },
+            // ─── A file dragged onto the window ─────────────────────────
+            // SDL's drop coordinates are window units, like a mouse event's,
+            // so they go through the same `mouseScale` — a HiDPI framebuffer
+            // would otherwise report the drop at 57 % of where it happened,
+            // which is the bug that made every click land wrong in 2026-09-03.
+            .drop_begin => self.dropped.begin(),
+            .drop_position => |moved| {
+                const scale = self.mouseScale();
+                self.dropped.position(moved.x * scale, moved.y * scale);
+            },
+            .drop_file => |dropped| {
+                const scale = self.mouseScale();
+                self.dropped.position(dropped.x * scale, dropped.y * scale);
+                self.dropped.file(dropped.file_name);
+            },
+            .drop_complete => self.dropped.complete(),
             else => {},
         }
     }

@@ -161,6 +161,10 @@ pub const GpuContext = @import("platform/gpu.zig").GpuContext;
 /// Borderless-window chrome: declare the drag region and caption buttons
 /// each frame. See `platform/window_chrome.zig`.
 pub const windowChrome = @import("platform/window_chrome.zig");
+
+/// Files dragged onto the window: the collector the SDL backend fills and a
+/// host reads once a frame. See `platform/drop.zig`.
+pub const drop = @import("ds_drop");
 pub const focus = @import("ds_focus");
 pub const log = @import("log.zig");
 

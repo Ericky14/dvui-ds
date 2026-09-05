@@ -49,6 +49,16 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // The drop collector is its own module for the same reason `ds_focus` is:
+    // `platform/backend.zig` is the root of its own module, so a file it
+    // imports may not also be part of the DS module (Zig: "file exists in
+    // modules 'root' and 'backend'"). One module, imported by both.
+    const drop_mod = b.addModule("ds_drop", .{
+        .root_source_file = b.path("src/platform/drop.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     const sdl3_backend_mod = b.addModule("dvui_sdl3_backend", .{
         .root_source_file = b.path("src/platform/backend.zig"),
         .target = target,
@@ -57,6 +67,7 @@ pub fn build(b: *std.Build) void {
     sdl3_backend_mod.addImport("sdl3", sdl3_dep.module("sdl3"));
     sdl3_backend_mod.addImport("dvui", dvui_mod);
     sdl3_backend_mod.addImport("ds_focus", focus_mod);
+    sdl3_backend_mod.addImport("ds_drop", drop_mod);
 
     // Wire custom backend into dvui
     dvui_mod.addImport("backend", sdl3_backend_mod);
@@ -71,6 +82,7 @@ pub fn build(b: *std.Build) void {
     ds_mod.addImport("sdl3", sdl3_dep.module("sdl3"));
     ds_mod.addImport("wgpu", zwgpu.module("root"));
     ds_mod.addImport("ds_focus", focus_mod);
+    ds_mod.addImport("ds_drop", drop_mod);
 
     // ─── Re-exports for consumers ────────────────────────────────────────────
     // The engine (zigame) must use the *same* dvui / sdl3 / wgpu module instances
@@ -112,6 +124,7 @@ pub fn build(b: *std.Build) void {
     });
     test_mod.addImport("dvui", dvui_mod);
     test_mod.addImport("ds_focus", focus_mod);
+    test_mod.addImport("ds_drop", drop_mod);
     // The platform layer is part of the design system and part of the gate:
     // the borderless window's hit-test classifier is a pure function with real
     // tests, and it lives next to the SDL calls it feeds.
@@ -145,6 +158,7 @@ pub fn build(b: *std.Build) void {
     });
     ds_testing_mod.addImport("dvui", dvui_testing_mod);
     ds_testing_mod.addImport("ds_focus", focus_mod);
+    ds_testing_mod.addImport("ds_drop", drop_mod);
 
     // The editor-chrome mock is one file used twice: the storybook draws it as
     // a page, and the screenshot fixtures render it at two scales. Sharing the
@@ -194,6 +208,12 @@ pub fn build(b: *std.Build) void {
     });
     layout_mod.addImport("dvui", dvui_testing_mod);
     layout_mod.addImport("dvui_ds", ds_testing_mod);
+
+    // The drop collector is a module of its own (see `drop_mod`), so its tests
+    // need their own artefact: a module imported by NAME never contributes its
+    // `test` blocks to another module's test root.
+    const drop_tests = b.addTest(.{ .root_module = drop_mod });
+    test_step.dependOn(&b.addRunArtifact(drop_tests).step);
 
     const layout_tests = b.addTest(.{ .root_module = layout_mod });
     test_step.dependOn(&b.addRunArtifact(layout_tests).step);
