@@ -112,6 +112,10 @@ pub fn build(b: *std.Build) void {
     });
     test_mod.addImport("dvui", dvui_mod);
     test_mod.addImport("ds_focus", focus_mod);
+    // The platform layer is part of the design system and part of the gate:
+    // the borderless window's hit-test classifier is a pure function with real
+    // tests, and it lives next to the SDL calls it feeds.
+    test_mod.addImport("sdl3", sdl3_dep.module("sdl3"));
 
     const unit_tests = b.addTest(.{
         .root_module = test_mod,

@@ -26,6 +26,28 @@ pub const FontToken = enum {
     mono,
 };
 
+/// The same text style, one rung brighter — the rule for text drawn *on glass*.
+///
+/// A glass surface is a tint over a blurred copy of whatever is behind it, so
+/// the effective background is lighter and less predictable than an opaque
+/// panel's, and the quiet end of the ladder stops being readable: `.weak` is
+/// tuned to disappear against `surface_1`, and over a bright render it does
+/// exactly that. Moving every style up one rung keeps the *hierarchy* — a
+/// caption still reads quieter than a title — which a flat "use .secondary on
+/// glass" rule throws away by collapsing two rungs into one.
+///
+///   ds.label(@src(), "Position").style(ds.onGlass(.muted)).draw();
+///
+/// `title`, `accent` and `danger` are already at full strength and unchanged.
+pub fn onGlass(style: LabelStyle) LabelStyle {
+    return switch (style) {
+        .weak => .muted,
+        .muted => .secondary,
+        .secondary => .primary,
+        .primary, .title, .accent, .danger => style,
+    };
+}
+
 pub fn label(src: std.builtin.SourceLocation, text: []const u8) Label {
     return .{ .src = src, .text = text };
 }
@@ -135,4 +157,20 @@ fn resolveFontToken(tok: FontToken, dvui_theme: dvui.Theme) ?dvui.Font {
         .title => dvui_theme.font_title,
         .mono => dvui_theme.font_mono,
     };
+}
+
+test "on glass, every style moves one rung up and the ladder keeps its order" {
+    const std_testing = @import("std").testing;
+    try std_testing.expectEqual(LabelStyle.muted, onGlass(.weak));
+    try std_testing.expectEqual(LabelStyle.secondary, onGlass(.muted));
+    try std_testing.expectEqual(LabelStyle.primary, onGlass(.secondary));
+    // The top of the ladder has nowhere to go.
+    try std_testing.expectEqual(LabelStyle.primary, onGlass(.primary));
+    // Colour-carrying styles mean something other than "how loud"; leave them.
+    try std_testing.expectEqual(LabelStyle.title, onGlass(.title));
+    try std_testing.expectEqual(LabelStyle.accent, onGlass(.accent));
+    try std_testing.expectEqual(LabelStyle.danger, onGlass(.danger));
+    // The order survives the shift: two styles that differed still differ.
+    try std_testing.expect(onGlass(.weak) != onGlass(.muted));
+    try std_testing.expect(onGlass(.muted) != onGlass(.secondary));
 }

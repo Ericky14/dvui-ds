@@ -140,6 +140,29 @@ fn requestAdapter(instance: wgpu.WGPUInstance, surface: wgpu.WGPUSurface) wgpu.W
     return adapter;
 }
 
+/// wgpu's uncaptured-error handler: log, never abort. See the note where it is
+/// installed.
+fn onUncapturedError(
+    _: [*c]const wgpu.WGPUDevice,
+    error_type: wgpu.WGPUErrorType,
+    message: wgpu.WGPUStringView,
+    _: ?*anyopaque,
+    _: ?*anyopaque,
+) callconv(.c) void {
+    const text: []const u8 = if (message.data) |data| data[0..message.length] else "(no message)";
+    log.err("wgpu {s}: {s}", .{ errorTypeName(error_type), text });
+}
+
+fn errorTypeName(error_type: wgpu.WGPUErrorType) []const u8 {
+    return switch (error_type) {
+        wgpu.WGPUErrorType_Validation => "validation error",
+        wgpu.WGPUErrorType_OutOfMemory => "out of memory",
+        wgpu.WGPUErrorType_Internal => "internal error",
+        wgpu.WGPUErrorType_Unknown => "unknown error",
+        else => "error",
+    };
+}
+
 fn requestDevice(instance: wgpu.WGPUInstance, adapter: wgpu.WGPUAdapter) wgpu.WGPUDevice {
     var device: wgpu.WGPUDevice = null;
     _ = wgpu.wgpuAdapterRequestDevice(adapter, &.{
@@ -153,7 +176,17 @@ fn requestDevice(instance: wgpu.WGPUInstance, adapter: wgpu.WGPUAdapter) wgpu.WG
             .label = wgpu.WGPUStringView{ .data = "default", .length = 7 },
         },
         .deviceLostCallbackInfo = .{ .nextInChain = null, .mode = wgpu.WGPUCallbackMode_AllowSpontaneous, .callback = null, .userdata1 = null, .userdata2 = null },
-        .uncapturedErrorCallbackInfo = .{ .nextInChain = null, .callback = null, .userdata1 = null, .userdata2 = null },
+        // A validation error must never kill the editor. With no callback,
+        // wgpu-native's default handler aborts the process -- so one bad scissor
+        // rect took the whole window down instead of losing a frame. Log it and
+        // carry on: the frame that produced it is already lost either way, and a
+        // renderer that can be debugged is worth more than one that is loud.
+        .uncapturedErrorCallbackInfo = .{
+            .nextInChain = null,
+            .callback = &onUncapturedError,
+            .userdata1 = null,
+            .userdata2 = null,
+        },
     }, .{
         .nextInChain = null,
         .mode = wgpu.WGPUCallbackMode_AllowProcessEvents,

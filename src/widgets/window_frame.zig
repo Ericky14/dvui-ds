@@ -10,6 +10,29 @@
 /// Both lines are snapped to whole physical pixels, so they stay crisp at 1.75
 /// as well as at 1.0 and 2.0.
 ///
+/// ⚠ **It needs a borderless window.** A double ring drawn inside an OS-decorated
+/// window sits *under* somebody else's title bar, and the app's own caption row
+/// ends up stacked below the OS one — two title bars. `ds.App` therefore creates
+/// its window borderless by default (`AppConfig.borderless`), and the app takes
+/// on what the OS decoration was doing:
+///
+///   var frame = ds.windowFrame(@src()).focused(window_has_focus).draw();
+///   defer frame.deinit();
+///   drawTitleBar();      // …and, at the end of it:
+///   ds.windowChrome.declare(.{
+///       .drag = title_bar_rect,                    // logical window coords
+///       .buttons = &.{ minimise, maximise, close },// holes in the drag region
+///   });
+///   drawBody();
+///   drawStatusStrip();
+///
+/// That one call is the whole contract: SDL's hit test answers "drag" over the
+/// title bar, "normal" over the caption buttons, and a resize border within 6
+/// logical px of every edge and corner. Double-click-to-maximise comes with it
+/// on Windows, because "drag" is answered as HTCAPTION and the OS does the rest.
+/// `ds.windowChrome.minimise()` / `.toggleMaximise()` are the actions for the
+/// buttons; closing stays the app's (it owns the frame loop).
+///
 /// Usage:
 ///   var frame = ds.windowFrame(@src()).focused(window_has_focus).draw();
 ///   defer frame.deinit();

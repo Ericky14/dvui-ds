@@ -214,6 +214,59 @@ replay of the background's render commands plus ~2·log2(radius) half-resolution
 passes — real CPU work in dvui's deferred renderer, not a GPU blit, so measure it
 against your frame budget before blurring a 4K viewport every frame.
 
+### Text on glass
+
+**One rung brighter than the same text on an opaque panel** — `ds.onGlass(style)`
+returns it, so the rule is applied rather than remembered:
+
+```zig
+ds.label(@src(), "Position").style(ds.onGlass(.weak)).draw();
+```
+
+`weak → muted → secondary → primary`; `title`, `accent` and `danger` already run
+at full strength and are unchanged. A glass surface is a tint over a blurred copy
+of whatever is behind it, so the effective background is lighter and far less
+predictable than a panel's, and the quiet end of the ladder stops being
+readable — `.weak` is tuned to disappear against `surface_1` and over a bright
+render it does exactly that. Shifting the *whole* ladder keeps the hierarchy: a
+caption still reads quieter than a title, which the flatter rule ("use
+`.secondary` on glass") throws away by collapsing two rungs into one.
+
+### Borderless window
+
+`ds.windowFrame`'s double ring only means anything on a **borderless** window —
+inside an OS-decorated one it is drawn under somebody else's title bar and the
+app's own caption row stacks below the OS one. `ds.App` creates its window
+borderless by default (`AppConfig.borderless`).
+
+Borderless costs dragging, the resize edges and double-click-to-maximise;
+`ds.windowChrome` gives all three back through SDL's hit test. The app declares,
+once per frame, where its title bar and caption buttons are:
+
+```zig
+ds.windowChrome.declare(.{
+    .drag = title_bar_rect,                       // logical window coords
+    .buttons = &.{ minimise, maximise, close },   // holes in the drag region
+    .resize_margin = 6,                           // logical px, the default
+});
+```
+
+Order inside the classifier, and the reason for it: resize borders beat the
+title bar (or a corner can be dragged but never resized), buttons beat the drag
+region (or close moves the window instead of closing it), everything else is
+normal so the widgets keep their clicks. It is a pure function
+(`ds.windowChrome.classify`) with its own tests. Declare nothing and the window
+simply has no drag region — the resize borders still work, so a missed frame
+never leaves a window stuck at one size.
+
+`minimise()` and `toggleMaximise()` are the caption actions; closing stays the
+app's, since it owns the frame loop and whatever has to be saved first.
+`example/title_bar.zig` is the worked example, and the storybook runs it.
+
+On Windows a borderless window loses the rounded corners, so `App` asks DWM for
+them back (`DWMWA_WINDOW_CORNER_PREFERENCE`, looked up at runtime rather than
+linked — a design system cannot make every consumer add `dwmapi` to its build).
+
 ### The double border
 
 `ds.windowFrame` draws two hairlines, not one: a near-black outer ring that

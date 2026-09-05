@@ -5,6 +5,7 @@
 const std = @import("std");
 const ds = @import("dvui_ds");
 const pages = @import("pages/pages.zig");
+const title_bar = @import("title_bar.zig");
 
 /// Custom log handler with timestamps.
 pub const std_options: std.Options = .{
@@ -14,6 +15,7 @@ pub const std_options: std.Options = .{
 
 pub fn main() !void {
     ds.log.init();
+    applyStartPage();
     try ds.runner.run(.{
         .title = "dvui-ds Storybook",
         .width = 900,
@@ -57,7 +59,34 @@ const Page = enum {
 
 var router = ds.Router(Page).init(.buttons);
 
+/// Open the storybook straight onto one page: `DVUI_DS_PAGE=glass zig build example`.
+///
+/// A screenshot script cannot click a sidebar, and every visual check of a page
+/// that needs a real GPU — the blur ones especially — is a screenshot script.
+fn applyStartPage() void {
+    var buffer: [64]u8 = undefined;
+    const environ: std.process.Environ = .{ .block = .global };
+    const wanted = environ.getAlloc(std.heap.page_allocator, "DVUI_DS_PAGE") catch return;
+    defer std.heap.page_allocator.free(wanted);
+    if (wanted.len == 0 or wanted.len >= buffer.len) return;
+    const lowered = std.ascii.lowerString(buffer[0..wanted.len], wanted);
+    const info = @typeInfo(Page).@"enum";
+    inline for (info.field_names, info.field_values) |name, value| {
+        if (std.mem.eql(u8, name, lowered)) {
+            router.active = @fromBackingInt(@intCast(value));
+            return;
+        }
+    }
+    std.log.warn("DVUI_DS_PAGE={s} is not a page", .{wanted});
+}
+
 fn storybookFrame() bool {
+    // The window is borderless, so the storybook draws its own title bar — and
+    // in doing so is the worked example of `ds.windowChrome`.
+    var shell = ds.column(@src()).expand(.both).draw();
+    defer shell.deinit();
+    const keep_running = title_bar.draw("dvui-ds Storybook");
+
     // Main layout: sidebar + content
     var main_box = ds.row(@src()).expand(.both).draw();
     defer main_box.deinit();
@@ -163,5 +192,5 @@ fn storybookFrame() bool {
         }
     }
 
-    return true;
+    return keep_running;
 }

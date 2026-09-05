@@ -347,3 +347,47 @@ test "buttons of one size are the same height whatever variant they wear" {
         try atScale(scale, .{ .w = 320, .h = 90 }, Local.frame, Local.check);
     }
 }
+
+// ─── the sm button's height is the size's, not the font's ────────────────────
+
+test "a sm button is chrome_control_height whatever font the theme uses" {
+    // The apply stream measured 25 px with the editor's font. A button's height
+    // is a hit target and a row's shared baseline; it cannot be whatever the
+    // caption's line box happened to come out at.
+    const Local = struct {
+        fn frame() !dvui.App.Result {
+            var page = dvui.box(@src(), .{}, .{ .expand = .both, .background = true });
+            defer page.deinit();
+            var row = ds.row(@src()).gap(8).padding(8).draw();
+            defer row.deinit();
+            _ = ds.button(@src(), "Send").variant(.filled).size(.sm).tag("b.text").draw();
+            _ = ds.button(@src(), "Send").variant(.filled).size(.sm).icon("send", ds.icons.send).tag("b.icon").draw();
+            _ = ds.iconButton(@src(), "cog", ds.icons.cog).size(.sm).tag("b.only").draw();
+            return .ok;
+        }
+
+        fn check() anyerror!void {
+            for ([_][]const u8{ "b.text", "b.icon", "b.only" }) |name| {
+                const rect = try tagRect(name);
+                try std.testing.expectApproxEqAbs(expected, rect.h, 0.51);
+            }
+        }
+
+        var expected: f32 = 0;
+    };
+
+    const original = ds.tokens.current;
+    defer ds.init(original);
+
+    // A caption font two sizes either side of the default, which is the whole
+    // range an app might theme it to.
+    for ([_]u16{ 9, 11, 15 }) |caption| {
+        var theme = original;
+        theme.font_size_sm = caption;
+        ds.init(theme);
+        for (scales) |scale| {
+            Local.expected = @round(theme.chrome_control_height * scale);
+            try atScale(scale, .{ .w = 420, .h = 90 }, Local.frame, Local.check);
+        }
+    }
+}

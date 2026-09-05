@@ -51,7 +51,7 @@ pub fn draw() void {
             .draw();
         defer surface.deinit();
         ds.label(@src(), "Inspect").style(.primary).font(.heading).draw();
-        ds.label(@src(), "Text on glass uses .secondary or .primary.").style(.secondary).draw();
+        ds.label(@src(), "Text on glass: ds.onGlass(style), one rung up.").style(ds.onGlass(.muted)).draw();
     }
     {
         const bar_width = @max(160.0, area.w * 0.34);

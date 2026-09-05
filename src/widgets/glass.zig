@@ -199,10 +199,13 @@ pub const Glass = struct {
         return copy;
     }
 
-    /// Override the inner padding (default `theme.space_md`, pixel-snapped).
+    /// Override the inner padding (default `theme.space_md`). Snapped to whole
+    /// physical pixels like every other ds inset — a glass panel's padding
+    /// positions everything inside it, and an unsnapped one puts the whole
+    /// content box on a half pixel at 175 %.
     pub fn padding(self: Glass, logical_px: f32) Glass {
         var copy = self;
-        copy.pad_override = dvui.Rect.all(logical_px);
+        copy.pad_override = ds.padding(logical_px);
         return copy;
     }
 

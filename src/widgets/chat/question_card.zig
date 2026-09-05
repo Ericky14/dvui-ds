@@ -69,12 +69,35 @@ pub const QuestionCard = struct {
     questions: []const Question,
     selections: []Selection,
     other_buffer: ?[]u8 = null,
+    expand_val: dvui.Options.Expand = .horizontal,
+    height_val: ?f32 = null,
     id_extra: usize = 0,
 
     /// Caller-owned buffer for a free-text "Other" answer.
     pub fn other(self: QuestionCard, val: []u8) QuestionCard {
         var copy = self;
         copy.other_buffer = val;
+        return copy;
+    }
+
+    /// How the card fills its parent. The default is `.horizontal`: a chat card
+    /// is as wide as the transcript and as tall as its content.
+    ///
+    /// A pane that scrolls its own transcript wants `.both` so the card takes
+    /// the height it is given rather than the height it asked for — otherwise
+    /// the card reports one height, the pane hands it another, and the two
+    /// disagree by however much the content wanted.
+    pub fn expand(self: QuestionCard, val: dvui.Options.Expand) QuestionCard {
+        var copy = self;
+        copy.expand_val = val;
+        return copy;
+    }
+
+    /// Pin the card's height (logical px), snapped to whole physical pixels.
+    /// The door for a pane that has already decided how tall each row is.
+    pub fn height(self: QuestionCard, logical_px: f32) QuestionCard {
+        var copy = self;
+        copy.height_val = logical_px;
         return copy;
     }
 
@@ -103,7 +126,7 @@ pub const QuestionCard = struct {
     pub fn draw(self: QuestionCard) bool {
         const theme = tokens.current;
 
-        var card = dvui.box(self.src, .{ .dir = .vertical, .gap = theme.space_sm }, containerOpts(theme, self.id_extra));
+        var card = dvui.box(self.src, .{ .dir = .vertical, .gap = theme.space_sm }, containerOpts(theme, self.id_extra).override(sizing(self.expand_val, self.height_val)));
         defer card.deinit();
 
         for (self.questions, 0..) |question, question_index| {
@@ -192,4 +215,17 @@ fn descriptionOpts(theme: tokens.Theme) dvui.Options {
 
 test {
     _ = @import("question_card_tests.zig");
+}
+
+/// The caller's `expand` / `height` as options, snapped.
+fn sizing(expand_val: dvui.Options.Expand, height_val: ?f32) dvui.Options {
+    if (height_val) |px| {
+        const snapped = ds.snapPx(px, ds.pixelScale());
+        return .{
+            .expand = expand_val,
+            .min_size_content = .{ .w = 0, .h = snapped },
+            .max_size_content = .height(snapped),
+        };
+    }
+    return .{ .expand = expand_val };
 }

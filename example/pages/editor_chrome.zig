@@ -207,7 +207,7 @@ fn lane(src: std.builtin.SourceLocation, name: []const u8, value: []const u8, in
         .expand = .horizontal,
     });
     defer row.deinit();
-    ds.label(@src(), name).style(.muted).gravityY(0.5).draw();
+    ds.label(@src(), name).style(ds.onGlass(.weak)).gravityY(0.5).draw();
     stretch(@src());
     ds.pill(@src(), value).mono(true).draw();
 }
@@ -226,7 +226,7 @@ fn inspectDrawer(src: std.builtin.SourceLocation, area: dvui.Rect, scene: ds.Gla
     {
         var header = ds.row(@src()).gap(theme.space_sm).expand(.horizontal).draw();
         defer header.deinit();
-        ds.label(@src(), "Inspect").style(.primary).gravityY(0.5).draw();
+        ds.label(@src(), "Inspect").style(ds.onGlass(.secondary)).gravityY(0.5).draw();
         stretch(@src());
         ds.pill(@src(), "#2").mono(true).draw();
     }
@@ -234,9 +234,9 @@ fn inspectDrawer(src: std.builtin.SourceLocation, area: dvui.Rect, scene: ds.Gla
     {
         var section = ds.column(@src()).gap(theme.space_xs).expand(.horizontal).draw();
         defer section.deinit();
-        // Text on glass uses `.secondary` / `.muted`; `.weak` is tuned for an
-        // opaque dark surface and disappears over a bright blur.
-        ds.label(@src(), "Transform").style(.secondary).draw();
+        // Every style on glass is one rung brighter — `ds.onGlass`, so the rule
+        // is applied rather than remembered.
+        ds.label(@src(), "Transform").style(ds.onGlass(.muted)).draw();
         lane(@src(), "Position", "2.5", 0);
         lane(@src(), "Rotation", "0", 1);
         lane(@src(), "Scale", "1", 2);
@@ -245,10 +245,10 @@ fn inspectDrawer(src: std.builtin.SourceLocation, area: dvui.Rect, scene: ds.Gla
     {
         var section = ds.column(@src()).gap(theme.space_xs).expand(.horizontal).draw();
         defer section.deinit();
-        ds.label(@src(), "MeshRenderer").style(.secondary).draw();
+        ds.label(@src(), "MeshRenderer").style(ds.onGlass(.muted)).draw();
         var row = ds.row(@src()).gap(theme.space_2xs).expand(.horizontal).draw();
         defer row.deinit();
-        ds.label(@src(), "Mesh").style(.muted).gravityY(0.5).draw();
+        ds.label(@src(), "Mesh").style(ds.onGlass(.weak)).gravityY(0.5).draw();
         stretch(@src());
         ds.pill(@src(), "plane").mono(true).draw();
     }

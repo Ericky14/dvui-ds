@@ -515,7 +515,13 @@ fn drawAnimatedLabelAndIcon(src: std.builtin.SourceLocation, label_str: []const 
     {
         var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = tokens.current.space_sm }, .{ .gravity_x = options.gravity_x orelse 0.5, .gravity_y = 0.5, .expand = .vertical });
         defer row.deinit();
-        const icon_sz = pixels.snapPx(icon_size_override orelse icon_mod.iconSize(btn_size), pixels.pixelScale());
+        // Sized from the row's height, not straight off the token: a glyph
+        // snapped on its own still has to be centred in the row, and an odd
+        // remainder puts it half a pixel off. Deriving it from
+        // `row - 2*inset` leaves an even remainder.
+        const row_height = contentHeight(btn_size, options).h;
+        const wanted = icon_size_override orelse icon_mod.iconSize(btn_size);
+        const icon_sz = pixels.squareMetrics(row_height, wanted, pixels.pixelScale()).content;
         if (icon_first) {
             _ = dvui.icon(@src(), "", tvg_bytes, .{}, style.override(.{ .min_size_content = .{ .w = icon_sz, .h = icon_sz }, .gravity_y = 0.5 }));
             dvui.labelNoFmt(@src(), label_str, .{}, style.override(.{ .gravity_y = 0.5 }));
@@ -574,7 +580,8 @@ fn drawDisabledButton(src: std.builtin.SourceLocation, label_str: []const u8, bt
 
     const dim_text = options.color(.text).toColor().opacity(tokens.current.opacity_disabled);
     const style = options.strip().override(bw.style()).override(.{ .color_text = .{ .color = dim_text }, .gravity_y = 0.5 });
-    const icon_sz = pixels.snapPx(icon_mod.iconSize(btn_size), pixels.pixelScale());
+    const row_height = contentHeight(btn_size, options).h;
+    const icon_sz = pixels.squareMetrics(row_height, icon_mod.iconSize(btn_size), pixels.pixelScale()).content;
 
     if (btn_source) |asset| {
         const tvg_bytes: ?[]const u8 = switch (asset.kind) {

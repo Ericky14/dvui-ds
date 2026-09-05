@@ -37,6 +37,7 @@ pub const IconButton = struct {
     is_disabled: bool = false,
     is_loading: bool = false,
     gravity_y: ?f32 = null,
+    tag_val: ?[]const u8 = null,
     id_extra: ?usize = null,
 
     pub fn variant(self: IconButton, val: tokens.Variant) IconButton {
@@ -62,6 +63,15 @@ pub const IconButton = struct {
     pub fn loading(self: IconButton, val: bool) IconButton {
         var btn = self;
         btn.is_loading = val;
+        return btn;
+    }
+
+    /// Name this button for tests and UI automation (`dvui.tagGet`), which is
+    /// also how a caller reads its rect back — a borderless window's caption
+    /// buttons have to be declared as holes in the title bar's drag region.
+    pub fn tag(self: IconButton, name: []const u8) IconButton {
+        var btn = self;
+        btn.tag_val = name;
         return btn;
     }
 
@@ -111,6 +121,7 @@ pub const IconButton = struct {
             .iconSize(square.content)
             .padding(dvui.Rect.all(square.inset));
         if (self.gravity_y) |g| btn = btn.gravityY(g);
+        if (self.tag_val) |name| btn = btn.tag(name);
         if (self.id_extra) |ie| btn = btn.idExtra(ie);
         return btn.draw();
     }

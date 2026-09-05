@@ -28,6 +28,7 @@ pub const Dropdown = struct {
     dropdown_size: tokens.Size = .md,
     placeholder_text: []const u8 = "Select ...",
     is_disabled: bool = false,
+    height_val: ?f32 = null,
     id_extra: ?usize = null,
 
     /// Set the control size (sm / md / lg).
@@ -53,6 +54,18 @@ pub const Dropdown = struct {
 
     /// Disambiguate this instance when used in a loop / group (passed as
     /// `.id_extra` on the root widget).
+    /// Pin the closed control's height (logical px) — for a control row where
+    /// everything is `chrome_control_height` and the dropdown has to match.
+    ///
+    /// It works by deriving the vertical padding rather than by asking for a
+    /// content height: dvui's `DropdownWidget` ignores `min_size_content.h`, so
+    /// what a caller can actually change is the inset.
+    pub fn height(self: Dropdown, logical_px: f32) Dropdown {
+        var copy = self;
+        copy.height_val = logical_px;
+        return copy;
+    }
+
     pub fn idExtra(self: Dropdown, val: usize) Dropdown {
         var copy = self;
         copy.id_extra = val;
@@ -118,11 +131,25 @@ pub const Dropdown = struct {
             .border = ds.border(theme.border_width),
             .corners = dvui.CornerRect.round(theme.radius_md),
             .color_text = .{ .color = theme.text_primary },
-            .padding = ds.paddingXY(theme.space_md, theme.space_sm),
+            .padding = ds.paddingXY(theme.space_md, self.verticalPadding()),
             .font = ds.font(font_size),
             .min_size_content = .{ .w = 160 },
             .id_extra = self.id_extra,
         };
+    }
+
+    /// The vertical inset: `space_sm` by default, or whatever makes the control
+    /// come out at the pinned height.
+    fn verticalPadding(self: Dropdown) f32 {
+        const theme = tokens.current;
+        const wanted = self.height_val orelse return theme.space_sm;
+        const scale = ds.pixelScale();
+        const border = ds.borderPx(theme.border_width, scale);
+        const line = if (dvui.current_window == null)
+            @as(f32, @floatFromInt(fontSize(self.dropdown_size))) * 1.3
+        else
+            ds.font(fontSize(self.dropdown_size)).textHeight();
+        return ds.snapPx(@max(0, (wanted - line - 2 * border) / 2), scale);
     }
 };
 

@@ -9,6 +9,7 @@ const sdl3 = @import("sdl3");
 const wgpu = @import("wgpu");
 const GpuContext = @import("gpu.zig").GpuContext;
 const tokens = @import("../tokens.zig");
+const window_chrome = @import("window_chrome.zig");
 
 const log = std.log.scoped(.dvui_ds);
 
@@ -17,6 +18,18 @@ pub const AppConfig = struct {
     width: u32 = 900,
     height: u32 = 600,
     clear_color: [4]f64 = .{ 0.05, 0.05, 0.05, 1.0 },
+    /// Draw the window's own title bar instead of the OS one.
+    ///
+    /// On by default, because the design system's chrome *is* a title bar:
+    /// `ds.windowFrame` draws a double border around the whole window and the
+    /// app draws its own caption row, and with an OS title bar on top of that
+    /// you get two of them stacked, with the double border tucked underneath
+    /// somebody else's decoration. Set false for a plain OS-decorated window.
+    ///
+    /// Borderless costs you dragging, the resize edges and
+    /// double-click-to-maximise; `ds.windowChrome` gives all three back, and
+    /// the app declares where its title bar is each frame.
+    borderless: bool = true,
 };
 
 pub const App = struct {
@@ -39,8 +52,16 @@ pub const App = struct {
             config.title,
             config.width,
             config.height,
-            .{ .resizable = true, .high_pixel_density = true },
+            .{ .resizable = true, .high_pixel_density = true, .borderless = config.borderless },
         );
+
+        if (config.borderless) {
+            // A borderless window on Windows loses the OS rounded corners; ask
+            // DWM for them back before anything is drawn.
+            window_chrome.applyNativeCorners(window);
+            window_chrome.install(window, true);
+            log.info("window: borderless, app-drawn chrome", .{});
+        }
 
         const content_scale = detectContentScale(window);
         log.info("window: scale={d:.2}", .{content_scale});
@@ -135,6 +156,11 @@ pub const App = struct {
             if (!keep_running) break;
 
             // Resize
+            // The resize borders are measured from the far edges, so the hit
+            // test has to know the size the window is now, not the size it was
+            // when it was created.
+            window_chrome.refreshSize(self.window);
+
             const new_fb = self.window.getSizeInPixels() catch .{ self.gpu.width, self.gpu.height };
             const new_w: u32 = @intCast(new_fb[0]);
             const new_h: u32 = @intCast(new_fb[1]);

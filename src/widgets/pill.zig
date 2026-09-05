@@ -45,6 +45,7 @@ pub const Pill = struct {
     radius_val: ?f32 = null,
     tag_val: ?[]const u8 = null,
     tag_label: ?[]const u8 = null,
+    gravity_y: ?f32 = null,
     id_extra: usize = 0,
 
     /// Set the colour role (neutral / accent / danger).
@@ -97,6 +98,15 @@ pub const Pill = struct {
         return copy;
     }
 
+    /// Vertical gravity inside whatever row holds it (0 = top, 0.5 = middle,
+    /// 1 = bottom). A pill is shorter than the controls beside it, so in a row
+    /// of mixed heights it has to be told where to sit.
+    pub fn gravityY(self: Pill, value: f32) Pill {
+        var copy = self;
+        copy.gravity_y = value;
+        return copy;
+    }
+
     /// Disambiguate this instance — a row of pills shares one `@src()`.
     pub fn idExtra(self: Pill, value: usize) Pill {
         var copy = self;
@@ -109,6 +119,7 @@ pub const Pill = struct {
         const theme = tokens.current;
         const scale = pixels.pixelScale();
         const metrics = pillMetrics(scale);
+        const glyph = pixels.squareMetrics(theme.chrome_pill_height, theme.icon_sm, scale);
         const colors = toneColors(self.pill_tone);
 
         var box = dvui.box(self.src, .{ .dir = .horizontal, .gap = metrics.gap }, .{
@@ -118,6 +129,7 @@ pub const Pill = struct {
             .corners = dvui.CornerRect.round(self.radius_val orelse metrics.height),
             .color_fill = .{ .color = colors.fill },
             .padding = ds.paddingXY(metrics.padding_x, 0),
+            .gravity_y = self.gravity_y,
             // Pinned, not merely floored: a caption font's line box is taller
             // than the pill (Geist Mono at 11 px reports ~26 px of line, for a
             // 24 px pill), so without the cap every pill would quietly grow to
@@ -136,7 +148,13 @@ pub const Pill = struct {
                     .stroke_color = .{ .color = colors.text },
                 }, .{
                     .gravity_y = 0.5,
-                    .min_size_content = .{ .w = theme.icon_sm, .h = theme.icon_sm },
+                    // Sized from the pill's own height rather than straight off
+                    // `icon_sm`, for the same reason a chip's glyph is: an
+                    // 11 px icon is 19.25 physical px at 175 %, and centring a
+                    // 19 px box in a 42 px one leaves half a pixel over. Taking
+                    // the size from `height - 2*inset` leaves an even remainder,
+                    // so the centre lands on a pixel.
+                    .min_size_content = .{ .w = glyph.content, .h = glyph.content },
                 });
             }
         }
@@ -161,7 +179,10 @@ pub fn pillMetrics(scale: f32) struct { height: f32, padding_x: f32, gap: f32 } 
     return .{
         .height = pixels.snapPx(theme.chrome_pill_height, scale),
         .padding_x = pixels.snapPx(theme.space_md, scale),
-        .gap = pixels.snapPx(theme.space_xs, scale),
+        // On the 4 px grid, not `space_xs`: the gap between a pill's icon and
+        // its label is a gap between two siblings in a row, and the geometry
+        // gate measures it as one. `space_xs` is for a control's own insets.
+        .gap = pixels.snapPx(theme.space_2xs, scale),
     };
 }
 

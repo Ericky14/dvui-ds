@@ -254,7 +254,10 @@ test "chips and pills are snapped, on the grid and reachable" {
             defer strip.deinit();
             _ = ds.chip(@src(), "undo", ds.icons.undo).idExtra(0).draw();
             _ = ds.chip(@src(), "redo", ds.icons.redo).state(.current).idExtra(1).draw();
-            ds.pill(@src(), "60 fps").mono(true).draw();
+            // A pill with a leading icon, which is the shape the editor's
+            // status row uses and the one that carried the findings.
+            ds.pill(@src(), "Ground · 2").tone(.accent).icon("box", ds.icons.box).draw();
+            ds.pill(@src(), "60 fps").mono(true).idExtra(1).draw();
             return .ok;
         }
     };

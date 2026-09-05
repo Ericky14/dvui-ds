@@ -40,6 +40,7 @@ pub const glassScene = @import("widgets/glass.zig").glassScene;
 pub const windowFrame = @import("widgets/window_frame.zig").windowFrame;
 pub const previewFrame = @import("widgets/preview_frame.zig").previewFrame;
 pub const chip = @import("widgets/chip.zig").chip;
+pub const chipSource = @import("widgets/chip.zig").chipSource;
 pub const pill = @import("widgets/pill.zig").pill;
 pub const spacer = @import("widgets/spacer.zig").spacer;
 pub const gap = @import("widgets/spacer.zig").gap;
@@ -81,6 +82,13 @@ pub const Chip = @import("widgets/chip.zig").Chip;
 pub const ChipState = @import("widgets/chip.zig").ChipState;
 pub const Pill = @import("widgets/pill.zig").Pill;
 pub const PillTone = @import("widgets/pill.zig").PillTone;
+
+/// Measured geometry, so a caller can size a floating row without
+/// re-deriving design-system internals. Both are in logical px and already
+/// rounded to whole physical pixels at the scale you pass.
+pub const chipMetrics = @import("widgets/chip.zig").chipMetrics;
+pub const pillMetrics = @import("widgets/pill.zig").pillMetrics;
+pub const Square = @import("helpers/pixels.zig").Square;
 
 // ─── Chat widgets (ds.chat.*) ────────────────────────────────────────────────
 pub const chat = @import("widgets/chat/chat.zig");
@@ -131,6 +139,10 @@ pub const Variant = @import("tokens.zig").Variant;
 pub const Size = @import("tokens.zig").Size;
 pub const Source = @import("source.zig");
 pub const LabelStyle = @import("widgets/label.zig").LabelStyle;
+
+/// The text style to use on a glass surface: one rung brighter than the same
+/// text on an opaque panel. See `widgets/label.zig`.
+pub const onGlass = @import("widgets/label.zig").onGlass;
 pub const FontToken = @import("widgets/label.zig").FontToken;
 pub const IconStyle = @import("widgets/icon.zig").IconStyle;
 pub const Theme = @import("tokens.zig").Theme;
@@ -142,6 +154,10 @@ pub const anim = @import("anim/anim.zig");
 pub const runner = @import("platform/runner.zig");
 pub const App = @import("platform/app.zig").App;
 pub const GpuContext = @import("platform/gpu.zig").GpuContext;
+
+/// Borderless-window chrome: declare the drag region and caption buttons
+/// each frame. See `platform/window_chrome.zig`.
+pub const windowChrome = @import("platform/window_chrome.zig");
 pub const focus = @import("ds_focus");
 pub const log = @import("log.zig");
 
@@ -174,6 +190,7 @@ test {
     _ = @import("widgets/chip_tests.zig");
     _ = @import("widgets/pill_tests.zig");
     _ = @import("helpers/pixels.zig");
+    _ = @import("platform/window_chrome_tests.zig");
     _ = @import("anim/anim_tests.zig");
     _ = @import("helpers/fonts.zig");
     _ = @import("widgets/chat/chat.zig");
