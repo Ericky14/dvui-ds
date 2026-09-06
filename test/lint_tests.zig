@@ -474,6 +474,38 @@ test "the box dvui would size an lg field by is shorter than the line it draws" 
     _ = try dvui.testing.step(Local.frame);
 }
 
+// **`draw()` hands back the entry's own id.** A host that wants to focus the
+// field, tag it or write down what it shows for its own layout lint cannot
+// recompute that id: `draw` wraps the entry in a column, so it is extended from
+// THAT parent and not from the caller's `@src()`.
+test "a text input reports the id of the widget it drew" {
+    const Local = struct {
+        var buffer: [16]u8 = @splat(0);
+        var frames: usize = 0;
+
+        fn frame() !dvui.App.Result {
+            var background = page(@src());
+            defer background.deinit();
+            const field = ds.textInput(@src(), &buffer).placeholder("Folder").draw();
+            try std.testing.expect(field.id != .zero);
+            frames += 1;
+            // On the second frame dvui has last frame's measurement for that id,
+            // which is only true if the id really is the entry's.
+            if (frames > 1) try std.testing.expect(dvui.minSizeGet(field.id) != null);
+            return .ok;
+        }
+    };
+    var t = try dvui.testing.init(.{
+        .window_size = .{ .w = 200, .h = 100 },
+        .window_init_opts = .{ .theme = ds.tokens.dvuiTheme() },
+    });
+    defer t.deinit();
+    Local.frames = 0;
+    _ = try dvui.testing.step(Local.frame);
+    _ = try dvui.testing.step(Local.frame);
+    try std.testing.expect(Local.frames >= 2);
+}
+
 // The field's own geometry: nothing it draws lands off the pixel grid, and its
 // hit target clears 24 px at every size.
 test "a text input draws on whole physical pixels" {

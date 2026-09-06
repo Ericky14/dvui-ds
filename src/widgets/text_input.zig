@@ -113,6 +113,13 @@ pub const TextInput = struct {
         focused: bool = false,
         /// Its text changed this frame.
         changed: bool = false,
+        /// **The entry widget's own dvui id.** The one thing a caller cannot
+        /// recompute from outside: `draw` wraps the entry in a column, so the
+        /// id is extended from THAT parent and not from the caller's. Handing
+        /// it back is what lets a host focus the field, tag it, or write down
+        /// what it shows for its own layout lint — none of which the design
+        /// system can do on the host's behalf.
+        id: dvui.Id = .zero,
     };
 
     /// Draw the text input (with optional label/helper).
@@ -179,6 +186,7 @@ pub const TextInput = struct {
             .enter_pressed = te.enter_pressed,
             .focused = focused,
             .changed = te.text_changed,
+            .id = te.data().id,
         };
 
         te.deinit();
