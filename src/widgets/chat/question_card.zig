@@ -146,7 +146,7 @@ pub const QuestionCard = struct {
 
             if (question_index + 1 == self.questions.len) {
                 if (self.other_buffer) |buffer| {
-                    ds.textInput(@src(), buffer).size(.sm).placeholder(other_placeholder).expand(.horizontal).draw();
+                    _ = ds.textInput(@src(), buffer).size(.sm).placeholder(other_placeholder).expand(.horizontal).draw();
                 }
             }
         }

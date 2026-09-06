@@ -40,6 +40,32 @@ pub fn snapPx(logical: f32, scale: f32) f32 {
     return physical / scale;
 }
 
+/// `snapPx`, but **never rounding up** — the inset half of a fitted control.
+///
+/// The difference matters wherever a padding is derived from a total that has
+/// to stay exact: `total - 2·padding` is the content, so a padding rounded UP
+/// makes the whole control taller than the size it was designed to. Rounding
+/// the padding DOWN first and giving the content whatever is left keeps the
+/// total on a physical pixel and never squeezes the line box
+/// (`TextInput.inputOpts`).
+///
+/// `ds.snapDownPx(6.55, 1.75)` → 6.2857…, i.e. exactly 11 physical pixels.
+pub fn snapDownPx(logical: f32, scale: f32) f32 {
+    if (scale <= 0) return logical;
+    return @floor(logical * scale) / scale;
+}
+
+test "a snapped-down length is whole physical pixels and never larger" {
+    for ([_]f32{ 1.0, 1.25, 1.5, 1.75, 2.0 }) |scale| {
+        for ([_]f32{ 0, 5.2, 6.55, 9.757, 20 }) |logical| {
+            const down = snapDownPx(logical, scale);
+            try std.testing.expect(isSnapped(down, scale));
+            try std.testing.expect(down <= logical + 0.0001);
+            try std.testing.expect(down > logical - 1 / scale - 0.0001);
+        }
+    }
+}
+
 /// The logical length of a **1 physical pixel minimum** hairline at `scale`:
 /// the thinnest line the display can draw without antialiasing it into a
 /// gradient. Used for every border in the chrome language.

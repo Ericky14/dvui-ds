@@ -385,3 +385,113 @@ test "a glass sheet puts its rows on whole pixels however its rect was computed"
     // that inherit the sheet's origin.
     try expectClean(.{ .w = 300, .h = 220 }, "lint_tests.zig", Local.frame);
 }
+
+// ─── text_input ──────────────────────────────────────────────────────────────
+
+// **A field's line box is measured in the font the field draws in.**
+//
+// The owner's report, 2026-09-06: the welcome sheet's folder placeholder
+// `C:\games\MyGame` was "cut off on the bottom". `dvui.TextEntryWidget.init`
+// sizes a single-line entry from `defaults.min_sizeM(defaultMWidth, 1)` and then
+// CAPS it (`max_size_content = min_size_content`), and `defaults` carries no
+// font — so the height came from the THEME's body font while the glyphs were
+// drawn in the `md` face. `inputOpts` states the box now; this measures that it
+// really fits, with the real font cache, at all three scales.
+test "an input's box fits the line it draws, and is exactly its spec height" {
+    const Local = struct {
+        fn frame() !dvui.App.Result {
+            var background = page(@src());
+            defer background.deinit();
+            var buffer: [8]u8 = @splat(0);
+            inline for (&[_]struct { ds.Size, u16, f32 }{
+                .{ .sm, 12, 28 },
+                .{ .md, 13, 32 },
+                .{ .lg, 14, 40 },
+            }) |row| {
+                const options = ds.textInput(@src(), &buffer).size(row[0]).inputOpts(ds.tokens.current.border_input);
+                const line = ds.font(row[1]).textHeight();
+                const padding = options.padding.?;
+                const border = options.border.?;
+                const content = options.min_size_content.?.h;
+                // The line the glyphs need really does fit…
+                try std.testing.expect(content >= line - 0.001);
+                // …and the control is exactly the height its CSS spec promises,
+                // on a whole physical pixel at this scale.
+                const total = content + padding.y + padding.h + border.y + border.h;
+                try std.testing.expectApproxEqAbs(row[2], total, 0.001);
+                try std.testing.expect(ds.isSnapped(total, ds.pixelScale()));
+            }
+            return .ok;
+        }
+    };
+    for (scales) |scale| {
+        var t = try dvui.testing.init(.{
+            .window_size = .{ .w = 240 * scale / 2, .h = 160 * scale / 2 },
+            .window_init_opts = .{ .theme = ds.tokens.dvuiTheme() },
+        });
+        defer t.deinit();
+        t.window.content_scale = scale / 2;
+        _ = try dvui.testing.step(Local.frame);
+        try dvui.testing.settle(Local.frame);
+    }
+}
+
+// **The proof it can say no: the box dvui would have measured is too short.**
+//
+// `dvui.TextEntryWidget.init` calls `defaults.min_sizeM(defaultMWidth, 1)`
+// BEFORE `options.override(opts)`, and `defaults` carries no font — so the
+// height of a single-line entry was `themeGet().font_body`'s line box, in a
+// widget that draws its text in `ds.font(12|13|14)`. dvui then CAPS the entry
+// at what it measured, so the difference comes off the bottom of the glyphs.
+//
+// Whether it bites depends on which face the host's theme names, which is why
+// it went unseen: on the storybook's own theme the body font is 13 px, so `md`
+// matched by luck and `sm` had room to spare — but `lg` (18.20 px of line in a
+// 16.90 px box) was cut off here too, and on the engine's theme (an 11 px body
+// font, 14.30 px) all three sizes were.
+test "the box dvui would size an lg field by is shorter than the line it draws" {
+    const Local = struct {
+        fn frame() !dvui.App.Result {
+            var background = page(@src());
+            defer background.deinit();
+            var buffer: [8]u8 = @splat(0);
+            // What dvui measures a single-line entry with, whatever the caller's
+            // `.font` says.
+            const dvui_would_use = dvui.themeGet().font_body.textHeight();
+            const lg_line = ds.font(14).textHeight();
+            try std.testing.expect(lg_line > dvui_would_use + 0.5);
+            // And what `inputOpts` states instead does fit.
+            const options = ds.textInput(@src(), &buffer).size(.lg).inputOpts(ds.tokens.current.border_input);
+            try std.testing.expect(options.min_size_content.?.h >= lg_line - 0.001);
+            return .ok;
+        }
+    };
+    var t = try dvui.testing.init(.{
+        .window_size = .{ .w = 160, .h = 90 },
+        .window_init_opts = .{ .theme = ds.tokens.dvuiTheme() },
+    });
+    defer t.deinit();
+    _ = try dvui.testing.step(Local.frame);
+}
+
+// The field's own geometry: nothing it draws lands off the pixel grid, and its
+// hit target clears 24 px at every size.
+test "a text input draws on whole physical pixels" {
+    const Local = struct {
+        var name: [64]u8 = @splat(0);
+        var email: [64]u8 = @splat(0);
+        var folder: [64]u8 = @splat(0);
+
+        fn frame() !dvui.App.Result {
+            var background = page(@src());
+            defer background.deinit();
+            var column = ds.column(@src()).gap(ds.tokens.current.space_sm).draw();
+            defer column.deinit();
+            _ = ds.textInput(@src(), &name).size(.sm).placeholder("My Game").draw();
+            _ = ds.textInput(@src(), &email).size(.md).placeholder("C:\\games\\MyGame").draw();
+            _ = ds.textInput(@src(), &folder).size(.lg).placeholder("you@example.com").draw();
+            return .ok;
+        }
+    };
+    try expectClean(.{ .w = 300, .h = 200 }, "text_input.zig", Local.frame);
+}

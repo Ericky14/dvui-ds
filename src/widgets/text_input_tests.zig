@@ -95,33 +95,53 @@ test "textInput builder full chaining" {
 
 // ─── inputOpts tests ─────────────────────────────────────────────────────────
 
-test "inputOpts sm padding is 10px x 6px" {
+test "inputOpts keeps the CSS spec's horizontal padding" {
     var buf: [64]u8 = @splat(0);
-    const t = ti.textInput(@src(), &buf).size(.sm);
-    const o = t.inputOpts(tokens.current.border_input);
-    const p = o.padding.?;
-    try std.testing.expectApproxEqAbs(@as(f32, 10), p.x, 0.001);
-    try std.testing.expectApproxEqAbs(@as(f32, 6), p.y, 0.001);
-    try std.testing.expectApproxEqAbs(@as(f32, 10), p.w, 0.001);
-    try std.testing.expectApproxEqAbs(@as(f32, 6), p.h, 0.001);
+    inline for (&[_]struct { tokens.Size, f32 }{ .{ .sm, 10 }, .{ .md, 12 }, .{ .lg, 14 } }) |row| {
+        const t = ti.textInput(@src(), &buf).size(row[0]);
+        const p = t.inputOpts(tokens.current.border_input).padding.?;
+        try std.testing.expectApproxEqAbs(row[1], p.x, 0.001);
+        try std.testing.expectApproxEqAbs(row[1], p.w, 0.001);
+    }
 }
 
-test "inputOpts md padding is 12px x 8px" {
+// **The vertical padding is DERIVED, and the control comes out its spec height.**
+//
+// It used to be a table (6 / 8 / 11) computed at authoring time from
+// "approximate line heights 12px->16, 13px->17, 14px->18" — an approximation of
+// a number the FONT decides. dvui then caps a single-line entry at the box it
+// measured in the THEME's font, so a face taller than the guess had its
+// descenders cut off with nothing able to see it (`inputOpts`, 2026-09-06).
+test "inputOpts derives the vertical padding so the control is exactly its spec height" {
+    var buf: [64]u8 = @splat(0);
+    inline for (&[_]struct { tokens.Size, f32, f32 }{
+        .{ .sm, 28, 16 },
+        .{ .md, 32, 17 },
+        .{ .lg, 40, 18 },
+    }) |row| {
+        const t = ti.textInput(@src(), &buf).size(row[0]);
+        const o = t.inputOpts(tokens.current.border_input);
+        const p = o.padding.?;
+        const border = o.border.?;
+        const content = o.min_size_content.?.h;
+        // Outside a frame the line box is the CSS table's own approximation.
+        try std.testing.expect(content >= row[2] - 0.001);
+        // …and border + padding + content is the spec height, to the pixel.
+        try std.testing.expectApproxEqAbs(row[1], content + p.y + p.h + border.y + border.h, 0.001);
+        try std.testing.expectApproxEqAbs(p.y, p.h, 0.001);
+    }
+}
+
+// **The height is PINNED, on both ends.** dvui sizes a single-line entry from
+// `min_sizeM(defaultMWidth, 1)` in the theme's font and then sets
+// `max_size_content = min_size_content`; stating both here is what takes that
+// decision away from a font the caller never chose.
+test "inputOpts pins the content height and leaves the width free to expand" {
     var buf: [64]u8 = @splat(0);
     const t = ti.textInput(@src(), &buf).size(.md);
     const o = t.inputOpts(tokens.current.border_input);
-    const p = o.padding.?;
-    try std.testing.expectApproxEqAbs(@as(f32, 12), p.x, 0.001);
-    try std.testing.expectApproxEqAbs(@as(f32, 8), p.y, 0.001);
-}
-
-test "inputOpts lg padding is 14px x 11px" {
-    var buf: [64]u8 = @splat(0);
-    const t = ti.textInput(@src(), &buf).size(.lg);
-    const o = t.inputOpts(tokens.current.border_input);
-    const p = o.padding.?;
-    try std.testing.expectApproxEqAbs(@as(f32, 14), p.x, 0.001);
-    try std.testing.expectApproxEqAbs(@as(f32, 11), p.y, 0.001);
+    try std.testing.expectApproxEqAbs(o.min_size_content.?.h, o.max_size_content.?.h, 0.001);
+    try std.testing.expect(o.max_size_content.?.w > 1000);
 }
 
 test "inputOpts has 1px border" {

@@ -78,7 +78,7 @@ pub const ApprovalCard = struct {
         }
 
         if (self.note_buffer) |buffer| {
-            ds.textInput(@src(), buffer).size(.sm).placeholder(note_placeholder).expand(.horizontal).draw();
+            _ = ds.textInput(@src(), buffer).size(.sm).placeholder(note_placeholder).expand(.horizontal).draw();
         }
 
         return choice;

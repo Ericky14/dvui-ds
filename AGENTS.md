@@ -20,7 +20,7 @@ src/
 │   ├── button.zig      # Unified button (text / icon / icon+text), variants, sizes, states
 │   ├── label.zig       # Themed label (LabelStyle, FontToken)
 │   ├── icon.zig        # Non-interactive icon display (IconStyle), iconTvg
-│   ├── text_input.zig  # Themed text field: size, placeholder, label, helper, error, password
+│   ├── text_input.zig  # Themed text field: size, placeholder, label, helper, error, password; draw() reports Enter
 │   ├── row.zig         # Horizontal box layout (.gap, .expand, .padding) → draw() handle
 │   ├── column.zig      # Vertical box layout
 │   ├── panel.zig       # Panel + panelHeader
@@ -62,7 +62,7 @@ dvui identity:
 ds.button(@src(), "Save").variant(.filled).size(.lg).draw();
 ds.button(@src(), "Save").variant(.filled).icon("save", ds.icons.save).iconFirst().draw();
 ds.label(@src(), "Hello").style(.muted).draw();
-ds.textInput(@src(), &buffer).size(.lg).placeholder("Email").err(true).helper("Invalid").draw();
+_ = ds.textInput(@src(), &buffer).size(.lg).placeholder("Email").err(true).helper("Invalid").draw();
 ```
 
 Setter shape (copy, don't mutate `self` in place):
@@ -606,6 +606,42 @@ One three-step scale (`elevation_1..3_offset` / `_fade`) shared by every raised
 surface, so a card, a dialog and a popover agree. Glass casts no shadow: over a
 live view a cast shadow on a translucent panel is physically wrong and reads as
 dirt — the blur and the hairline are the separation.
+
+### A control's height is measured, never guessed
+
+⚠ **`dvui` sizes a single-line `TextEntryWidget` in the THEME's body font, not
+in the caller's.** `TextEntryWidget.init` runs `defaults.min_sizeM(defaultMWidth,
+1)` and then, for a single-line field, caps it (`max_size_content =
+min_size_content`) — both before `options.override(opts)`, and `defaults` carries
+no font. So the box was `themeGet().font_body`'s line box while the glyphs were
+drawn in `ds.font(12|13|14)`, and dvui's cap took the difference off the bottom
+of every descender. On the engine's theme (an 11 px body font, 14.30 px of line)
+all three sizes clipped; on the storybook's own (13 px) only `lg` did, which is
+why it went unseen. The owner reported it as a placeholder "cut off on the
+bottom" (2026-09-06).
+
+`TextInput.inputOpts` states the box now, and the shape generalises to any
+fitted control:
+
+- the CSS table keeps the **height**, the **horizontal** padding and the font
+  size — those are the spec;
+- the **vertical padding is derived**: half of what the spec height has left
+  after the measured line box and the two borders, snapped DOWN
+  (`ds.snapDownPx`) so the total stays exactly the spec height and lands on a
+  whole physical pixel at 1.75 as well as at 1 and 2;
+- the content height is `height - 2·pad_y - 2·border`, floored at the line box,
+  so a face too tall for its spec grows the control instead of cutting the text.
+
+`test/lint_tests.zig` measures it with the real font cache at all three scales,
+and holds the "can say no" case: the box dvui would have measured for an `lg`
+field is shorter than the line an `lg` field draws.
+`ds-screenshots/text_input_sizes.png` is the picture — `C:\games\MyGame` at
+sm/md/lg, 175 %, descenders whole.
+
+**`TextInput.draw()` returns a `Result`** (`enter_pressed`, `focused`,
+`changed`), so a form does not hand-roll a `dvui.TextEntryWidget` beside this one
+to read Enter — which is how a second copy of the sizing above gets written and
+drifts. Callers that only want pixels write `_ = ds.textInput(…).draw();`.
 
 ## Adding a widget (checklist)
 

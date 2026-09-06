@@ -126,6 +126,7 @@ pub const cachedTvg = @import("helpers/svg.zig").cachedTvg;
 /// Physical-pixel snapping — see `helpers/pixels.zig`.
 pub const pixelScale = @import("helpers/pixels.zig").pixelScale;
 pub const snapPx = @import("helpers/pixels.zig").snapPx;
+pub const snapDownPx = @import("helpers/pixels.zig").snapDownPx;
 pub const hairline = @import("helpers/pixels.zig").hairline;
 pub const thinLine = @import("helpers/pixels.zig").thinLine;
 pub const snapHeightOpts = @import("helpers/pixels.zig").snapHeightOpts;

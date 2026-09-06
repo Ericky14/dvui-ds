@@ -171,12 +171,40 @@ test "text input" {
             defer bg.deinit();
             var col = ds.column(@src()).padding(ds.tokens.current.space_lg).expand(.horizontal).draw();
             defer col.deinit();
-            ds.textInput(@src(), &buffer).label("Email").helper("We'll never share it.").draw();
+            _ = ds.textInput(@src(), &buffer).label("Email").helper("We'll never share it.").draw();
             return .ok;
         }
     };
     @memcpy(Local.buffer[0.."hello@example.com".len], "hello@example.com");
     try capture("text_input.png", 320, 150, Local.frame);
+}
+
+// **The three sizes, at 175 %, with a placeholder that is all ascenders and
+// descenders.** A path is the shape that shows a line box one pixel short:
+// `C:\games\MyGame` has a `g`, a `y` and two backslashes, and the owner
+// reported exactly this placeholder "cut off on the bottom" in the engine's
+// welcome sheet (2026-09-06). Each field is its CSS spec height — 28 / 32 / 40
+// — with the line box measured in the font it draws in rather than in the
+// theme's (`TextInput.inputOpts`).
+test "text input sizes" {
+    const Local = struct {
+        var buffers: [3][8]u8 = @splat(@splat(0));
+        fn frame() !dvui.App.Result {
+            var bg = background(@src());
+            defer bg.deinit();
+            var col = ds.column(@src()).padding(ds.tokens.current.space_lg).gap(ds.tokens.current.space_sm).expand(.horizontal).draw();
+            defer col.deinit();
+            inline for (.{ ds.Size.sm, ds.Size.md, ds.Size.lg }, 0..) |size, index| {
+                _ = ds.textInput(@src(), &buffers[index])
+                    .size(size)
+                    .idExtra(index)
+                    .placeholder("C:\\games\\MyGame")
+                    .draw();
+            }
+            return .ok;
+        }
+    };
+    try captureAt("text_input_sizes.png", 300, 170, 1.75, Local.frame);
 }
 
 test "icon buttons" {
