@@ -296,19 +296,22 @@ test "chips and pills are snapped, on the grid and reachable" {
     try expectClean(.{ .w = 260, .h = 80 }, "pill.zig", Local.frame);
 }
 
-// force
-
-test "a button's edges follow its container: hand-rolled insets put them on a half pixel" {
+test "a button lands on whole pixels whatever inset its container uses" {
     // `button.zig:526 snapped` survived in the editor's lint, and this is what
     // it was: not the button's geometry — its size comes out exactly 19x19 at
     // 175 % — but the *origin* it inherits. A container padded with a raw
-    // `dvui.Rect.all(5)` starts at 8.75 physical px, and nothing inside it can
-    // land on a pixel after that.
+    // `dvui.Rect.all(5)` starts at 8.75 physical px.
     //
-    // The pair is the point. Same button, same scale, two containers: the one
-    // that snapped its own inset is clean, the one that did not is not. So the
-    // rule this pins is "use `ds.padding` / `ds.paddingXY` for every inset",
-    // and the place to fix such a finding is whatever positions the widget.
+    // This test used to pin the rule "use `ds.padding` for every inset", with
+    // the raw container reporting at 1.75. dvui now rounds every laid-out
+    // widget's border rect to whole physical pixels under `snap_to_pixels`
+    // (`WidgetData.snappedRect`, and min sizes rounded up in
+    // `minSizeSetAndRefresh`), so an inherited fraction stops at the first
+    // widget it reaches. Both containers are clean at every scale — which is
+    // also what closed the editor's last three `snapped` findings (a dropdown
+    // centred in a property-grid cell and a label+icon button under text).
+    // `ds.padding` is still right for a ds INSET: it keeps the padding itself
+    // the size the token names, where dvui's rounding would split it unevenly.
     const Raw = struct {
         fn frame() !dvui.App.Result {
             var background = page(@src());
@@ -330,15 +333,8 @@ test "a button's edges follow its container: hand-rolled insets put them on a ha
         }
     };
 
-    // A ds-snapped container: clean at every scale.
     try expectClean(.{ .w = 300, .h = 90 }, "button.zig", Snapped.frame);
-
-    // A hand-rolled one: clean at 1.0 and 2.0, where 5 px is already whole, and
-    // reporting at 1.75, where it is 8.75.
-    const raw = try lintAt(1.75, .{ .w = 300, .h = 90 }, "button.zig", Raw.frame);
-    try std.testing.expect(raw.snapped > 0);
-    const raw_at_one = try lintAt(1.0, .{ .w = 300, .h = 90 }, "button.zig", Raw.frame);
-    try std.testing.expectEqual(@as(usize, 0), raw_at_one.total());
+    try expectClean(.{ .w = 300, .h = 90 }, "button.zig", Raw.frame);
 }
 
 test "a glass sheet puts its rows on whole pixels however its rect was computed" {

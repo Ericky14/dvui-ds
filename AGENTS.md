@@ -423,6 +423,19 @@ alpha reads at full contrast (`test/glass_render_tests.zig` pins the profile:
 one pixel of border, one pixel of highlight inside it along the top only,
 interior everywhere else).
 
+**One pixel on the GPU too** (fixed 2026-09-24 in dvui). A solid stroke round
+rounded corners goes to dvui's SDF pipeline, whose rect is the band's OUTER
+edge — and `Rect.stroke` used to hand it the stroke's CENTRE line, so on wgpu
+every rounded border (the glass hairline, a card's, a text field's) sat half a
+stroke inside where the CPU drew it: one pixel at half its ink, the other half
+under the fill. zigame's live drive at 175 % saw it; no CPU render could,
+because the testing backend's SDF fallback made the opposite assumption. Both
+now agree with the shader, so a CPU render here is the picture the GPU draws:
+"the glass hairline lands on whole physical pixels wherever the panel sits"
+(`test/glass_render_tests.zig`) crosses all four edges of a floating panel at a
+fractional rect and an inline one under a hand-rolled inset, at 1.0/1.75/2.0,
+and asks for page · one full-strength border pixel · surface.
+
 ### Rounding a height you had to measure
 
 The one fraction arithmetic cannot snap is a **measured** one: a block of text
@@ -435,6 +448,10 @@ in it and what follows starts on a pixel. `ds.chat.markdown` does this for
 itself; `ds.chat.planCard` wraps its eyebrow and title the same way, which is
 what finally closed that card's inherited-fraction findings.
 
+Since the 2026-09-24 dvui pin the layout does this for every widget (next
+section), so the box is belt and braces rather than the only thing standing
+between a line box and the pixel grid; keep it where it is.
+
 Height only, never width, so it can never change how text wraps and therefore
 can never oscillate. It rounds to nearest, so it can clip by up to half a
 physical pixel — sub-pixel, invisible — and content that grows is one frame late
@@ -444,18 +461,32 @@ pin silently does nothing; `snapHeightBox` cannot be called wrong.
 
 ### Where a `snapped` finding actually comes from
 
+**dvui rounds the layout now** (our fork, 2026-09-24). Under `snap_to_pixels`
+(on by default) every widget's min size is rounded UP to whole physical pixels
+(`WidgetData.minSizeSetAndRefresh` — a 23.4 px line box asks for 24, so nothing
+measured is cut and a label never ellipsizes for it) and every laid-out
+widget's BORDER rect has its four edges rounded half-up to whole physical pixels
+(`WidgetData.snappedRect`, at `register`). An inherited fraction — a font's line
+box, a gravity centring something in leftover room, a raw 5 px inset that is
+8.75 physical at 175 % — stops at the first widget it reaches. That closed the
+editor's last three `snapped` findings (dvui's dropdown centred in a property
+cell and a label+icon button), which no widget could fix for itself. The rest of
+this section is why the design system still snaps its own lengths: a snapped
+PADDING keeps the size the token names, where the layout's rounding would split
+a fraction unevenly between two edges.
+
 A widget owns its **size** and its internal insets; its **origin** it inherits.
 So a `snapped` finding on a leaf usually names the wrong file. Two ds widgets
 now round on the way through, because they are the boundaries where a fraction
 would otherwise be handed on: `ds.glass` rounds **its own rect** (a sheet's rect
 comes from a pane split or a percentage, and a panel that keeps that fraction
 gives it to every row inside), and `ds.snapHeightBox` rounds a measured height. The pinned case
-is `test/lint_tests.zig` → "a button's edges follow its container": the same
-button, at the same scale, is clean inside a container padded with `ds.padding(5)`
-and reports a half-pixel edge inside one padded with a raw `dvui.Rect.all(5)`
-— 5 logical px is 8.75 physical at 175 %, and nothing inside can land on a pixel
-after that. Before chasing the widget, check what positioned it, and use
-`ds.padding` / `ds.paddingXY` / `ds.paddingEach` / `ds.border` for every inset.
+was `test/lint_tests.zig` → "a button's edges follow its container": the same
+button, at the same scale, was clean inside a container padded with
+`ds.padding(5)` and reported a half-pixel edge inside one padded with a raw
+`dvui.Rect.all(5)`. It is now "a button lands on whole pixels whatever inset its
+container uses" — both clean, because dvui rounds. Still use `ds.padding` /
+`ds.paddingXY` / `ds.paddingEach` / `ds.border` for every inset.
 
 ### Borderless window
 
@@ -546,12 +577,10 @@ finding it reports against `plan_card.zig:63` has to be reproducible and fixable
 
 Where a widget still reports something, the test records the exact count with the
 reason written beside it and asserts **equality** — fixing one more fails the
-test as loudly as breaking one, so the number only moves on purpose. Today the
-whole residual is one cause: a widget whose *top* edge inherits a fraction from
-text stacked above it. Font metrics are fractional, dvui does not round a
-resolved rect to physical pixels, and a design system cannot round a multi-line
-text block's height without owning text layout — pinning it would cap the
-composer at one line.
+test as loudly as breaking one, so the number only moves on purpose. Today there
+is **no residual**: the last cause (a widget whose top edge inherits a fraction
+from text stacked above it) went when dvui started rounding resolved rects under
+`snap_to_pixels` (see "Where a `snapped` finding actually comes from").
 
 What the ds *is* responsible for, and does keep exact: its own paddings, margins,
 borders, gaps, control sizes, hit targets and centre lines. `ds.padding` /

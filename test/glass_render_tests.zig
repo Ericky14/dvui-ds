@@ -197,3 +197,105 @@ test "the glass edge over black is a one-pixel border and a one-pixel top line" 
         try std.testing.expect(channelDistance(highlight, interior) < 40);
     }
 }
+
+// ─── the hairline, wherever the panel sits ───────────────────────────────────
+
+/// A channel-for-channel distance from a grey level.
+fn greyDistance(pixel: dvui.Color.PMA, level: u8) u32 {
+    const target: i32 = level;
+    return @intCast(@abs(@as(i32, pixel.r) - target) + @abs(@as(i32, pixel.g) - target) + @abs(@as(i32, pixel.b) - target));
+}
+
+test "the glass hairline lands on whole physical pixels wherever the panel sits" {
+    // zigame's live drive at 175 % found the glass edge drawn as two
+    // half-bright lines instead of one (docs/ROADMAP.md, Phase 9: "the glass
+    // hairline strokes centred on its own edge"). Two things put it there, and
+    // both are rounded in dvui now:
+    //
+    //  - a solid stroke round rounded corners goes to the SDF pipeline, whose
+    //    rect is the OUTER edge of the band, and it was handed the stroke's
+    //    CENTRE line — every rounded border half a stroke inside where it
+    //    belongs, on the GPU only;
+    //  - an inline panel inherits whatever origin the layout gives it, and a
+    //    hand-rolled inset is 8.75 physical px at 175 %.
+    //
+    // dvui's SDF fallback now draws the band where the wgpu shader does, so
+    // this CPU render is the picture the editor really gets. The profile has
+    // to be exact on all four sides: page, then one pixel of FULL-strength
+    // border, then the surface.
+    const Local = struct {
+        // Deliberately not whole physical pixels at any of the three scales.
+        const floating: dvui.Rect = .{ .x = 20.3, .y = 16.7, .w = 150.4, .h = 40.9 };
+        var floating_rect: dvui.Rect.Physical = .{};
+        var inline_rect: dvui.Rect.Physical = .{};
+
+        fn frame() !dvui.App.Result {
+            var page = dvui.box(@src(), .{}, .{
+                .expand = .both,
+                .background = true,
+                .color_fill = .{ .color = .black },
+                // A raw inset, so the inline panel below starts on a fraction.
+                .padding = .{ .x = 20.3, .y = 80.6 },
+            });
+            defer page.deinit();
+
+            var strip = ds.glass(@src()).rect(floating).solid(true).radius(8).tag("floating").draw();
+            strip.deinit();
+            if (dvui.tagGet("floating")) |found| floating_rect = found.rect;
+
+            var surface = ds.glass(@src()).radius(8).tag("inline").draw();
+            _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 150, .h = 20 } });
+            surface.deinit();
+            if (dvui.tagGet("inline")) |found| inline_rect = found.rect;
+            return .ok;
+        }
+    };
+
+    const border_level = ds.tokens.current.glass_border_alpha;
+    for (scales) |scale| {
+        const shot = try renderFrame(scale, .{ .w = 260, .h = 170 }, Local.frame);
+        defer std.testing.allocator.free(shot.pixels);
+
+        for ([_]dvui.Rect.Physical{ Local.floating_rect, Local.inline_rect }, [_][]const u8{ "floating", "inline" }) |rect, name| {
+            // The geometry: all four edges whole.
+            for ([_]f32{ rect.x, rect.y, rect.x + rect.w, rect.y + rect.h }) |edge| {
+                if (@abs(edge - @round(edge)) > 0.01) {
+                    std.debug.print("{s} at {d}: edge {d:.3} is not on a pixel" ++ nl, .{ name, scale, edge });
+                    return error.TestUnexpectedResult;
+                }
+            }
+            const left = rect.x;
+            const top = rect.y;
+            const right = rect.x + rect.w - 1;
+            const bottom = rect.y + rect.h - 1;
+            const mid_x = @floor(rect.x + rect.w / 2);
+            const mid_y = @floor(rect.y + rect.h / 2);
+            const interior = pixelAt(shot, mid_x, mid_y);
+
+            // Each side: the page just outside, the full border on the edge
+            // pixel, the surface just inside. The top's inside pixel is the
+            // highlight, so it is only required to be lighter than the border
+            // row would be at half strength — its exact value is the other
+            // test's business.
+            const Probe = struct { outside: dvui.Color.PMA, edge: dvui.Color.PMA, inside: dvui.Color.PMA, side: []const u8 };
+            const probes = [_]Probe{
+                .{ .outside = pixelAt(shot, mid_x, top - 1), .edge = pixelAt(shot, mid_x, top), .inside = pixelAt(shot, mid_x, top + 2), .side = "top" },
+                .{ .outside = pixelAt(shot, left - 1, mid_y), .edge = pixelAt(shot, left, mid_y), .inside = pixelAt(shot, left + 1, mid_y), .side = "left" },
+                .{ .outside = pixelAt(shot, right + 1, mid_y), .edge = pixelAt(shot, right, mid_y), .inside = pixelAt(shot, right - 1, mid_y), .side = "right" },
+                .{ .outside = pixelAt(shot, mid_x, bottom + 1), .edge = pixelAt(shot, mid_x, bottom), .inside = pixelAt(shot, mid_x, bottom - 1), .side = "bottom" },
+            };
+            for (probes) |probe| {
+                const outside_ok = greyDistance(probe.outside, 0) <= 3;
+                const edge_ok = greyDistance(probe.edge, border_level) <= 6;
+                const inside_ok = channelDistance(probe.inside, interior) <= 3;
+                if (!(outside_ok and edge_ok and inside_ok)) {
+                    std.debug.print(
+                        "{s} at {d}, {s}: outside {d},{d},{d} edge {d},{d},{d} (want {d}) inside {d},{d},{d} (interior {d},{d},{d})" ++ nl,
+                        .{ name, scale, probe.side, probe.outside.r, probe.outside.g, probe.outside.b, probe.edge.r, probe.edge.g, probe.edge.b, border_level, probe.inside.r, probe.inside.g, probe.inside.b, interior.r, interior.g, interior.b },
+                    );
+                    return error.TestUnexpectedResult;
+                }
+            }
+        }
+    }
+}
