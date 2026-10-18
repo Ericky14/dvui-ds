@@ -20,6 +20,7 @@ const ds = @import("../../ds.zig");
 const tokens = @import("../../tokens.zig");
 const anim = @import("../../anim/anim.zig");
 const icon_widget = @import("../icon.zig");
+const control_label = @import("../control_label.zig");
 
 /// Natural size assumed when a raster source cannot report one (corrupt bytes).
 const fallback_size: dvui.Size = .{ .w = 160, .h = 90 };
@@ -136,11 +137,13 @@ fn vectorHolderOpts(theme: tokens.Theme, border_color: dvui.Color) dvui.Options 
 }
 
 /// How far below the caption row's top the camera icon sits: centred on the
-/// first line of the words (their top padding plus half a line).
+/// box a one-line caption takes (its padding and line, grown to whole pixels),
+/// exactly where the centred icon of the one-line row sat. Left unsnapped:
+/// dvui rounds the icon's edge as it rounded the centred one's.
 fn iconTop(theme: tokens.Theme) f32 {
-    const line = ds.font(theme.font_size_sm).lineHeight();
-    const offset = theme.space_3xs + line / 2 - icon_widget.iconSize(.sm) / 2;
-    return if (offset > 0) ds.snapPx(offset, ds.pixelScale()) else 0;
+    const padding = ds.paddingXY(0, theme.space_3xs);
+    const line_box = control_label.ceilPx(padding.y + ds.font(theme.font_size_sm).sizeM(1, 1).h + padding.h);
+    return @max(0, (line_box - control_label.ceilPx(icon_widget.iconSize(.sm))) / 2);
 }
 
 fn captionOpts(theme: tokens.Theme) dvui.Options {

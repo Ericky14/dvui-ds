@@ -158,6 +158,75 @@ test "a screenshot card at its own size lints clean" {
     }
 }
 
+/// The card, then the caption row it drew before its words could wrap — the
+/// camera centred on a one-line label — for the next test to compare.
+const PlainCaptionState = struct {
+    fn frame() !dvui.App.Result {
+        const theme = ds.tokens.current;
+        var background = dvui.box(@src(), .{ .dir = .vertical }, .{
+            .expand = .both,
+            .background = true,
+            .color_fill = .{ .color = theme.surface_0 },
+            .padding = dvui.Rect.all(8),
+        });
+        defer background.deinit();
+        _ = ds.chat.screenshotCard(@src(), "after the change", ds.Source.pixels(&small_picture, 210, 140)).draw();
+        var plain = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_2xs }, .{});
+        defer plain.deinit();
+        ds.icon(@src(), ds.Source.namedIcon("camera", ds.icons.camera)).style(.muted).size(.sm).draw();
+        dvui.labelNoFmt(@src(), "after the change", .{}, .{
+            .color_text = .{ .color = theme.text_muted },
+            .font = ds.font(theme.font_size_sm),
+            .padding = ds.paddingXY(0, theme.space_3xs),
+            .gravity_y = 0.5,
+        });
+        return .ok;
+    }
+};
+
+/// Where a caption row's parts sit, relative to the row's top.
+const CaptionPlace = struct { row_height: f32, icon_top: f32, words_top: f32 };
+
+fn captionPlace(captured: *const dvui.Debug.CapturedFrame, file: []const u8) !CaptionPlace {
+    var words: ?*const dvui.Debug.CapturedWidget = null;
+    var camera: ?*const dvui.Debug.CapturedWidget = null;
+    for (captured.widgets.items) |*widget| {
+        if (!std.mem.endsWith(u8, widget.src_file, file)) continue;
+        const label = widget.label orelse continue;
+        if (std.mem.eql(u8, label, "after the change")) words = widget;
+        if (std.mem.eql(u8, label, "camera")) camera = widget;
+    }
+    const text = words orelse return error.NoCaption;
+    const icon = camera orelse return error.NoIcon;
+    for (captured.widgets.items) |*row| {
+        if (row.id != text.parent_id) continue;
+        return .{
+            .row_height = row.rect_border.h,
+            .icon_top = icon.rect_border.y - row.rect_border.y,
+            .words_top = text.rect_content.y - row.rect_border.y,
+        };
+    }
+    return error.NoRow;
+}
+
+test "a one-line caption sits as it did before it could wrap: the same row, camera and words" {
+    for (scales) |scale| {
+        var t = try open(scale, .{ .w = 640, .h = 400 }, PlainCaptionState.frame);
+        defer t.deinit();
+        const captured = try capture(PlainCaptionState.frame);
+        defer dvui.debug.clearCaptures(std.testing.allocator);
+        const card = try captionPlace(captured, "screenshot_card.zig");
+        const plain = try captionPlace(captured, "viewers_tests.zig");
+        const same = @abs(card.row_height - plain.row_height) < 0.01 and
+            @abs(card.icon_top - plain.icon_top) < 0.01 and
+            @abs(card.words_top - plain.words_top) < 0.01;
+        if (!same) {
+            std.debug.print("scale {d}: caption row {d:.2} / {d:.2} px, camera at {d:.2} / {d:.2}, words at {d:.2} / {d:.2} (card / plain)\n", .{ scale, card.row_height, plain.row_height, card.icon_top, plain.icon_top, card.words_top, plain.words_top });
+            return error.CaptionMoved;
+        }
+    }
+}
+
 // ─── A tool card's path opens ────────────────────────────────────────────────
 
 const LinkState = struct {

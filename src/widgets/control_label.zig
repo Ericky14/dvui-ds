@@ -15,7 +15,8 @@ const tokens = @import("../tokens.zig");
 
 /// `length` grown to whole physical pixels, as dvui grows every widget's min
 /// size under `snap_to_pixels` (`minSizeSetAndRefresh`); unchanged without it.
-fn ceilPx(length: f32) f32 {
+/// For a widget that centres something by hand where gravity once did.
+pub fn ceilPx(length: f32) f32 {
     if (!dvui.snapToPixels()) return length;
     const scale = ds.pixelScale();
     if (!(scale > 0) or length <= 0) return length;
