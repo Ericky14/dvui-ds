@@ -242,6 +242,18 @@ pub fn build(b: *std.Build) void {
     const composer_tests = b.addTest(.{ .root_module = composer_mod });
     test_step.dependOn(&b.addRunArtifact(composer_tests).step);
 
+    // The question card driven from the keyboard: each question's Other, its
+    // field, the focus hand-off and the tab order.
+    const question_card_mod = b.createModule(.{
+        .root_source_file = b.path("test/question_card_tests.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    question_card_mod.addImport("dvui", dvui_testing_mod);
+    question_card_mod.addImport("dvui_ds", ds_testing_mod);
+    const question_card_tests = b.addTest(.{ .root_module = question_card_mod });
+    test_step.dependOn(&b.addRunArtifact(question_card_tests).step);
+
     // What a glass surface actually puts on screen, sampled in pixels.
     const glass_render_mod = b.createModule(.{
         .root_source_file = b.path("test/glass_render_tests.zig"),

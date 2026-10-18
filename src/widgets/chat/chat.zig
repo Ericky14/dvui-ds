@@ -36,6 +36,10 @@ pub const QuestionCard = @import("question_card.zig").QuestionCard;
 pub const Question = @import("question_card.zig").Question;
 pub const QuestionOption = @import("question_card.zig").Option;
 pub const Selection = @import("question_card.zig").Selection;
+/// A question's own words: its field trimmed, "" while its Other is not chosen.
+pub const questionOwnWords = @import("question_card.zig").ownWords;
+/// The label of every question's own-words choice ("Other…").
+pub const questionOtherLabel = @import("question_card.zig").other_label;
 
 pub const screenshotCard = @import("screenshot_card.zig").screenshotCard;
 pub const ScreenshotCard = @import("screenshot_card.zig").ScreenshotCard;

@@ -240,6 +240,36 @@ test "a plan card's action row shares a centre line, a column and the grid" {
     try expectClean(.{ .w = 420, .h = 260 }, "plan_card.zig", Local.frame);
 }
 
+test "a question card with a question's own Other open, and a note, is snapped, on the grid and reachable" {
+    const Local = struct {
+        const questions = [_]ds.chat.Question{
+            .{ .header = "Scope", .question = "How long should the game be?", .options = &.{
+                .{ .label = "One level", .description = "A single two-minute run" },
+                .{ .label = "Three levels" },
+            } },
+            .{ .header = "Art style", .question = "Which look?", .options = &.{
+                .{ .label = "Low-poly" },
+                .{ .label = "Toon" },
+            } },
+            .{ .header = "Extras", .question = "What else?", .multi_select = true, .options = &.{
+                .{ .label = "Music" },
+                .{ .label = "A level select" },
+            } },
+        };
+        var selections: [3]ds.chat.Selection = .{ .{ .chosen = .{ true, false, false, false, false, false, false, false } }, .{ .other = true }, .{ .other = true } };
+        var words: [3][64]u8 = @splat(@splat(0));
+        var buffers: [3][]u8 = .{ &words[0], &words[1], &words[2] };
+        fn frame() !dvui.App.Result {
+            var background = page(@src());
+            defer background.deinit();
+            _ = ds.chat.questionCard(@src(), &questions, &selections).other(&buffers).note("The agent stopped waiting. Your answers will be sent as your next message.").draw();
+            return .ok;
+        }
+    };
+    @memcpy(Local.words[1][0..4], "warm");
+    try expectClean(.{ .w = 420, .h = 720 }, "question_card.zig", Local.frame);
+}
+
 test "a markdown block keeps its rows centred and snapped" {
     const Local = struct {
         fn frame() !dvui.App.Result {

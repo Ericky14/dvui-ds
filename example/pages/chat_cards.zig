@@ -9,7 +9,11 @@ var tool_collapsed: bool = false;
 var tool_expanded: bool = true;
 var selections: [2]ds.chat.Selection = .{ .{}, .{} };
 var note_buffer: [128]u8 = @splat(0);
-var other_buffer: [128]u8 = @splat(0);
+var other_words: [2][128]u8 = @splat(@splat(0));
+var other_buffers: [2][]u8 = .{ &other_words[0], &other_words[1] };
+var late_selections: [1]ds.chat.Selection = .{.{}};
+var late_words: [1][128]u8 = @splat(@splat(0));
+var late_buffers: [1][]u8 = .{&late_words[0]};
 var last_approval: ds.chat.ApprovalChoice = .none;
 var last_plan: ds.chat.PlanChoice = .none;
 var submitted_count: usize = 0;
@@ -120,9 +124,11 @@ pub fn draw() void {
         dvui.label(@src(), "last choice: {s}", .{@tagName(last_approval)}, .{ .color_text = .{ .color = theme.text_muted }, .font = ds.font(theme.font_size_sm) });
     }
 
-    // ─── Questions: a single-select and a multi-select, with "Other" ────────
+    // ─── Questions: a single-select and a multi-select, each with its own "Other…" ─
     ds.label(@src(), "Questions").style(.secondary).font(.heading).draw();
-    if (ds.chat.questionCard(@src(), &questions, &selections).other(&other_buffer).draw()) submitted_count += 1;
+    if (ds.chat.questionCard(@src(), &questions, &selections).other(&other_buffers).draw()) submitted_count += 1;
+    // The same card after the agent stopped waiting: still answerable, one line says where the answers go.
+    if (ds.chat.questionCard(@src(), questions[0..1], &late_selections).other(&late_buffers).note("The agent stopped waiting. Your answers will be sent as your next message.").idExtra(1).draw()) submitted_count += 1;
     dvui.label(@src(), "submitted {d} time(s)", .{submitted_count}, .{ .color_text = .{ .color = theme.text_muted }, .font = ds.font(theme.font_size_sm) });
 
     // ─── Screenshot: a raster source scaled to fit ──────────────────────────

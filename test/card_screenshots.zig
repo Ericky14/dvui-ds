@@ -10,7 +10,8 @@ const shots = @import("screenshots.zig");
 var tool_collapsed: bool = false;
 var tool_expanded: bool = true;
 var note_buffer: [64]u8 = @splat(0);
-var other_buffer: [64]u8 = @splat(0);
+var other_words: [2][64]u8 = @splat(@splat(0));
+var other_buffers: [2][]u8 = .{ &other_words[0], &other_words[1] };
 var selections: [2]ds.chat.Selection = .{ .{}, .{} };
 
 const questions = [_]ds.chat.Question{
@@ -80,7 +81,8 @@ test "chat approval card" {
     try shots.capture("chat_approval_card.png", 420, 330, Local.frame);
 }
 
-// Two questions (single + multi), one option chosen, the "Other" input, Submit disabled.
+// Two questions (single + multi): the first answered by an option, the second's
+// own "Other…" chosen with its field open and typed into, beside a pick.
 test "chat question card" {
     const Local = struct {
         fn frame() !dvui.App.Result {
@@ -88,12 +90,33 @@ test "chat question card" {
             defer bg.deinit();
             var col = column(@src());
             defer col.deinit();
-            _ = ds.chat.questionCard(@src(), &questions, &selections).other(&other_buffer).draw();
+            _ = ds.chat.questionCard(@src(), &questions, &selections).other(&other_buffers).draw();
             return .ok;
         }
     };
     selections[0].chosen[1] = true;
-    try shots.capture("chat_question_card.png", 420, 420, Local.frame);
+    selections[1].chosen[0] = true;
+    selections[1].other = true;
+    @memcpy(other_words[1][0..16], "A glossary, too.");
+    try shots.capture("chat_question_card.png", 420, 480, Local.frame);
+}
+
+// The card after the agent stopped waiting: still answerable, its note above
+// Submit says the answers go as the next message.
+test "chat question card, the agent stopped waiting" {
+    const Local = struct {
+        var late: [1]ds.chat.Selection = .{.{}};
+        fn frame() !dvui.App.Result {
+            var bg = shots.background(@src());
+            defer bg.deinit();
+            var col = column(@src());
+            defer col.deinit();
+            _ = ds.chat.questionCard(@src(), questions[0..1], &late).note("The agent stopped waiting. Your answers will be sent as your next message.").draw();
+            return .ok;
+        }
+    };
+    Local.late[0].chosen[0] = true;
+    try shots.capture("chat_question_card_late.png", 420, 260, Local.frame);
 }
 
 // A 240×135 raster scaled to fit maxWidth(200), with the caption row.
