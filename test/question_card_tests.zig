@@ -350,6 +350,7 @@ test "a wrapped card still lints clean: the badge and each control fill their ro
 /// own row: a one-line option must look the same either way.
 const OneLineState = struct {
     var chosen = false;
+    var size: ds.tokens.Size = .sm;
 
     fn frame() !dvui.App.Result {
         var background = dvui.box(@src(), .{ .dir = .vertical }, .{
@@ -362,8 +363,8 @@ const OneLineState = struct {
         for ([_]bool{ false, true }, 0..) |wrap, index| {
             var row = dvui.box(@src(), .{ .dir = .vertical }, .{ .id_extra = index, .expand = .horizontal });
             defer row.deinit();
-            _ = ds.radio(@src(), false, "Toon").size(.sm).wrap(wrap).draw();
-            _ = ds.checkbox(@src(), &chosen).size(.sm).label("Music").wrap(wrap).draw();
+            _ = ds.radio(@src(), false, "Toon").size(size).wrap(wrap).draw();
+            _ = ds.checkbox(@src(), &chosen).size(size).label("Music").wrap(wrap).draw();
         }
         return .ok;
     }
@@ -411,7 +412,9 @@ fn controlPlaces(captured: *const dvui.Debug.CapturedFrame, file: []const u8, te
 }
 
 test "a one-line option looks the same whether or not it may wrap: the same row, control and words" {
-    for (scales) |scale| {
+    defer OneLineState.size = .sm;
+    for ([_]ds.tokens.Size{ .sm, .md, .lg }) |size| for (scales) |scale| {
+        OneLineState.size = size;
         var t = try dvui.testing.init(.{
             .window_size = .{ .w = 320 * scale / 2, .h = 400 * scale / 2 },
             .window_init_opts = .{ .theme = ds.tokens.dvuiTheme() },
@@ -435,9 +438,120 @@ test "a one-line option looks the same whether or not it may wrap: the same row,
                 @abs(plain.control_top - wrapping.control_top) < 0.01 and
                 @abs(plain.words_top - wrapping.words_top) < 0.01;
             if (!same) {
-                std.debug.print("scale {d}: {s} one line: row {d:.2} / {d:.2} px, control at {d:.2} / {d:.2}, words at {d:.2} / {d:.2} (plain / may wrap)\n", .{ scale, case[0], plain.row_height, wrapping.row_height, plain.control_top, wrapping.control_top, plain.words_top, wrapping.words_top });
+                std.debug.print("scale {d}, {s}: {s} one line: row {d:.2} / {d:.2} px, control at {d:.2} / {d:.2}, words at {d:.2} / {d:.2} (plain / may wrap)\n", .{ scale, @tagName(size), case[0], plain.row_height, wrapping.row_height, plain.control_top, wrapping.control_top, plain.words_top, wrapping.words_top });
                 return error.OneLineMoved;
             }
+        }
+    };
+}
+
+const head_questions = [_]ds.chat.Question{
+    .{ .header = "Scope", .question = "Which look?", .options = &.{
+        .{ .label = "Low-poly", .description = "Hard edges" },
+    } },
+};
+
+/// A one-line question's card, then the head row and the description it drew
+/// before its words could wrap (a label centred on the badge, a plain label).
+const HeadState = struct {
+    var selections: [head_questions.len]ds.chat.Selection = @splat(.{});
+
+    fn frame() !dvui.App.Result {
+        const theme = ds.tokens.current;
+        var background = dvui.box(@src(), .{ .dir = .vertical }, .{
+            .expand = .both,
+            .background = true,
+            .color_fill = .{ .color = theme.surface_0 },
+            .padding = dvui.Rect.all(8),
+        });
+        defer background.deinit();
+        _ = ds.chat.questionCard(@src(), &head_questions, &selections).draw();
+        {
+            var head = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_sm }, .{ .expand = .horizontal });
+            defer head.deinit();
+            ds.badge(@src(), "Scope").variant(.accent).draw();
+            dvui.labelNoFmt(@src(), "Which look?", .{}, .{
+                .color_text = .{ .color = theme.text_primary },
+                .font = ds.fontMedium(theme.font_size_md),
+                .gravity_y = 0.5,
+            });
+        }
+        dvui.labelNoFmt(@src(), "Hard edges", .{}, .{
+            .color_text = .{ .color = theme.text_muted },
+            .font = ds.font(theme.font_size_sm),
+            .padding = ds.paddingEach(0, theme.space_xs, theme.space_2xs, theme.space_xs),
+        });
+        return .ok;
+    }
+};
+
+/// The `index`th captured widget from `file` showing exactly `text`.
+fn shownAt(captured: *const dvui.Debug.CapturedFrame, file: []const u8, text: []const u8, index: usize) ?*const dvui.Debug.CapturedWidget {
+    var seen: usize = 0;
+    for (captured.widgets.items) |*widget| {
+        if (!std.mem.endsWith(u8, widget.src_file, file)) continue;
+        const label = widget.label orelse continue;
+        if (!std.mem.eql(u8, label, text)) continue;
+        if (seen == index) return widget;
+        seen += 1;
+    }
+    return null;
+}
+
+test "a one-line question and description sit as they did before they could wrap" {
+    for (scales) |scale| {
+        var t = try dvui.testing.init(.{
+            .window_size = .{ .w = 480 * scale / 2, .h = 600 * scale / 2 },
+            .window_init_opts = .{ .theme = ds.tokens.dvuiTheme() },
+        });
+        defer t.deinit();
+        t.window.content_scale = scale / 2;
+        HeadState.selections = @splat(.{});
+        _ = try dvui.testing.step(HeadState.frame);
+        try dvui.testing.settle(HeadState.frame);
+        dvui.debug.captureFrame();
+        _ = try dvui.testing.step(HeadState.frame);
+        _ = try dvui.testing.step(HeadState.frame);
+        defer dvui.debug.clearCaptures(std.testing.allocator);
+        const captured = dvui.debug.lastCapture() orelse return error.NoCapture;
+
+        // The head row: its height, the badge and the question's words.
+        const card_words = shownAt(captured, "question_card.zig", "Which look?", 0) orelse return error.NoQuestion;
+        const plain_words = shownAt(captured, "question_card_tests.zig", "Which look?", 0) orelse return error.NoQuestion;
+        const card_badge = shownAt(captured, "badge.zig", "Scope", 0) orelse return error.NoBadge;
+        const plain_badge = shownAt(captured, "badge.zig", "Scope", 1) orelse return error.NoBadge;
+        const card_row = widgetById(captured, card_words.parent_id) orelse return error.NoRow;
+        const plain_row = widgetById(captured, plain_words.parent_id) orelse return error.NoRow;
+        const head_same = @abs(card_row.rect_border.h - plain_row.rect_border.h) < 0.01 and
+            @abs((card_badge.rect_border.y - card_row.rect_border.y) - (plain_badge.rect_border.y - plain_row.rect_border.y)) < 0.01 and
+            @abs((card_words.rect_content.y - card_row.rect_border.y) - (plain_words.rect_content.y - plain_row.rect_border.y)) < 0.01;
+        if (!head_same) {
+            std.debug.print("scale {d}: head row {d:.2} / {d:.2} px, badge at {d:.2} / {d:.2}, words at {d:.2} / {d:.2} (card / plain)\n", .{
+                scale,
+                card_row.rect_border.h,
+                plain_row.rect_border.h,
+                card_badge.rect_border.y - card_row.rect_border.y,
+                plain_badge.rect_border.y - plain_row.rect_border.y,
+                card_words.rect_content.y - card_row.rect_border.y,
+                plain_words.rect_content.y - plain_row.rect_border.y,
+            });
+            return error.HeadMoved;
+        }
+
+        // The description: as tall, its words as far down.
+        const card_note = shownAt(captured, "question_card.zig", "Hard edges", 0) orelse return error.NoDescription;
+        const plain_note = shownAt(captured, "question_card_tests.zig", "Hard edges", 0) orelse return error.NoDescription;
+        const note_same = @abs(card_note.rect_margin.h - plain_note.rect_margin.h) < 0.01 and
+            @abs((card_note.rect_content.y - card_note.rect_margin.y) - (plain_note.rect_content.y - plain_note.rect_margin.y)) < 0.01;
+        if (!note_same) {
+            std.debug.print("scale {d}: description {d:.2} / {d:.2} px tall, words {d:.2} / {d:.2} down (card / plain)\n", .{
+                scale,
+                card_note.rect_margin.h,
+                plain_note.rect_margin.h,
+                card_note.rect_content.y - card_note.rect_margin.y,
+                plain_note.rect_content.y - plain_note.rect_margin.y,
+            });
+            return error.DescriptionMoved;
         }
     }
 }
