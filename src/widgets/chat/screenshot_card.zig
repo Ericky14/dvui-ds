@@ -1,9 +1,10 @@
 /// ScreenshotCard — a screenshot the agent captured, shown inline. Returns true
 /// when clicked (the caller opens it enlarged). CONTRACT:
 ///   - Image at its natural size — one image pixel per physical pixel
-///     (`ds.imageNaturalSize`), never upscaled — narrowed to `max_width` keeping
-///     its aspect ratio (`fitSize`), corners round(radius_md), `border_subtle`
-///     border; hover lifts the border to `border_strong`.
+///     (`ds.imageNaturalSize`), never upscaled — narrowed so that it and its
+///     border fit `max_width`, keeping its aspect ratio (`fitSize`), corners
+///     round(radius_md), `border_subtle` border; hover lifts the border to
+///     `border_strong`.
 ///   - Caption row below: camera icon (muted) + caption (muted caption font),
 ///     never wider than `max_width` — a longer caption (a file's path) wraps
 ///     there instead of ending in "…", the icon level with its first line.
@@ -34,7 +35,8 @@ pub const ScreenshotCard = struct {
     max_width: f32 = 420,
     id_extra: usize = 0,
 
-    /// Cap the rendered width in logical pixels (default 420).
+    /// Cap the rendered width in logical pixels (default 420): the picture
+    /// with its border, and the caption, never wider than this.
     pub fn maxWidth(self: ScreenshotCard, val: f32) ScreenshotCard {
         var copy = self;
         copy.max_width = val;
@@ -70,7 +72,10 @@ pub const ScreenshotCard = struct {
             switch (self.image.kind) {
                 .image => |image_source| {
                     const natural = ds.imageNaturalSize(image_source) catch fallback_size;
-                    const fitted = fitSize(natural, self.max_width);
+                    // `max_width` holds the card as drawn, its border
+                    // included: the picture gets what the border leaves.
+                    const edge = ds.border(theme.border_width);
+                    const fitted = fitSize(natural, @max(0, self.max_width - edge.x - edge.w));
                     _ = dvui.image(@src(), .{ .source = image_source, .shrink = .ratio }, imageOpts(theme, fitted, border_color));
                 },
                 .tvg, .named_icon => {

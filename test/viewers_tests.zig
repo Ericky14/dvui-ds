@@ -95,10 +95,12 @@ test "a picture wider than the card's cap is narrowed to it, keeping its aspect 
         const captured = try capture(PictureState.frame);
         defer dvui.debug.clearCaptures(std.testing.allocator);
         const picture = named(captured, "screenshot_card.zig", "image") orelse return error.NoImage;
-        // 1000 px is past the 420-logical cap at both scales: the cap wins.
+        // 1000 px is past the 420-logical cap at both scales: the cap wins,
+        // and it holds the card as drawn, its border included — a caller that
+        // passes the row's width gets a card that fits the row.
         const cap = 420 * scale;
-        try std.testing.expectApproxEqAbs(cap, picture.rect_content.w, 1);
-        try std.testing.expectApproxEqAbs(cap / 2, picture.rect_content.h, 1);
+        try std.testing.expectApproxEqAbs(cap, picture.rect_border.w, 0.5);
+        try std.testing.expectApproxEqAbs(picture.rect_content.w / 2, picture.rect_content.h, 1);
     }
 }
 
