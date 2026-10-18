@@ -1,7 +1,8 @@
 /// ScreenshotCard — a screenshot the agent captured, shown inline. Returns true
 /// when clicked (the caller opens it enlarged). CONTRACT:
-///   - Image scaled to fit `max_width` keeping its aspect ratio (from the source's
-///     natural size — see `fitSize`), corners round(radius_md), `border_subtle`
+///   - Image at its natural size — one image pixel per physical pixel
+///     (`ds.imageNaturalSize`), never upscaled — narrowed to `max_width` keeping
+///     its aspect ratio (`fitSize`), corners round(radius_md), `border_subtle`
 ///     border; hover lifts the border to `border_strong`.
 ///   - Caption row below: camera icon (muted) + caption (muted caption font).
 ///   - Accepts `ds.Source` images (bytes or file path); vector sources render as-is
@@ -65,7 +66,7 @@ pub const ScreenshotCard = struct {
 
             switch (self.image.kind) {
                 .image => |image_source| {
-                    const natural = dvui.imageSize(image_source) catch fallback_size;
+                    const natural = ds.imageNaturalSize(image_source) catch fallback_size;
                     const fitted = fitSize(natural, self.max_width);
                     _ = dvui.image(@src(), .{ .source = image_source, .shrink = .ratio }, imageOpts(theme, fitted, border_color));
                 },
@@ -90,12 +91,8 @@ pub const ScreenshotCard = struct {
 
 /// Scale `natural` down to `max_width` keeping its aspect ratio; smaller images
 /// keep their natural size (never upscaled). Degenerate sizes pass through.
-pub fn fitSize(natural: dvui.Size, max_width: f32) dvui.Size {
-    if (natural.w <= 0 or natural.h <= 0 or max_width <= 0) return natural;
-    if (natural.w <= max_width) return natural;
-    const scale = max_width / natural.w;
-    return .{ .w = max_width, .h = natural.h * scale };
-}
+/// The picture-size rule's own `ds.imageFitWidth`.
+pub const fitSize = ds.imageFitWidth;
 
 /// Rounded, bordered raster image at its fitted size.
 fn imageOpts(theme: tokens.Theme, fitted: dvui.Size, border_color: dvui.Color) dvui.Options {

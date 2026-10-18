@@ -138,6 +138,14 @@ pub const borderPx = @import("helpers/pixels.zig").borderPx;
 pub const border = @import("helpers/padding.zig").border;
 pub const isSnapped = @import("helpers/pixels.zig").isSnapped;
 
+/// A picture at one image pixel per physical pixel — see `helpers/image_size.zig`.
+/// Every raster image a ds widget shows is sized through these, never from its
+/// pixel size taken as logical pixels (which upscales it by the display scale).
+pub const imageNaturalSize = @import("helpers/image_size.zig").naturalSize;
+pub const imageAtScale = @import("helpers/image_size.zig").atScale;
+pub const imageFitWidth = @import("helpers/image_size.zig").fitWidth;
+pub const imageFitInside = @import("helpers/image_size.zig").fitInside;
+
 pub const alpha = @import("helpers/color.zig").alpha;
 pub const withOpacity = @import("helpers/color.zig").withOpacity;
 pub const Opacity = @import("helpers/color.zig").Opacity;
@@ -222,6 +230,7 @@ test {
     _ = @import("widgets/pill_tests.zig");
     _ = @import("tokens_contrast_tests.zig");
     _ = @import("helpers/pixels.zig");
+    _ = @import("helpers/image_size.zig");
     _ = @import("platform/window_chrome_tests.zig");
     _ = @import("anim/anim_tests.zig");
     _ = @import("helpers/fonts.zig");

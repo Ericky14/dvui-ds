@@ -254,6 +254,18 @@ pub fn build(b: *std.Build) void {
     const question_card_tests = b.addTest(.{ .root_module = question_card_mod });
     test_step.dependOn(&b.addRunArtifact(question_card_tests).step);
 
+    // What the agent writes and shows: a picture at its own size, a tool card's
+    // path that opens, Markdown's tables, links and images.
+    const viewers_mod = b.createModule(.{
+        .root_source_file = b.path("test/viewers_tests.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    viewers_mod.addImport("dvui", dvui_testing_mod);
+    viewers_mod.addImport("dvui_ds", ds_testing_mod);
+    const viewers_tests = b.addTest(.{ .root_module = viewers_mod });
+    test_step.dependOn(&b.addRunArtifact(viewers_tests).step);
+
     // What a glass surface actually puts on screen, sampled in pixels.
     const glass_render_mod = b.createModule(.{
         .root_source_file = b.path("test/glass_render_tests.zig"),
