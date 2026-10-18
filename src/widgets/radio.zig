@@ -106,7 +106,7 @@ pub const Radio = struct {
         // state-layer halo is drawn larger and overflows into the gap.
         const label_font = ds.font(font_size);
         const reserve = if (self.wrap_label and self.label_text != null)
-            dvui.spacer(@src(), .{ .min_size_content = dvui.Size.all(circle_size), .margin = .{ .y = control_label.controlTop(label_font, circle_size) } })
+            control_label.reserveWrapped(circle_size, label_font)
         else
             dvui.spacer(@src(), .{ .min_size_content = dvui.Size.all(circle_size), .gravity_y = 0.5 });
         if (b.data().visible()) {

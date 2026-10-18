@@ -110,7 +110,7 @@ pub const Checkbox = struct {
         // translucent and only visible on hover/focus, so the overflow is fine.
         const label_font = ds.font(font_size);
         const reserve = if (self.wrap_label and self.label_text != null)
-            dvui.spacer(@src(), .{ .min_size_content = dvui.Size.all(box_size), .margin = .{ .y = control_label.controlTop(label_font, box_size) } })
+            control_label.reserveWrapped(box_size, label_font)
         else
             dvui.spacer(@src(), .{ .min_size_content = dvui.Size.all(box_size), .gravity_y = 0.5 });
         if (b.data().visible()) {

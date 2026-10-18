@@ -4,7 +4,9 @@
 ///     (`ds.imageNaturalSize`), never upscaled — narrowed to `max_width` keeping
 ///     its aspect ratio (`fitSize`), corners round(radius_md), `border_subtle`
 ///     border; hover lifts the border to `border_strong`.
-///   - Caption row below: camera icon (muted) + caption (muted caption font).
+///   - Caption row below: camera icon (muted) + caption (muted caption font),
+///     never wider than `max_width` — a longer caption (a file's path) wraps
+///     there instead of ending in "…", the icon level with its first line.
 ///   - Accepts `ds.Source` images (bytes or file path); vector sources render as-is
 ///     (at the large icon size) inside the same frame.
 ///
@@ -16,6 +18,7 @@ const dvui = @import("dvui");
 const ds = @import("../../ds.zig");
 const tokens = @import("../../tokens.zig");
 const anim = @import("../../anim/anim.zig");
+const icon_widget = @import("../icon.zig");
 
 /// Natural size assumed when a raster source cannot report one (corrupt bytes).
 const fallback_size: dvui.Size = .{ .w = 160, .h = 90 };
@@ -79,10 +82,22 @@ pub const ScreenshotCard = struct {
         }
 
         {
-            var caption = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_2xs }, .{});
+            var caption = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_2xs }, .{
+                .expand = .horizontal,
+                // The card's cap holds the words too: past it they wrap.
+                .max_size_content = .{ .w = self.max_width, .h = dvui.max_float_safe },
+            });
             defer caption.deinit();
-            ds.icon(@src(), ds.Source.namedIcon("camera", ds.icons.camera)).style(.muted).size(.sm).draw();
-            dvui.labelNoFmt(@src(), self.caption, .{}, captionOpts(theme));
+            {
+                // A lane the row's height with the icon at the first line's
+                // level, however many lines the words wrap to.
+                var lane = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .vertical, .padding = .{ .y = iconTop(theme) } });
+                defer lane.deinit();
+                ds.icon(@src(), ds.Source.namedIcon("camera", ds.icons.camera)).style(.muted).size(.sm).gravityY(0).draw();
+            }
+            var words = dvui.textLayout(@src(), .{ .break_lines = true }, captionOpts(theme));
+            defer words.deinit();
+            words.addText(self.caption, .{});
         }
 
         return clicked;
@@ -115,8 +130,18 @@ fn vectorHolderOpts(theme: tokens.Theme, border_color: dvui.Color) dvui.Options 
     };
 }
 
+/// How far below the caption row's top the camera icon sits: centred on the
+/// first line of the words (their top padding plus half a line).
+fn iconTop(theme: tokens.Theme) f32 {
+    const line = ds.font(theme.font_size_sm).lineHeight();
+    const offset = theme.space_3xs + line / 2 - icon_widget.iconSize(.sm) / 2;
+    return if (offset > 0) ds.snapPx(offset, ds.pixelScale()) else 0;
+}
+
 fn captionOpts(theme: tokens.Theme) dvui.Options {
     return .{
+        .expand = .horizontal,
+        .background = false,
         .color_text = .{ .color = theme.text_muted },
         .font = ds.font(theme.font_size_sm),
         .padding = ds.paddingXY(0, theme.space_3xs),

@@ -10,6 +10,7 @@
 const std = @import("std");
 const dvui = @import("dvui");
 const ds = @import("dvui_ds");
+const lint = @import("ds_lint.zig");
 
 const scales = [_]f32{ 1.0, 1.75 };
 
@@ -312,5 +313,35 @@ test "a long question, an option's long label and its long description wrap at t
         }
         try std.testing.expect(badge_top != null);
         try std.testing.expect(badge_top.? <= question.rect_margin.y + 8 * scale);
+    }
+}
+
+test "a wrapped card still lints clean: the badge and each control fill their row's height, at its first line" {
+    for (scales) |scale| {
+        var t = try dvui.testing.init(.{
+            .window_size = .{ .w = 320 * scale / 2, .h = 900 * scale / 2 },
+            .window_init_opts = .{ .theme = ds.tokens.dvuiTheme() },
+        });
+        defer t.deinit();
+        t.window.content_scale = scale / 2;
+        LongState.selections = @splat(.{});
+        _ = try dvui.testing.step(LongState.frame);
+        try dvui.testing.settle(LongState.frame);
+        dvui.debug.captureFrame();
+        _ = try dvui.testing.step(LongState.frame);
+        _ = try dvui.testing.step(LongState.frame);
+        defer dvui.debug.clearCaptures(std.testing.allocator);
+        // The engine's pane lint runs these rules over the live chat: a badge
+        // or a circle at the top of a two-line row is "off the row's centre
+        // line" there unless it stands in a lane as tall as the row.
+        var findings: usize = 0;
+        for ([_][]const u8{ "question_card.zig", "radio.zig", "checkbox.zig" }) |file| {
+            const counts = try lint.run(std.testing.allocator, scale, file, true);
+            findings += counts.total();
+        }
+        if (findings != 0) {
+            std.debug.print("scale {d}: the wrapped card has {d} layout findings\n", .{ scale, findings });
+            return error.LintFindings;
+        }
     }
 }

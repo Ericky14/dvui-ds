@@ -51,6 +51,8 @@ const wide_picture: [1000 * 500 * 4]u8 = @splat(200);
 
 const PictureState = struct {
     var wide: bool = false;
+    var caption: []const u8 = "after the change";
+    var max_width: f32 = 420;
 
     fn frame() !dvui.App.Result {
         var background = dvui.box(@src(), .{}, .{
@@ -64,7 +66,7 @@ const PictureState = struct {
             ds.Source.pixels(&wide_picture, 1000, 500)
         else
             ds.Source.pixels(&small_picture, 210, 140);
-        _ = ds.chat.screenshotCard(@src(), "after the change", source).draw();
+        _ = ds.chat.screenshotCard(@src(), caption, source).maxWidth(max_width).draw();
         return .ok;
     }
 };
@@ -97,6 +99,40 @@ test "a picture wider than the card's cap is narrowed to it, keeping its aspect 
         const cap = 420 * scale;
         try std.testing.expectApproxEqAbs(cap, picture.rect_content.w, 1);
         try std.testing.expectApproxEqAbs(cap / 2, picture.rect_content.h, 1);
+    }
+}
+
+test "a caption longer than the card's cap wraps there, never widening the card or ending in an ellipsis" {
+    const long_caption = ".zigame/screenshots/2026-10-18T16-04-11Z-after-the-fox-was-dressed.png";
+    for (scales) |scale| {
+        PictureState.caption = long_caption;
+        PictureState.max_width = 240;
+        defer {
+            PictureState.caption = "after the change";
+            PictureState.max_width = 420;
+        }
+        var t = try open(scale, .{ .w = 640, .h = 400 }, PictureState.frame);
+        defer t.deinit();
+        const captured = try capture(PictureState.frame);
+        defer dvui.debug.clearCaptures(std.testing.allocator);
+        const picture = named(captured, "screenshot_card.zig", "image") orelse return error.NoImage;
+        var words: ?*const dvui.Debug.CapturedWidget = null;
+        for (captured.widgets.items) |*widget| {
+            if (!std.mem.endsWith(u8, widget.src_file, "screenshot_card.zig")) continue;
+            const label = widget.label orelse continue;
+            if (std.mem.eql(u8, label, long_caption)) words = widget;
+        }
+        const caption = words orelse return error.NoCaption;
+        // The words end inside the card's cap (240 logical from the picture's
+        // left edge), on more than one line.
+        const cap_right = picture.rect_border.x + 240 * scale;
+        const caption_right = caption.rect_border.x + caption.rect_border.w;
+        if (caption_right > cap_right + 0.5) {
+            std.debug.print("scale {d}: the caption ends at {d:.1}, the card's cap at {d:.1} — the card was widened\n", .{ scale, caption_right, cap_right });
+            return error.CaptionWidensCard;
+        }
+        try std.testing.expect(caption.rect_content.h > 1.5 * caption.font.lineHeight() * scale);
+        try expectLintClean(scale, "screenshot_card.zig");
     }
 }
 

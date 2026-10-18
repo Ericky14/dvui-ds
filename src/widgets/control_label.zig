@@ -25,6 +25,17 @@ pub fn controlTop(font: dvui.Font, control: f32) f32 {
     return if (offset > 0) ds.snapPx(offset, ds.pixelScale()) else 0;
 }
 
+/// **The control's place in a wrapped row**: a lane as tall as the row, the
+/// control at its top, level with the label's first line (`controlTop`). A
+/// control left at the top of a two-line row sits off the row's centre line
+/// (the layout lint's `row_centre`); one in a lane the row's height does not.
+/// Returns the control's own rect, for drawing it.
+pub fn reserveWrapped(control: f32, font: dvui.Font) dvui.WidgetData {
+    var lane = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .vertical });
+    defer lane.deinit();
+    return dvui.spacer(@src(), .{ .min_size_content = dvui.Size.all(control), .margin = .{ .y = controlTop(font, control) } });
+}
+
 /// How far below the row's top a wrapped label starts so its first line is
 /// level with a control taller than the line (zero otherwise).
 pub fn textTop(font: dvui.Font, control: f32) f32 {

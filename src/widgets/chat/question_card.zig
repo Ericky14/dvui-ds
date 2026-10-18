@@ -181,7 +181,14 @@ pub const QuestionCard = struct {
             {
                 var head = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_sm }, .{ .expand = .horizontal });
                 defer head.deinit();
-                ds.badge(@src(), question.header).variant(.accent).draw();
+                {
+                    // The badge's lane is as tall as the row, the badge at its
+                    // top: level with a wrapped question's first line, and
+                    // never "off the row's centre line" for the layout lint.
+                    var lane = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .vertical });
+                    defer lane.deinit();
+                    ds.badge(@src(), question.header).variant(.accent).draw();
+                }
                 drawWrapped(question.question, questionOpts(theme));
             }
 
