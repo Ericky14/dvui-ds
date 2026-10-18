@@ -119,6 +119,31 @@ test "chat question card, the agent stopped waiting" {
     try shots.capture("chat_question_card_late.png", 420, 260, Local.frame);
 }
 
+// Long words wrap, never ellipsize: a question, an option's label and its
+// description each a sentence, at the chat column's narrow width — the card
+// grows taller and the badge and each control sit level with the first line.
+test "chat question card, long words wrap" {
+    const Local = struct {
+        const long = [_]ds.chat.Question{
+            .{ .header = "Direction", .question = "Which of these directions should the first level take, given that the player starts on the beach at dusk?", .options = &.{
+                .{ .label = "A quiet walk along the shoreline that slowly reveals the lighthouse", .description = "The tide comes in behind the player, so the path narrows as the level goes on and the music swells." },
+                .{ .label = "Straight into the caves" },
+            } },
+        };
+        var chosen: [1]ds.chat.Selection = .{.{}};
+        fn frame() !dvui.App.Result {
+            var bg = shots.background(@src());
+            defer bg.deinit();
+            var col = column(@src());
+            defer col.deinit();
+            _ = ds.chat.questionCard(@src(), &long, &chosen).draw();
+            return .ok;
+        }
+    };
+    Local.chosen[0].chosen[0] = true;
+    try shots.capture("chat_question_card_long.png", 320, 340, Local.frame);
+}
+
 // A 240×135 raster scaled to fit maxWidth(200), with the caption row.
 test "chat screenshot card" {
     const Local = struct {

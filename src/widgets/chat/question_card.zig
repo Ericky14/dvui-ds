@@ -182,7 +182,7 @@ pub const QuestionCard = struct {
                 var head = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_sm }, .{ .expand = .horizontal });
                 defer head.deinit();
                 ds.badge(@src(), question.header).variant(.accent).draw();
-                dvui.labelNoFmt(@src(), question.question, .{}, questionOpts(theme));
+                drawWrapped(question.question, questionOpts(theme));
             }
 
             if (question_index < self.selections.len) {
@@ -211,8 +211,8 @@ fn drawOptions(question: Question, selection: *Selection, theme: tokens.Theme) v
         defer row.deinit();
 
         if (question.multi_select) {
-            _ = ds.checkbox(@src(), &selection.chosen[option_index]).size(control_size).label(option.label).draw();
-        } else if (ds.radio(@src(), selection.chosen[option_index], option.label).size(control_size).draw()) {
+            _ = ds.checkbox(@src(), &selection.chosen[option_index]).size(control_size).label(option.label).wrap(true).draw();
+        } else if (ds.radio(@src(), selection.chosen[option_index], option.label).size(control_size).wrap(true).draw()) {
             // One answer: an option closes the question's Other.
             selection.chosen = @splat(false);
             selection.chosen[option_index] = true;
@@ -220,7 +220,7 @@ fn drawOptions(question: Question, selection: *Selection, theme: tokens.Theme) v
         }
 
         if (option.description.len > 0) {
-            dvui.labelNoFmt(@src(), option.description, .{}, descriptionOpts(theme));
+            drawWrapped(option.description, descriptionOpts(theme));
         }
     }
 }
@@ -242,8 +242,8 @@ fn drawOther(question: Question, selection: *Selection, words: []u8, theme: toke
 
     var chose = false;
     if (question.multi_select) {
-        if (ds.checkbox(@src(), &selection.other).size(control_size).label(other_label).draw()) chose = selection.other;
-    } else if (ds.radio(@src(), selection.other, other_label).size(control_size).draw()) {
+        if (ds.checkbox(@src(), &selection.other).size(control_size).label(other_label).wrap(true).draw()) chose = selection.other;
+    } else if (ds.radio(@src(), selection.other, other_label).size(control_size).wrap(true).draw()) {
         selection.chosen = @splat(false);
         selection.other = true;
         chose = true;
@@ -254,6 +254,18 @@ fn drawOther(question: Question, selection: *Selection, words: []u8, theme: toke
     defer indent.deinit();
     const field = ds.textInput(@src(), words).size(.sm).placeholder(other_placeholder).expand(.horizontal).idExtra(field_key).draw();
     if (chose) dvui.focusWidget(field.id, null, null);
+}
+
+/// **Words that wrap, never ellipsize**: a question or an option's description
+/// broken at the card's width, so a long one makes the card taller instead of
+/// ending in "…" (the owner could not read a question cut off mid-sentence).
+fn drawWrapped(text: []const u8, options: dvui.Options) void {
+    var layout = dvui.textLayout(@src(), .{ .break_lines = true }, (dvui.Options{
+        .expand = .horizontal,
+        .background = false,
+    }).override(options));
+    defer layout.deinit();
+    layout.addText(text, .{});
 }
 
 /// The card's one line about itself, wrapped, above Submit.
@@ -294,6 +306,8 @@ fn questionOpts(theme: tokens.Theme) dvui.Options {
     return .{
         .color_text = .{ .color = theme.text_primary },
         .font = ds.fontMedium(theme.font_size_md),
+        // One line is centred on the badge; a wrapped question fills the row,
+        // and the badge (gravity 0) sits level with its first line.
         .gravity_y = 0.5,
     };
 }

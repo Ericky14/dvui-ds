@@ -222,3 +222,95 @@ test "Submit is reachable from the keyboard once every question is answered" {
         try std.testing.expectEqual(@as(usize, 1), State.submitted);
     }
 }
+
+// ── Long words wrap ────────────────────────────────────────────────────────────
+
+const long_question = "Which of these three directions should the first level take, given that the player starts on the beach at dusk?";
+const long_label = "A quiet walk along the shoreline that slowly reveals the lighthouse";
+const long_description = "The camera stays low and the tide comes in behind the player, so the path narrows as the level goes on and the music swells.";
+
+const long_questions = [_]ds.chat.Question{
+    .{ .header = "Scope", .question = long_question, .options = &.{
+        .{ .label = long_label, .description = long_description },
+        .{ .label = "Short" },
+    } },
+    .{ .header = "Extras", .question = "What else?", .multi_select = true, .options = &.{
+        .{ .label = long_label },
+    } },
+};
+
+const LongState = struct {
+    var selections: [long_questions.len]ds.chat.Selection = @splat(.{});
+
+    fn frame() !dvui.App.Result {
+        var background = dvui.box(@src(), .{}, .{
+            .expand = .both,
+            .background = true,
+            .color_fill = .{ .color = ds.tokens.current.surface_0 },
+            .padding = dvui.Rect.all(8),
+        });
+        defer background.deinit();
+        _ = ds.chat.questionCard(@src(), &long_questions, &selections).draw();
+        return .ok;
+    }
+};
+
+/// The captured widget that shows exactly `text`, drawn from `file`.
+fn shown(captured: *const dvui.Debug.CapturedFrame, file: []const u8, text: []const u8) ?*const dvui.Debug.CapturedWidget {
+    for (captured.widgets.items) |*widget| {
+        if (!std.mem.endsWith(u8, widget.src_file, file)) continue;
+        const label = widget.label orelse continue;
+        if (std.mem.eql(u8, label, text)) return widget;
+    }
+    return null;
+}
+
+test "a long question, an option's long label and its long description wrap at the card's width, never cut off with an ellipsis" {
+    for (scales) |scale| {
+        var t = try dvui.testing.init(.{
+            .window_size = .{ .w = 320 * scale / 2, .h = 900 * scale / 2 },
+            .window_init_opts = .{ .theme = ds.tokens.dvuiTheme() },
+        });
+        defer t.deinit();
+        t.window.content_scale = scale / 2;
+        LongState.selections = @splat(.{});
+        _ = try dvui.testing.step(LongState.frame);
+        try dvui.testing.settle(LongState.frame);
+        dvui.debug.captureFrame();
+        _ = try dvui.testing.step(LongState.frame);
+        _ = try dvui.testing.step(LongState.frame);
+        defer dvui.debug.clearCaptures(std.testing.allocator);
+        const captured = dvui.debug.lastCapture() orelse return error.NoCapture;
+
+        const window_right = 320 * scale / 2 * 2;
+        const cases = [_]struct { file: []const u8, text: []const u8 }{
+            .{ .file = "question_card.zig", .text = long_question },
+            .{ .file = "question_card.zig", .text = long_description },
+            .{ .file = "radio.zig", .text = long_label },
+            .{ .file = "checkbox.zig", .text = long_label },
+        };
+        for (cases) |case| {
+            const widget = shown(captured, case.file, case.text) orelse {
+                std.debug.print("no widget from {s} shows \"{s}\"\n", .{ case.file, case.text });
+                return error.TextNotShown;
+            };
+            // Wrapped: more than one line tall, and inside the window.
+            const line = widget.font.lineHeight() * scale;
+            if (widget.rect_content.h < 1.5 * line) {
+                std.debug.print("scale {d}: {s}'s \"{s}…\" is {d:.1} px tall, one line is {d:.1} — cut to one line\n", .{ scale, case.file, case.text[0..12], widget.rect_content.h, line });
+                return error.NotWrapped;
+            }
+            try std.testing.expect(widget.rect_border.x + widget.rect_border.w <= window_right + 0.5);
+        }
+
+        // The badge sits at the top of its row, level with the question's first line.
+        const question = shown(captured, "question_card.zig", long_question).?;
+        var badge_top: ?f32 = null;
+        for (captured.widgets.items) |widget| {
+            const label = widget.label orelse continue;
+            if (std.mem.endsWith(u8, widget.src_file, "badge.zig") and std.mem.eql(u8, label, "Scope")) badge_top = widget.rect_margin.y;
+        }
+        try std.testing.expect(badge_top != null);
+        try std.testing.expect(badge_top.? <= question.rect_margin.y + 8 * scale);
+    }
+}

@@ -18,6 +18,7 @@ const ds = @import("../ds.zig");
 const tokens = @import("../tokens.zig");
 const anim = @import("../anim/anim.zig");
 const motion = @import("../motion.zig");
+const control_label = @import("control_label.zig");
 
 const Color = dvui.Color;
 const RectScale = dvui.RectScale;
@@ -35,6 +36,7 @@ pub const Radio = struct {
     radio_size: tokens.Size = .md,
     is_disabled: bool = false,
     id_extra: usize = 0,
+    wrap_label: bool = false,
 
     /// Set the control size (sm / md / lg).
     pub fn size(self: Radio, val: tokens.Size) Radio {
@@ -57,6 +59,16 @@ pub const Radio = struct {
         return copy;
     }
 
+    /// **Wrap the label** at the width the row is given instead of keeping it on
+    /// one line: the row takes the whole width (so its hit area does too) and
+    /// the circle stays level with the label's first line. For an option whose
+    /// words may be a sentence (the question card's).
+    pub fn wrap(self: Radio, val: bool) Radio {
+        var copy = self;
+        copy.wrap_label = val;
+        return copy;
+    }
+
     /// Draw the radio. Returns true if it was clicked this frame.
     pub fn draw(self: Radio) bool {
         const theme = tokens.current;
@@ -74,6 +86,7 @@ pub const Radio = struct {
         var b = dvui.box(self.src, .{ .dir = .horizontal, .gap = theme.space_sm }, .{
             .padding = ds.paddingXY(theme.space_3xs, theme.space_3xs),
             .id_extra = self.id_extra,
+            .expand = if (self.wrap_label) .horizontal else .none,
         });
         defer b.deinit();
 
@@ -91,17 +104,17 @@ pub const Radio = struct {
 
         // Reserve only the circle for layout (so the label sits close); the
         // state-layer halo is drawn larger and overflows into the gap.
-        const reserve = dvui.spacer(@src(), .{ .min_size_content = dvui.Size.all(circle_size), .gravity_y = 0.5 });
+        const label_font = ds.font(font_size);
+        const reserve = if (self.wrap_label and self.label_text != null)
+            dvui.spacer(@src(), .{ .min_size_content = dvui.Size.all(circle_size), .margin = .{ .y = control_label.controlTop(label_font, circle_size) } })
+        else
+            dvui.spacer(@src(), .{ .min_size_content = dvui.Size.all(circle_size), .gravity_y = 0.5 });
         if (b.data().visible()) {
             drawCircle(b.data().id, self.is_active, .{ .hovered = hovered, .pressed = pressed, .focused = focused }, reserve.borderRectScale(), circle_size, theme);
         }
 
         if (self.label_text) |str| {
-            dvui.labelNoFmt(@src(), str, .{}, .{
-                .color_text = .{ .color = theme.text_primary },
-                .font = ds.font(font_size),
-                .gravity_y = 0.5,
-            });
+            control_label.draw(@src(), str, label_font, self.wrap_label, circle_size);
         }
 
         return clicked;

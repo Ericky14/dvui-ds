@@ -14,6 +14,7 @@ const ds = @import("../ds.zig");
 const tokens = @import("../tokens.zig");
 const anim = @import("../anim/anim.zig");
 const motion = @import("../motion.zig");
+const control_label = @import("control_label.zig");
 
 const Color = dvui.Color;
 const RectScale = dvui.RectScale;
@@ -31,6 +32,7 @@ pub const Checkbox = struct {
     label_text: ?[]const u8 = null,
     is_disabled: bool = false,
     id_extra: usize = 0,
+    wrap_label: bool = false,
 
     /// Set the control size (sm / md / lg).
     pub fn size(self: Checkbox, val: tokens.Size) Checkbox {
@@ -60,6 +62,16 @@ pub const Checkbox = struct {
         return c;
     }
 
+    /// **Wrap the label** at the width the row is given instead of keeping it on
+    /// one line: the row takes the whole width (so its hit area does too) and
+    /// the box stays level with the label's first line. For an option whose
+    /// words may be a sentence (the question card's).
+    pub fn wrap(self: Checkbox, val: bool) Checkbox {
+        var c = self;
+        c.wrap_label = val;
+        return c;
+    }
+
     /// Draw the checkbox. Returns true if the value changed this frame.
     pub fn draw(self: Checkbox) bool {
         const theme = tokens.current;
@@ -76,6 +88,7 @@ pub const Checkbox = struct {
         var b = dvui.box(self.src, .{ .dir = .horizontal, .gap = theme.space_sm }, .{
             .id_extra = self.id_extra,
             .padding = ds.paddingXY(theme.space_3xs, theme.space_3xs),
+            .expand = if (self.wrap_label) .horizontal else .none,
         });
         defer b.deinit();
 
@@ -95,17 +108,17 @@ pub const Checkbox = struct {
         // Reserve only the box itself for layout (so the label sits close); the
         // state-layer halo is drawn larger, overflowing into the gap — it's
         // translucent and only visible on hover/focus, so the overflow is fine.
-        const reserve = dvui.spacer(@src(), .{ .min_size_content = dvui.Size.all(box_size), .gravity_y = 0.5 });
+        const label_font = ds.font(font_size);
+        const reserve = if (self.wrap_label and self.label_text != null)
+            dvui.spacer(@src(), .{ .min_size_content = dvui.Size.all(box_size), .margin = .{ .y = control_label.controlTop(label_font, box_size) } })
+        else
+            dvui.spacer(@src(), .{ .min_size_content = dvui.Size.all(box_size), .gravity_y = 0.5 });
         if (b.data().visible()) {
             drawBox(b.data().id, self.target.*, .{ .hovered = hovered, .pressed = pressed, .focused = focused }, reserve.borderRectScale(), box_size, theme);
         }
 
         if (self.label_text) |str| {
-            dvui.labelNoFmt(@src(), str, .{}, .{
-                .color_text = .{ .color = theme.text_primary },
-                .font = ds.font(font_size),
-                .gravity_y = 0.5,
-            });
+            control_label.draw(@src(), str, label_font, self.wrap_label, box_size);
         }
 
         return changed;
