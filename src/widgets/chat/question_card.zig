@@ -189,7 +189,7 @@ pub const QuestionCard = struct {
                 const selection = &self.selections[question_index];
                 drawOptions(question, selection, theme);
                 const words = self.buffer(question_index);
-                if (words.len > 0) drawOther(question, selection, words, theme);
+                if (words.len > 0) drawOther(question, selection, words, theme, self.id_extra *% 65521 +% question_index);
             }
         }
 
@@ -231,7 +231,12 @@ fn drawOptions(question: Question, selection: *Selection, theme: tokens.Theme) v
 /// writes into `words`. The field takes the keyboard the frame Other is chosen,
 /// so the person types straight on; the Space or click that chose it stays the
 /// Other's and is never typed into the field.
-fn drawOther(question: Question, selection: *Selection, words: []u8, theme: tokens.Theme) void {
+///
+/// `field_key` tells this question's field from every other card's and
+/// question's: a text input keeps its focus ring by its call site and
+/// `idExtra`, so two Others' fields drawn from this one line once shared
+/// it — the first showed the ring while the second held the caret.
+fn drawOther(question: Question, selection: *Selection, words: []u8, theme: tokens.Theme, field_key: usize) void {
     var row = dvui.box(@src(), .{ .dir = .vertical, .gap = theme.space_2xs }, .{ .expand = .horizontal });
     defer row.deinit();
 
@@ -247,7 +252,7 @@ fn drawOther(question: Question, selection: *Selection, words: []u8, theme: toke
 
     var indent = dvui.box(@src(), .{}, .{ .expand = .horizontal, .margin = ds.paddingEach(0, 0, 0, descriptionIndent(theme)) });
     defer indent.deinit();
-    const field = ds.textInput(@src(), words).size(.sm).placeholder(other_placeholder).expand(.horizontal).draw();
+    const field = ds.textInput(@src(), words).size(.sm).placeholder(other_placeholder).expand(.horizontal).idExtra(field_key).draw();
     if (chose) dvui.focusWidget(field.id, null, null);
 }
 

@@ -171,6 +171,43 @@ test "a multi-select's Other rides beside its picks" {
     }
 }
 
+test "with two questions' Others open, only the field that holds the keyboard draws the focus ring" {
+    for (scales) |scale| {
+        var t = try open(scale);
+        defer t.deinit();
+        // Question 1's Other, typed into; then question 2's, which takes the
+        // keyboard.
+        try tabs(3);
+        try key(.space, .none);
+        try write("five short rooms");
+        try tabs(3);
+        try key(.space, .none);
+        try std.testing.expect(State.selections[0].other and State.selections[1].other);
+
+        dvui.debug.captureFrame();
+        _ = try dvui.testing.step(State.frame);
+        _ = try dvui.testing.step(State.frame);
+        defer dvui.debug.clearCaptures(std.testing.allocator);
+        const captured = dvui.debug.lastCapture() orelse return error.NoCapture;
+        const theme = ds.tokens.current;
+        var fields: usize = 0;
+        var focused_rings: usize = 0;
+        for (captured.widgets.items) |widget| {
+            const name = widget.name orelse continue;
+            if (!std.mem.eql(u8, name, "TextEntry") or !std.mem.endsWith(u8, widget.src_file, "question_card.zig")) continue;
+            fields += 1;
+            const ring = std.meta.eql(widget.color_border, theme.accent);
+            // The ring is the keyboard's, and only the keyboard's: question 1's
+            // field once showed it while question 2's held the caret (the two
+            // fields shared one focus memory).
+            try std.testing.expectEqual(widget.focused, ring);
+            if (ring) focused_rings += 1;
+        }
+        try std.testing.expectEqual(@as(usize, 2), fields);
+        try std.testing.expectEqual(@as(usize, 1), focused_rings);
+    }
+}
+
 test "Submit is reachable from the keyboard once every question is answered" {
     for (scales) |scale| {
         var t = try open(scale);
