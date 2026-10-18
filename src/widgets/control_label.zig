@@ -4,25 +4,41 @@
 //! the FIRST line rather than centred on the whole paragraph.
 //!
 //! A one-line wrapped label sits where the one-line label sat: the control's
-//! top is the label's top padding plus half a line, less half the control —
-//! the centre the old `gravity_y = 0.5` gave it — so a short option looks the
-//! same either way and only a long one grows.
+//! top is half of what a one-line label's box leaves over it — the centre the
+//! old `gravity_y = 0.5` gave it, to the physical pixel — so a short option
+//! looks the same either way and only a long one grows (the question card
+//! tests hold the row, the control and the words equal at 1.0 and 1.75).
 const std = @import("std");
 const dvui = @import("dvui");
 const ds = @import("../ds.zig");
 const tokens = @import("../tokens.zig");
 
-/// The top inset of a wrapped label's text (dvui's text-layout default, which
-/// equals a label's): the first line's half-height is measured from here.
-fn textPadTop() f32 {
-    return dvui.TextLayoutWidget.defaults.padding.?.y;
+/// `length` grown to whole physical pixels, as dvui grows every widget's min
+/// size under `snap_to_pixels` (`minSizeSetAndRefresh`); unchanged without it.
+fn ceilPx(length: f32) f32 {
+    if (!dvui.snapToPixels()) return length;
+    const scale = ds.pixelScale();
+    if (!(scale > 0) or length <= 0) return length;
+    return @ceil(length * scale - 0.001) / scale;
+}
+
+/// How tall a ONE-line label in `font` is laid out: its line and its padding,
+/// grown to whole pixels. The plain control was centred in this box.
+fn lineBox(font: dvui.Font) f32 {
+    const padding = dvui.LabelWidget.defaults.paddingGet();
+    return ceilPx(padding.y + font.sizeM(1, 1).h + padding.h);
 }
 
 /// How far below the row's top the control sits so it is level with the first
 /// line of a wrapped label in `font` (zero when the control is the taller).
+///
+/// The offset is the plain row's centring, `(line box − control) / 2`, and is
+/// deliberately NOT snapped here: dvui puts the control's edge on a pixel the
+/// same way it put the centred control's (half up), so a one-line option draws
+/// exactly where it did. Snapping the offset first rounded 5.5 px to 5 where
+/// dvui rounds the edge to 6 — every circle a pixel high in the engine's chat.
 pub fn controlTop(font: dvui.Font, control: f32) f32 {
-    const offset = textPadTop() + font.sizeM(1, 1).h / 2 - control / 2;
-    return if (offset > 0) ds.snapPx(offset, ds.pixelScale()) else 0;
+    return @max(0, (lineBox(font) - ceilPx(control)) / 2);
 }
 
 /// **The control's place in a wrapped row**: a lane as tall as the row, the
@@ -38,9 +54,9 @@ pub fn reserveWrapped(control: f32, font: dvui.Font) dvui.WidgetData {
 
 /// How far below the row's top a wrapped label starts so its first line is
 /// level with a control taller than the line (zero otherwise).
+/// Like `controlTop`, the plain row's centring, left for dvui to snap.
 pub fn textTop(font: dvui.Font, control: f32) f32 {
-    const offset = control / 2 - textPadTop() - font.sizeM(1, 1).h / 2;
-    return if (offset > 0) ds.snapPx(offset, ds.pixelScale()) else 0;
+    return @max(0, (ceilPx(control) - lineBox(font)) / 2);
 }
 
 /// Draw `text` as the control's label in `font`. `wrap` breaks it at the row's

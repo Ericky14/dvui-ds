@@ -345,3 +345,99 @@ test "a wrapped card still lints clean: the badge and each control fill their ro
         }
     }
 }
+
+/// One option drawn twice, the plain way and the way that may wrap, each in its
+/// own row: a one-line option must look the same either way.
+const OneLineState = struct {
+    var chosen = false;
+
+    fn frame() !dvui.App.Result {
+        var background = dvui.box(@src(), .{ .dir = .vertical }, .{
+            .expand = .both,
+            .background = true,
+            .color_fill = .{ .color = ds.tokens.current.surface_0 },
+            .padding = dvui.Rect.all(8),
+        });
+        defer background.deinit();
+        for ([_]bool{ false, true }, 0..) |wrap, index| {
+            var row = dvui.box(@src(), .{ .dir = .vertical }, .{ .id_extra = index, .expand = .horizontal });
+            defer row.deinit();
+            _ = ds.radio(@src(), false, "Toon").size(.sm).wrap(wrap).draw();
+            _ = ds.checkbox(@src(), &chosen).size(.sm).label("Music").wrap(wrap).draw();
+        }
+        return .ok;
+    }
+};
+
+/// Where a control's parts sit inside its own row, relative to the row's top.
+const ControlPlace = struct {
+    row_height: f32,
+    control_top: f32,
+    words_top: f32,
+};
+
+fn widgetById(captured: *const dvui.Debug.CapturedFrame, id: dvui.Id) ?*const dvui.Debug.CapturedWidget {
+    for (captured.widgets.items) |*widget| {
+        if (widget.id == id) return widget;
+    }
+    return null;
+}
+
+/// The places of every control in `file` showing `text`, top to bottom.
+fn controlPlaces(captured: *const dvui.Debug.CapturedFrame, file: []const u8, text: []const u8, places: *[2]ControlPlace) !void {
+    var found: usize = 0;
+    for (captured.widgets.items) |*words| {
+        if (!std.mem.endsWith(u8, words.src_file, file)) continue;
+        const label = words.label orelse continue;
+        if (!std.mem.eql(u8, label, text)) continue;
+        if (found == places.len) return error.TooManyControls;
+        const root = widgetById(captured, words.parent_id) orelse return error.NoRow;
+        var control: ?*const dvui.Debug.CapturedWidget = null;
+        for (captured.widgets.items) |*candidate| {
+            const name = candidate.name orelse continue;
+            if (!std.mem.eql(u8, name, "Spacer")) continue;
+            const parent = widgetById(captured, candidate.parent_id) orelse continue;
+            if (parent.id == root.id or parent.parent_id == root.id) control = candidate;
+        }
+        const reserved = control orelse return error.NoControl;
+        places[found] = .{
+            .row_height = root.rect_border.h,
+            .control_top = reserved.rect_border.y - root.rect_border.y,
+            .words_top = words.rect_content.y - root.rect_border.y,
+        };
+        found += 1;
+    }
+    if (found != places.len) return error.ControlsMissing;
+}
+
+test "a one-line option looks the same whether or not it may wrap: the same row, control and words" {
+    for (scales) |scale| {
+        var t = try dvui.testing.init(.{
+            .window_size = .{ .w = 320 * scale / 2, .h = 400 * scale / 2 },
+            .window_init_opts = .{ .theme = ds.tokens.dvuiTheme() },
+        });
+        defer t.deinit();
+        t.window.content_scale = scale / 2;
+        _ = try dvui.testing.step(OneLineState.frame);
+        try dvui.testing.settle(OneLineState.frame);
+        dvui.debug.captureFrame();
+        _ = try dvui.testing.step(OneLineState.frame);
+        _ = try dvui.testing.step(OneLineState.frame);
+        defer dvui.debug.clearCaptures(std.testing.allocator);
+        const captured = dvui.debug.lastCapture() orelse return error.NoCapture;
+
+        for ([_][2][]const u8{ .{ "radio.zig", "Toon" }, .{ "checkbox.zig", "Music" } }) |case| {
+            var places: [2]ControlPlace = undefined;
+            try controlPlaces(captured, case[0], case[1], &places);
+            const plain = places[0];
+            const wrapping = places[1];
+            const same = @abs(plain.row_height - wrapping.row_height) < 0.01 and
+                @abs(plain.control_top - wrapping.control_top) < 0.01 and
+                @abs(plain.words_top - wrapping.words_top) < 0.01;
+            if (!same) {
+                std.debug.print("scale {d}: {s} one line: row {d:.2} / {d:.2} px, control at {d:.2} / {d:.2}, words at {d:.2} / {d:.2} (plain / may wrap)\n", .{ scale, case[0], plain.row_height, wrapping.row_height, plain.control_top, wrapping.control_top, plain.words_top, wrapping.words_top });
+                return error.OneLineMoved;
+            }
+        }
+    }
+}
