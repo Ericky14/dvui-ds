@@ -4,6 +4,9 @@
 ///     (single line, ellipsized), chevron on the right when `details` is non-empty.
 ///   - Click toggles `expanded_state.*` (when provided); expanded shows `details`
 ///     in a mono block on `surface_0` below the row.
+///   - `link(text, &opened)`: the summary's place holds `text` as a link (accent,
+///     underlined, a tab stop); a click on it, or Enter / Space while it has the
+///     keyboard, sets `opened` instead of toggling.
 ///   - Container: `surface_1` fill, `border_subtle` border, corners round(radius_sm),
 ///     hover lifts to `surface_2`.
 ///   - Height stays constant while running (no layout jumps as text arrives): every
@@ -14,6 +17,7 @@
 ///   ds.chat.toolCard(@src(), "set_component", "Ball / MeshRenderer.color", .ok).draw();
 ///   ds.chat.toolCard(@src(), "screenshot", "waiting for the frame", .running).idExtra(index).draw();
 ///   ds.chat.toolCard(@src(), "Read", "src/main.zig", .ok).details(file_text).expanded(&open).draw();
+///   ds.chat.toolCard(@src(), "Write", path, .ok).link("DESIGN.md", &opened).draw(); // then open it
 const std = @import("std");
 const dvui = @import("dvui");
 const ds = @import("../../ds.zig");
@@ -47,6 +51,8 @@ pub const ToolCard = struct {
     status: ToolStatus,
     details_text: []const u8 = "",
     expanded_state: ?*bool = null,
+    link_text: []const u8 = "",
+    link_opened: ?*bool = null,
     id_extra: usize = 0,
 
     /// Arguments / result text shown when expanded (mono).
@@ -60,6 +66,18 @@ pub const ToolCard = struct {
     pub fn expanded(self: ToolCard, val: *bool) ToolCard {
         var copy = self;
         copy.expanded_state = val;
+        return copy;
+    }
+
+    /// **A path you can open** in the summary's place: `text` drawn as a link (accent,
+    /// underlined) that sets `opened.*` when it is clicked — or when Enter or Space
+    /// is pressed while it holds the keyboard (it is a tab stop) — instead of
+    /// expanding the card. A click anywhere else on the card still expands it.
+    /// The caller opens the file and clears `opened`.
+    pub fn link(self: ToolCard, text: []const u8, opened: *bool) ToolCard {
+        var copy = self;
+        copy.link_text = text;
+        copy.link_opened = opened;
         return copy;
     }
 
@@ -93,9 +111,15 @@ pub const ToolCard = struct {
 
         // The whole card is the hover / click target. Its fill + border are drawn
         // by hand after the hover test so the lift lands on the same frame.
+        // A click that lands on the link (where it was drawn last frame — the
+        // card sees the press before its children exist) opens instead.
         var hovered = false;
-        if (dvui.clicked(card.data(), .{ .hovered = &hovered, .hover_cursor = if (toggleable) .hand else .arrow })) {
-            if (self.expanded_state) |state| {
+        const linked = self.link_opened != null and self.link_text.len > 0;
+        const cursor: dvui.enums.Cursor = if (toggleable or linked) .hand else .arrow;
+        if (dvui.clickedEx(card.data(), .{ .hovered = &hovered, .hover_cursor = cursor })) |event| {
+            if (linked and onLink(card.data().id, event)) {
+                self.link_opened.?.* = true;
+            } else if (self.expanded_state) |state| {
                 if (toggleable) state.* = !state.*;
             }
         }
@@ -113,13 +137,18 @@ pub const ToolCard = struct {
                 .gravity_y = 0.5,
             });
 
-            // The summary takes the leftover width and ellipsizes (single line).
-            dvui.labelNoFmt(@src(), self.summary, .{}, .{
-                .color_text = .{ .color = theme.text_secondary },
-                .font = ds.font(theme.font_size_md),
-                .expand = .horizontal,
-                .gravity_y = 0.5,
-            });
+            // The summary takes the leftover width and ellipsizes (single line);
+            // a link takes its place.
+            if (linked) {
+                if (drawLink(card.data().id, self.link_text, theme)) self.link_opened.?.* = true;
+            } else {
+                dvui.labelNoFmt(@src(), self.summary, .{}, .{
+                    .color_text = .{ .color = theme.text_secondary },
+                    .font = ds.font(theme.font_size_md),
+                    .expand = .horizontal,
+                    .gravity_y = 0.5,
+                });
+            }
 
             if (self.details_text.len > 0) {
                 if (is_expanded) {
@@ -140,6 +169,48 @@ pub const ToolCard = struct {
         }
     }
 };
+
+/// Where the card remembers its link's rectangle between frames.
+const link_rect_key = "_link_rect";
+
+/// Whether the card's click `event` landed on the link, as the link was drawn
+/// last frame. A key press never does: the link takes its own keys.
+fn onLink(card_id: dvui.Id, event: dvui.Event.EventTypes) bool {
+    const rect = dvui.dataGet(null, card_id, link_rect_key, dvui.Rect.Physical) orelse return false;
+    return switch (event) {
+        .mouse => |mouse| rect.contains(mouse.p),
+        else => false,
+    };
+}
+
+/// The link in the summary's place: an accent, underlined label inside a button
+/// that is only a tab stop (Enter or Space opens it; the card takes the mouse,
+/// see `onLink`) and draws the focus ring when the keyboard reached it. Returns
+/// true when a key opened it. Its rectangle is remembered for the next frame's
+/// click.
+fn drawLink(card_id: dvui.Id, text: []const u8, theme: tokens.Theme) bool {
+    var button: dvui.ButtonWidget = undefined;
+    button.init(@src(), .{ .draw_focus = ds.focusVisible() }, .{
+        .expand = .horizontal,
+        .gravity_y = 0.5,
+        .margin = dvui.Rect.all(0),
+        .padding = dvui.Rect.all(0),
+        .background = false,
+        .corners = dvui.CornerRect.round(theme.radius_sm),
+    });
+    defer button.deinit();
+    defer button.drawFocus();
+    button.processEvents();
+    dvui.dataSet(null, card_id, link_rect_key, button.data().borderRectScale().r);
+
+    dvui.labelNoFmt(@src(), text, .{}, .{
+        .color_text = .{ .color = theme.accent },
+        .font = ds.font(theme.font_size_md).withUnderline(.{}),
+        .expand = .horizontal,
+        .gravity_y = 0.5,
+    });
+    return button.clicked();
+}
 
 /// The dot colour for a status (before the running pulse is applied).
 pub fn statusColor(status: ToolStatus, theme: tokens.Theme) Color {

@@ -119,3 +119,113 @@ test "a screenshot card at its own size lints clean" {
         try expectLintClean(scale, "screenshot_card.zig");
     }
 }
+
+// ─── A tool card's path opens ────────────────────────────────────────────────
+
+const LinkState = struct {
+    var opened: bool = false;
+    var expanded: bool = false;
+
+    fn reset() void {
+        opened = false;
+        expanded = false;
+    }
+
+    fn frame() !dvui.App.Result {
+        var background = dvui.box(@src(), .{}, .{
+            .expand = .both,
+            .background = true,
+            .color_fill = .{ .color = ds.tokens.current.surface_0 },
+            .padding = dvui.Rect.all(8),
+        });
+        defer background.deinit();
+        ds.chat.toolCard(@src(), "Write", "D:/games/fox/DESIGN.md", .ok)
+            .details("# Fox\nA small game.")
+            .expanded(&expanded)
+            .link("DESIGN.md", &opened)
+            .draw();
+        return .ok;
+    }
+};
+
+/// The captured widget that shows exactly `text`, drawn from `file`.
+fn shown(captured: *const dvui.Debug.CapturedFrame, file: []const u8, text: []const u8) ?*const dvui.Debug.CapturedWidget {
+    for (captured.widgets.items) |*widget| {
+        if (!std.mem.endsWith(u8, widget.src_file, file)) continue;
+        const label = widget.label orelse continue;
+        if (std.mem.eql(u8, label, text)) return widget;
+    }
+    return null;
+}
+
+/// Press and release the left button at `point` (physical), then let two frames
+/// see it.
+fn clickAt(point: dvui.Point.Physical, frame: dvui.App.frameFunction) !void {
+    const window = dvui.currentWindow();
+    _ = try window.addEventMouseMotion(.{ .pt = point });
+    try dvui.testing.click(.left);
+    _ = try dvui.testing.step(frame);
+    _ = try dvui.testing.step(frame);
+}
+
+/// The centre of the widget that shows `text` in a fresh capture.
+fn centreOf(file: []const u8, text: []const u8, frame: dvui.App.frameFunction) !dvui.Point.Physical {
+    const captured = try capture(frame);
+    defer dvui.debug.clearCaptures(std.testing.allocator);
+    const widget = shown(captured, file, text) orelse {
+        std.debug.print("nothing from {s} shows \"{s}\"\n", .{ file, text });
+        return error.TextNotShown;
+    };
+    return widget.rect_border.center();
+}
+
+test "clicking a tool card's path opens it and leaves the card as it was" {
+    for (scales) |scale| {
+        LinkState.reset();
+        var t = try open(scale, .{ .w = 480, .h = 200 }, LinkState.frame);
+        defer t.deinit();
+        try clickAt(try centreOf("tool_card.zig", "DESIGN.md", LinkState.frame), LinkState.frame);
+        if (!LinkState.opened) {
+            std.debug.print("scale {d}: clicking the path did not open it (expanded: {})\n", .{ scale, LinkState.expanded });
+            return error.NotOpened;
+        }
+        try std.testing.expect(!LinkState.expanded);
+    }
+}
+
+test "clicking the rest of a linked tool card still expands it" {
+    for (scales) |scale| {
+        LinkState.reset();
+        var t = try open(scale, .{ .w = 480, .h = 200 }, LinkState.frame);
+        defer t.deinit();
+        try clickAt(try centreOf("tool_card.zig", "Write", LinkState.frame), LinkState.frame);
+        try std.testing.expect(LinkState.expanded);
+        try std.testing.expect(!LinkState.opened);
+    }
+}
+
+test "a tool card's path is a tab stop: Tab reaches it and Enter opens it" {
+    for (scales) |scale| {
+        LinkState.reset();
+        var t = try open(scale, .{ .w = 480, .h = 200 }, LinkState.frame);
+        defer t.deinit();
+        try dvui.testing.pressKey(.tab, .none);
+        _ = try dvui.testing.step(LinkState.frame);
+        try dvui.testing.pressKey(.enter, .none);
+        _ = try dvui.testing.step(LinkState.frame);
+        _ = try dvui.testing.step(LinkState.frame);
+        try std.testing.expect(LinkState.opened);
+        try std.testing.expect(!LinkState.expanded);
+    }
+}
+
+test "a linked tool card lints clean" {
+    for (scales) |scale| {
+        LinkState.reset();
+        var t = try open(scale, .{ .w = 480, .h = 200 }, LinkState.frame);
+        defer t.deinit();
+        _ = try capture(LinkState.frame);
+        defer dvui.debug.clearCaptures(std.testing.allocator);
+        try expectLintClean(scale, "tool_card.zig");
+    }
+}

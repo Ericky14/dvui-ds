@@ -65,6 +65,25 @@ test "chat tool cards" {
     try shots.capture("chat_tool_cards.png", 420, 380, Local.frame);
 }
 
+// A file the agent wrote or read, shown as a path you can open.
+test "chat tool card, a path you can open" {
+    const Local = struct {
+        var write_opened = false;
+        var read_opened = false;
+        var read_expanded = false;
+        fn frame() !dvui.App.Result {
+            var bg = shots.background(@src());
+            defer bg.deinit();
+            var col = column(@src());
+            defer col.deinit();
+            ds.chat.toolCard(@src(), "Write", "D:/games/fox/DESIGN.md", .ok).details("# Fox").link("DESIGN.md", &write_opened).draw();
+            ds.chat.toolCard(@src(), "Read", "scripts/player.lua", .ok).details("local speed = 6").expanded(&read_expanded).link("scripts/player.lua", &read_opened).draw();
+            return .ok;
+        }
+    };
+    try shots.capture("chat_tool_card_link.png", 420, 130, Local.frame);
+}
+
 // A command detail (mono) without the note, then a prose detail with the note.
 test "chat approval card" {
     const Local = struct {
