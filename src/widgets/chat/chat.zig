@@ -12,6 +12,12 @@ pub const Role = @import("message.zig").Role;
 
 pub const markdown = @import("markdown.zig").markdown;
 pub const Markdown = @import("markdown.zig").Markdown;
+/// Which words of a reply are files the caller can open (`Markdown.paths`).
+pub const PathFilter = @import("markdown.zig").PathFilter;
+/// The caller's pictures for image blocks (`Markdown.images`).
+pub const ImageResolver = @import("markdown.zig").ImageResolver;
+/// The file name a word names, punctuation stripped, or null.
+pub const pathIn = @import("markdown.zig").pathIn;
 
 pub const codeBlock = @import("code_block.zig").codeBlock;
 pub const CodeBlock = @import("code_block.zig").CodeBlock;

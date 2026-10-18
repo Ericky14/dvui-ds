@@ -386,6 +386,73 @@ test "blocks: decimals and star emphasis are not list markers" {
     try std.testing.expectEqualStrings("", blocks[2].text);
 }
 
+test "blocks: a pipe table with a separator row is one table block" {
+    var storage: [4]Block = undefined;
+    const blocks = collectBlocks("Before\n\n| Name | Role |\n|---|:---:|\n| Fox | hero |\n| Beetle | foe |\n\nAfter", &storage);
+    try std.testing.expectEqual(@as(usize, 3), blocks.len);
+    try std.testing.expectEqual(md.BlockKind.paragraph, blocks[0].kind);
+    try std.testing.expectEqual(md.BlockKind.table, blocks[1].kind);
+    try std.testing.expectEqualStrings("| Name | Role |\n|---|:---:|\n| Fox | hero |\n| Beetle | foe |", blocks[1].text);
+    try std.testing.expectEqual(md.BlockKind.paragraph, blocks[2].kind);
+}
+
+test "blocks: pipe lines without a separator row stay a paragraph" {
+    var storage: [4]Block = undefined;
+    const blocks = collectBlocks("| not | a table |\n| just | pipes |", &storage);
+    try std.testing.expectEqual(@as(usize, 1), blocks.len);
+    try std.testing.expectEqual(md.BlockKind.paragraph, blocks[0].kind);
+}
+
+test "table rows: the header, then the body, the separator skipped and cells trimmed" {
+    var rows = md.TableIterator.init("| Name | Role |\n|---|:---:|\n| Fox | hero |\n|Beetle|foe|");
+    const header = rows.next().?;
+    try std.testing.expect(header.header);
+    try std.testing.expectEqual(@as(usize, 2), header.len);
+    try std.testing.expectEqualStrings("Name", header.cells[0]);
+    try std.testing.expectEqualStrings("Role", header.cells[1]);
+    const first = rows.next().?;
+    try std.testing.expect(!first.header);
+    try std.testing.expectEqualStrings("Fox", first.cells[0]);
+    try std.testing.expectEqualStrings("hero", first.cells[1]);
+    const second = rows.next().?;
+    try std.testing.expectEqualStrings("Beetle", second.cells[0]);
+    try std.testing.expectEqualStrings("foe", second.cells[1]);
+    try std.testing.expect(rows.next() == null);
+}
+
+test "table rows: a row with too many cells keeps the header's count, a short one is padded empty" {
+    var rows = md.TableIterator.init("| A | B |\n|---|---|\n| 1 | 2 | 3 |\n| only |");
+    _ = rows.next().?;
+    const long = rows.next().?;
+    try std.testing.expectEqual(@as(usize, 2), long.len);
+    const short = rows.next().?;
+    try std.testing.expectEqual(@as(usize, 2), short.len);
+    try std.testing.expectEqualStrings("only", short.cells[0]);
+    try std.testing.expectEqualStrings("", short.cells[1]);
+}
+
+test "blocks: a line that is only an image is an image block with its alt text and target" {
+    var storage: [4]Block = undefined;
+    const blocks = collectBlocks("The hero:\n\n![the fox, turntable](art/fox.png)\n\nan inline ![x](y.png) stays text", &storage);
+    try std.testing.expectEqual(@as(usize, 3), blocks.len);
+    try std.testing.expectEqual(md.BlockKind.image, blocks[1].kind);
+    try std.testing.expectEqualStrings("the fox, turntable", blocks[1].text);
+    try std.testing.expectEqualStrings("art/fox.png", blocks[1].url);
+    try std.testing.expectEqual(md.BlockKind.paragraph, blocks[2].kind);
+}
+
+test "paths: a word that names a file, without the punctuation around it" {
+    try std.testing.expectEqualStrings("DESIGN.md", md.pathIn("DESIGN.md,").?);
+    try std.testing.expectEqualStrings("scripts/x.lua", md.pathIn("(scripts/x.lua).").?);
+    try std.testing.expectEqualStrings(".zigame/RECIPES.md", md.pathIn(".zigame/RECIPES.md").?);
+    try std.testing.expectEqualStrings("main.c", md.pathIn("main.c").?);
+    try std.testing.expect(md.pathIn("1.5") == null);
+    try std.testing.expect(md.pathIn("https://example.com/a.png") == null);
+    try std.testing.expect(md.pathIn("word") == null);
+    try std.testing.expect(md.pathIn("e.g.") == null);
+    try std.testing.expect(md.pathIn("") == null);
+}
+
 // ─── Inline runs ─────────────────────────────────────────────────────────────
 
 test "inline: empty text yields no runs" {

@@ -12,6 +12,7 @@
 ///   ds.chat.message(@src(), .user, "make the ball red").draw();
 ///   ds.chat.message(@src(), .assistant, reply).streaming(true).idExtra(index).draw();
 ///   ds.chat.message(@src(), .assistant, raw_text).markdown(false).draw();
+///   ds.chat.message(@src(), .assistant, reply).paths(filter).clicked(&target).draw();
 ///   ds.chat.message(@src(), .system, "session resumed").draw();
 const std = @import("std");
 const dvui = @import("dvui");
@@ -33,6 +34,9 @@ pub const Message = struct {
     is_streaming: bool = false,
     render_markdown: bool = true,
     id_extra: usize = 0,
+    path_filter: ?markdown_mod.PathFilter = null,
+    image_resolver: ?markdown_mod.ImageResolver = null,
+    clicked_target: ?*[]const u8 = null,
 
     /// Show a caret and a subtle pulse while text is still arriving.
     pub fn streaming(self: Message, val: bool) Message {
@@ -45,6 +49,29 @@ pub const Message = struct {
     pub fn markdown(self: Message, val: bool) Message {
         var copy = self;
         copy.render_markdown = val;
+        return copy;
+    }
+
+    /// An assistant reply's file names become links (`markdown().paths`).
+    pub fn paths(self: Message, filter: markdown_mod.PathFilter) Message {
+        var copy = self;
+        copy.path_filter = filter;
+        return copy;
+    }
+
+    /// An assistant reply's image blocks show the caller's pictures
+    /// (`markdown().images`).
+    pub fn images(self: Message, resolver: markdown_mod.ImageResolver) Message {
+        var copy = self;
+        copy.image_resolver = resolver;
+        return copy;
+    }
+
+    /// Where a clicked link or path in an assistant reply is reported
+    /// (`markdown().clicked`).
+    pub fn clicked(self: Message, target: *[]const u8) Message {
+        var copy = self;
+        copy.clicked_target = target;
         return copy;
     }
 
@@ -82,13 +109,22 @@ pub const Message = struct {
         switch (self.role) {
             .user => drawPlain(@src(), self.text, theme.text_primary),
             .assistant => if (self.render_markdown)
-                markdown_mod.markdown(@src(), self.text).draw()
+                self.markdownBody().draw()
             else
                 drawPlain(@src(), self.text, theme.text_secondary),
             .system => {},
         }
 
         if (self.is_streaming) drawCaret(block_id, line_height);
+    }
+
+    /// The reply as Markdown, with the caller's links and pictures.
+    fn markdownBody(self: Message) markdown_mod.Markdown {
+        var body = markdown_mod.markdown(@src(), self.text);
+        if (self.path_filter) |filter| body = body.paths(filter);
+        if (self.image_resolver) |resolver| body = body.images(resolver);
+        if (self.clicked_target) |target| body = body.clicked(target);
+        return body;
     }
 
     fn drawSystem(self: Message) void {

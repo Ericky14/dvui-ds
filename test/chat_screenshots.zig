@@ -80,6 +80,63 @@ test "chat markdown" {
     try shots.capture("chat_markdown.png", 460, 520, Local.frame);
 }
 
+/// A 96 x 64 picture: a warm-to-cool gradient, so a stretched or upscaled draw
+/// shows in the fixture.
+var gradient_picture: [96 * 64 * 4]u8 = undefined;
+
+fn fillGradient() void {
+    for (0..64) |row| {
+        for (0..96) |column| {
+            const at = (row * 96 + column) * 4;
+            gradient_picture[at] = @intCast(255 - column * 2);
+            gradient_picture[at + 1] = @intCast(120 + row);
+            gradient_picture[at + 2] = @intCast(80 + column);
+            gradient_picture[at + 3] = 255;
+        }
+    }
+}
+
+test "chat markdown, a table, links and an image" {
+    fillGradient();
+    const Local = struct {
+        const sample =
+            \\## Fox and the Beetle
+            \\| Piece | Source |
+            \\|---|---|
+            \\| Fox | the art pipeline, a cel-shaded rig |
+            \\| Island | a kit |
+            \\
+            \\See [the plan](PLAN.md), DESIGN.md and `scripts/fox.lua`.
+            \\
+            \\![the fox](art/fox.png)
+            \\![the beetle](art/beetle.png)
+        ;
+        fn accepts(context: *const anyopaque, word: []const u8) bool {
+            _ = context;
+            return std.mem.eql(u8, word, "DESIGN.md") or std.mem.eql(u8, word, "scripts/fox.lua");
+        }
+        fn resolve(context: *const anyopaque, target: []const u8) ?dvui.ImageSource {
+            _ = context;
+            if (!std.mem.eql(u8, target, "art/fox.png")) return null;
+            return .{ .pixels = .{ .rgba = &gradient_picture, .width = 96, .height = 64 } };
+        }
+        var clicked: []const u8 = "";
+        fn frame() !dvui.App.Result {
+            var bg = shots.background(@src());
+            defer bg.deinit();
+            var col = chatColumn(@src());
+            defer col.deinit();
+            ds.chat.markdown(@src(), sample)
+                .paths(.{ .context = &gradient_picture, .accepts = accepts })
+                .images(.{ .context = &gradient_picture, .resolve = resolve })
+                .clicked(&clicked)
+                .draw();
+            return .ok;
+        }
+    };
+    try shots.capture("chat_markdown_viewers.png", 460, 240, Local.frame);
+}
+
 test "chat code block" {
     const Local = struct {
         // Tab-indented on purpose: tabs render as four-column gaps.

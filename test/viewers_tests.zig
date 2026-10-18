@@ -229,3 +229,186 @@ test "a linked tool card lints clean" {
         try expectLintClean(scale, "tool_card.zig");
     }
 }
+
+// ─── Markdown: tables, links, paths, images ──────────────────────────────────
+
+const design_doc =
+    \\# Fox and the Beetle
+    \\
+    \\| Piece | Source |
+    \\|---|---|
+    \\| Fox | the art pipeline |
+    \\| Island | a kit |
+    \\
+    \\- Look first
+    \\- Then the layout
+    \\
+    \\See [the plan](PLAN.md) and DESIGN.md, then `scripts/fox.lua`.
+    \\
+    \\![the fox](art/fox.png)
+    \\
+    \\![missing](art/none.png)
+;
+
+const fox_picture: [120 * 80 * 4]u8 = @splat(160);
+
+const MarkdownState = struct {
+    var clicked: []const u8 = "";
+
+    fn acceptsPath(context: *const anyopaque, word: []const u8) bool {
+        _ = context;
+        return std.mem.eql(u8, word, "DESIGN.md") or std.mem.eql(u8, word, "scripts/fox.lua");
+    }
+
+    fn resolveImage(context: *const anyopaque, target: []const u8) ?dvui.ImageSource {
+        _ = context;
+        if (!std.mem.eql(u8, target, "art/fox.png")) return null;
+        return .{ .pixels = .{ .rgba = &fox_picture, .width = 120, .height = 80 } };
+    }
+
+    fn frame() !dvui.App.Result {
+        var background = dvui.box(@src(), .{}, .{
+            .expand = .both,
+            .background = true,
+            .color_fill = .{ .color = ds.tokens.current.surface_0 },
+            .padding = dvui.Rect.all(8),
+        });
+        defer background.deinit();
+        ds.chat.markdown(@src(), design_doc)
+            .paths(.{ .context = &fox_picture, .accepts = acceptsPath })
+            .images(.{ .context = &fox_picture, .resolve = resolveImage })
+            .clicked(&clicked)
+            .draw();
+        return .ok;
+    }
+};
+
+test "Markdown renders a heading, a table and a list" {
+    for (scales) |scale| {
+        var t = try open(scale, .{ .w = 480, .h = 520 }, MarkdownState.frame);
+        defer t.deinit();
+        const captured = try capture(MarkdownState.frame);
+        defer dvui.debug.clearCaptures(std.testing.allocator);
+        try std.testing.expect(shown(captured, "markdown.zig", "Fox and the Beetle") != null);
+        try std.testing.expect(shown(captured, "markdown.zig", "Look first") != null);
+        // The table's cells are cells: each its own widget, a row's side by side.
+        const cells = [_][]const u8{ "Piece", "Source", "Fox", "the art pipeline", "Island", "a kit" };
+        var found: [cells.len]*const dvui.Debug.CapturedWidget = undefined;
+        for (cells, 0..) |cell, index| {
+            found[index] = shown(captured, "markdown.zig", cell) orelse {
+                std.debug.print("scale {d}: no table cell shows \"{s}\"\n", .{ scale, cell });
+                return error.NoTableCell;
+            };
+        }
+        var row: usize = 0;
+        while (row < cells.len) : (row += 2) {
+            const left = found[row];
+            const right = found[row + 1];
+            try std.testing.expectApproxEqAbs(left.rect_border.y, right.rect_border.y, 0.5);
+            try std.testing.expect(right.rect_border.x >= left.rect_border.x + left.rect_border.w - 0.5);
+        }
+        try std.testing.expect(found[2].rect_border.y > found[0].rect_border.y);
+        try std.testing.expect(found[4].rect_border.y > found[2].rect_border.y);
+    }
+}
+
+test "Markdown draws an image block at its own size, and says which one it could not find" {
+    for (scales) |scale| {
+        var t = try open(scale, .{ .w = 480, .h = 520 }, MarkdownState.frame);
+        defer t.deinit();
+        const captured = try capture(MarkdownState.frame);
+        defer dvui.debug.clearCaptures(std.testing.allocator);
+        const picture = named(captured, "markdown.zig", "image") orelse return error.NoImage;
+        try std.testing.expectApproxEqAbs(@as(f32, 120), picture.rect_content.w, 0.5);
+        try std.testing.expectApproxEqAbs(@as(f32, 80), picture.rect_content.h, 0.5);
+        try std.testing.expect(shown(captured, "markdown.zig", "art/none.png") != null);
+    }
+}
+
+/// The centre of `run` on the first line of the paragraph that shows
+/// `paragraph_text`, `before` being the words ahead of it: a run's own rectangle
+/// is not captured, so it is measured with the paragraph's font.
+fn runCentre(paragraph_text: []const u8, before: []const u8, run: []const u8) !dvui.Point.Physical {
+    const captured = try capture(MarkdownState.frame);
+    defer dvui.debug.clearCaptures(std.testing.allocator);
+    const paragraph = shown(captured, "markdown.zig", paragraph_text) orelse return error.TextNotShown;
+    const scale = dvui.windowRectScale().s;
+    const font = paragraph.font;
+    const offset = font.textSize(before).w * scale;
+    const width = font.textSize(run).w * scale;
+    return .{
+        .x = paragraph.rect_content.x + offset + width / 2,
+        .y = paragraph.rect_content.y + font.lineHeight() * scale / 2,
+    };
+}
+
+const link_paragraph = "See the plan and DESIGN.md, then scripts/fox.lua.";
+
+test "Markdown says which link was clicked: a link's target, or a path the caller accepts" {
+    for (scales) |scale| {
+        MarkdownState.clicked = "";
+        var t = try open(scale, .{ .w = 480, .h = 520 }, MarkdownState.frame);
+        defer t.deinit();
+        try clickAt(try runCentre(link_paragraph, "See ", "the plan"), MarkdownState.frame);
+        try std.testing.expectEqualStrings("PLAN.md", MarkdownState.clicked);
+        MarkdownState.clicked = "";
+        try clickAt(try runCentre(link_paragraph, "See the plan and ", "DESIGN.md"), MarkdownState.frame);
+        if (!std.mem.eql(u8, MarkdownState.clicked, "DESIGN.md")) {
+            std.debug.print("scale {d}: clicking DESIGN.md in the text reported \"{s}\"\n", .{ scale, MarkdownState.clicked });
+            return error.PathNotLinked;
+        }
+        MarkdownState.clicked = "";
+        try clickAt(try runCentre(link_paragraph, "See the plan and DESIGN.md, then ", "scripts/fox.lua"), MarkdownState.frame);
+        try std.testing.expectEqualStrings("scripts/fox.lua", MarkdownState.clicked);
+        MarkdownState.clicked = "";
+        try clickAt(try runCentre(link_paragraph, "", "See"), MarkdownState.frame);
+        try std.testing.expectEqualStrings("", MarkdownState.clicked);
+    }
+}
+
+test "Markdown with a table, links and images lints clean" {
+    for (scales) |scale| {
+        var t = try open(scale, .{ .w = 480, .h = 520 }, MarkdownState.frame);
+        defer t.deinit();
+        _ = try capture(MarkdownState.frame);
+        defer dvui.debug.clearCaptures(std.testing.allocator);
+        try expectLintClean(scale, "markdown.zig");
+    }
+}
+
+const MessageState = struct {
+    var clicked: []const u8 = "";
+
+    fn frame() !dvui.App.Result {
+        var background = dvui.box(@src(), .{}, .{
+            .expand = .both,
+            .background = true,
+            .color_fill = .{ .color = ds.tokens.current.surface_0 },
+            .padding = dvui.Rect.all(8),
+        });
+        defer background.deinit();
+        ds.chat.message(@src(), .assistant, "Wrote DESIGN.md for the plan.")
+            .paths(.{ .context = &fox_picture, .accepts = MarkdownState.acceptsPath })
+            .clicked(&clicked)
+            .draw();
+        return .ok;
+    }
+};
+
+test "an assistant reply hands its paths and clicks to its Markdown" {
+    for (scales) |scale| {
+        MessageState.clicked = "";
+        var t = try open(scale, .{ .w = 480, .h = 200 }, MessageState.frame);
+        defer t.deinit();
+        const captured = try capture(MessageState.frame);
+        const paragraph = shown(captured, "markdown.zig", "Wrote DESIGN.md for the plan.") orelse return error.TextNotShown;
+        const window_scale = dvui.windowRectScale().s;
+        const point: dvui.Point.Physical = .{
+            .x = paragraph.rect_content.x + (paragraph.font.textSize("Wrote ").w + paragraph.font.textSize("DESIGN.md").w / 2) * window_scale,
+            .y = paragraph.rect_content.y + paragraph.font.lineHeight() * window_scale / 2,
+        };
+        dvui.debug.clearCaptures(std.testing.allocator);
+        try clickAt(point, MessageState.frame);
+        try std.testing.expectEqualStrings("DESIGN.md", MessageState.clicked);
+    }
+}

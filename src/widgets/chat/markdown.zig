@@ -11,17 +11,29 @@
 ///     `1. `                   ordered items; the number is rendered as written
 ///     ``` lang … ```          fenced code delegated to `codeBlock()` with the info
 ///                             string as language; an unterminated fence runs to the end
+///     `| a | b |` rows        a table when the second row is a separator (`|---|:--:|`):
+///                             the first row its header, every row a line of equal
+///                             cells (at most `max_table_columns`); pipe lines with no
+///                             separator stay a paragraph
+///     `![alt](target)`        a line that is only an image: the picture the caller's
+///                             `images` resolver finds for `target`, at its own size and
+///                             never wider than the text; a muted line naming the
+///                             target when there is none
 ///     anything else           a paragraph; single newlines soft-wrap
-///   Inline (inside paragraphs, headings and list items):
+///   Inline (inside paragraphs, headings, list items and table cells):
 ///     **bold**, *italic*, `code` (mono on `surface_2`, wraps to a fresh line as a
 ///     whole chip rather than splitting mid-word — the break is spent from the blank
 ///     before the chip, so selecting and copying the text yields the source and never
-///     a newline the source lacks), [text](url) (underlined, never navigated).
+///     a newline the source lacks), [text](url) (underlined; with `clicked`, a click
+///     reports `url` — never navigated by the widget itself), and, with `paths`, a
+///     word or a code chip that names a file the caller accepts (`DESIGN.md`,
+///     `scripts/x.lua`), drawn and reported the same way.
 ///     Unbalanced delimiters render literally; nothing panics.
 ///
 /// Usage:
 ///   ds.chat.markdown(@src(), "## Done\nThe ball is **red** now.").draw();
 ///   ds.chat.markdown(@src(), reply_text).idExtra(index).draw();
+///   ds.chat.markdown(@src(), doc).paths(filter).images(resolver).clicked(&target).draw();
 const std = @import("std");
 const dvui = @import("dvui");
 const ds = @import("../../ds.zig");
@@ -36,6 +48,36 @@ pub const Markdown = struct {
     src: std.builtin.SourceLocation,
     text: []const u8,
     id_extra: usize = 0,
+    path_filter: ?PathFilter = null,
+    image_resolver: ?ImageResolver = null,
+    clicked_target: ?*[]const u8 = null,
+
+    /// **Paths are links**: a word, or a code chip, that looks like a file name
+    /// (`pathIn`) and that `filter` accepts is drawn as a link and, with `clicked`,
+    /// reported when it is clicked. The filter is asked every frame for every such
+    /// word, so it answers from a cache.
+    pub fn paths(self: Markdown, filter: PathFilter) Markdown {
+        var copy = self;
+        copy.path_filter = filter;
+        return copy;
+    }
+
+    /// **Images by target**: an image block shows what `resolver` returns for its
+    /// target (the bytes must outlive the frame — the resolver owns them).
+    pub fn images(self: Markdown, resolver: ImageResolver) Markdown {
+        var copy = self;
+        copy.image_resolver = resolver;
+        return copy;
+    }
+
+    /// **Where a click goes**: a clicked link's url, or a clicked path, is written to
+    /// `target.*` — a slice of the text, valid as long as the text is. The caller
+    /// decides what to open; without this, links are drawn but inert.
+    pub fn clicked(self: Markdown, target: *[]const u8) Markdown {
+        var copy = self;
+        copy.clicked_target = target;
+        return copy;
+    }
 
     /// Disambiguate identity when used in a loop / list.
     pub fn idExtra(self: Markdown, val: usize) Markdown {
@@ -53,14 +95,18 @@ pub const Markdown = struct {
         // and cannot snap it away. See `ds.snapHeightOpts`.
         var box = dvui.box(self.src, .{ .dir = .vertical, .gap = theme.space_sm }, ds.snapHeightOpts(self.src, self.id_extra));
         defer box.deinit();
+        const links: Links = .{ .filter = self.path_filter, .clicked = self.clicked_target };
+        const room = box.data().contentRect().w;
 
         var blocks = BlockIterator.init(self.text);
         var index: usize = 0;
         while (blocks.next()) |block| : (index += 1) {
             switch (block.kind) {
-                .paragraph => drawRuns(@src(), index, block.text, bodyFont(), theme.text_secondary),
-                .heading => drawRuns(@src(), index, block.text, headingFont(block.level), theme.text_primary),
-                .bullet, .ordered => drawListItem(index, block),
+                .paragraph => drawRuns(@src(), index, block.text, bodyFont(), theme.text_secondary, links, .{}),
+                .heading => drawRuns(@src(), index, block.text, headingFont(block.level), theme.text_primary, links, .{}),
+                .bullet, .ordered => drawListItem(index, block, links),
+                .table => drawTable(index, block.text, links),
+                .image => drawImage(index, block, self.image_resolver, room),
                 .code => {
                     // The markdown widget is the code block's caller, so it owns the
                     // clipboard side of the Copy contract: exactly the fenced body —
@@ -78,25 +124,79 @@ pub const Markdown = struct {
 
 // ─── Rendering ───────────────────────────────────────────────────────────────
 
-/// One wrapped text layout holding the inline runs of a block.
-fn drawRuns(src: std.builtin.SourceLocation, id_extra: usize, text: []const u8, base_font: dvui.Font, base_color: dvui.Color) void {
-    var layout = dvui.textLayout(src, .{ .break_lines = true }, layoutOpts(id_extra, base_font, base_color));
+/// What makes a run a link a person can follow: the caller's path filter, and
+/// where a click is reported (without it a link is drawn but inert).
+const Links = struct {
+    filter: ?PathFilter = null,
+    clicked: ?*[]const u8 = null,
+};
+
+/// One wrapped text layout holding the inline runs of a block. `extra` overrides
+/// the layout's options (a table cell's padding).
+fn drawRuns(src: std.builtin.SourceLocation, id_extra: usize, text: []const u8, base_font: dvui.Font, base_color: dvui.Color, links: Links, extra: dvui.Options) void {
+    var layout = dvui.textLayout(src, .{ .break_lines = true }, layoutOpts(id_extra, base_font, base_color).override(extra));
     defer layout.deinit();
 
-    var sink: LayoutSink = .{ .layout = layout, .base_font = base_font, .base_color = base_color };
+    var sink: LayoutSink = .{ .layout = layout, .base_font = base_font, .base_color = base_color, .links = links };
     emitRuns(&sink, text);
 }
 
 /// The sink `emitRuns` draws into: each piece goes to the live text layout with
 /// its run styling, and the wrap decision measures the chip — plus the blank that
-/// would precede it — against what is left of the current line.
+/// would precede it — against what is left of the current line. A link's words,
+/// and every path the caller accepts, go in as clickable text.
 const LayoutSink = struct {
     layout: *dvui.TextLayoutWidget,
     base_font: dvui.Font,
     base_color: dvui.Color,
+    links: Links = .{},
+    /// The target of the run being added: a link's url while its words go in.
+    url: []const u8 = "",
+
+    /// `emitRuns` names each run's link target before handing over its words.
+    pub fn setLink(self: *LayoutSink, url: []const u8) void {
+        self.url = url;
+    }
 
     fn add(self: *LayoutSink, text: []const u8, style: Style) void {
-        self.layout.addText(text, runOpts(style, self.base_font, self.base_color));
+        const opts = runOpts(style, self.base_font, self.base_color);
+        if (style.link and self.url.len > 0) return self.addTarget(text, opts, self.url);
+        const filter = self.links.filter orelse return self.layout.addText(text, opts);
+        if (style.code) {
+            // A code chip is one word: a path when the whole chip is one.
+            if (pathSpan(text)) |span| {
+                if (span.start == 0 and span.end == text.len and filter.accepts(filter.context, text)) {
+                    return self.addTarget(text, pathOpts(opts), text);
+                }
+            }
+            return self.layout.addText(text, opts);
+        }
+        // Plain words: each path the caller accepts becomes its own piece, the
+        // text between them goes in untouched (no byte added or dropped).
+        var plain_start: usize = 0;
+        var scan: usize = 0;
+        while (scan < text.len) {
+            if (text[scan] == ' ') {
+                scan += 1;
+                continue;
+            }
+            const word_start = scan;
+            while (scan < text.len and text[scan] != ' ') scan += 1;
+            const span = pathSpan(text[word_start..scan]) orelse continue;
+            const path = text[word_start + span.start .. word_start + span.end];
+            if (!filter.accepts(filter.context, path)) continue;
+            const path_start = word_start + span.start;
+            if (path_start > plain_start) self.layout.addText(text[plain_start..path_start], opts);
+            self.addTarget(path, pathOpts(opts), path);
+            plain_start = path_start + path.len;
+        }
+        if (plain_start < text.len) self.layout.addText(text[plain_start..], opts);
+    }
+
+    /// `text` as clickable text reporting `target` (inert without `clicked`).
+    fn addTarget(self: *LayoutSink, text: []const u8, opts: dvui.Options, target: []const u8) void {
+        const clicked_target = self.links.clicked orelse return self.layout.addText(text, opts);
+        if (self.layout.addTextClick(text, opts)) |_| clicked_target.* = target;
     }
 
     fn breaksBefore(self: *LayoutSink, chip: Run, separator: Style) bool {
@@ -125,10 +225,14 @@ const LayoutSink = struct {
 ///
 /// Usage: `markdown.emitRuns(&sink, "run `zig build test` now");`
 pub fn emitRuns(sink: anytype, text: []const u8) void {
+    // A sink that draws links (`fn setLink(self, url)`) is told each run's
+    // target before its words; the tests' recording sink has none.
+    const tracks_links = @hasDecl(@typeInfo(@TypeOf(sink)).pointer.child, "setLink");
     var runs = InlineIterator.init(text);
     // The style of a blank held back from the previous run, still to be spent.
     var held: ?Style = null;
     while (runs.next()) |run| {
+        if (tracks_links) sink.setLink(if (run.style.link) run.url else "");
         if (isChip(run)) {
             const breaks = if (held) |separator| sink.breaksBefore(run, separator) else false;
             if (held) |separator| sink.add(if (breaks) "\n" else " ", separator);
@@ -202,7 +306,7 @@ fn emitSoftWrapped(sink: anytype, text: []const u8, style: Style) ?Style {
     return if (held) style else null;
 }
 
-fn drawListItem(index: usize, block: Block) void {
+fn drawListItem(index: usize, block: Block, links: Links) void {
     const theme = tokens.current;
     const font = bodyFont();
     var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_sm }, .{
@@ -213,8 +317,82 @@ fn drawListItem(index: usize, block: Block) void {
     defer row.deinit();
 
     dvui.labelNoFmt(@src(), block.marker, .{}, markerOpts(font));
-    drawRuns(@src(), 0, block.text, font, theme.text_secondary);
+    drawRuns(@src(), 0, block.text, font, theme.text_secondary, links, .{});
 }
+
+/// A table: a hairline frame, the header row in the primary colour at medium
+/// weight, every row a line of equal cells whose text wraps inside its cell, a
+/// hairline between rows.
+fn drawTable(index: usize, text: []const u8, links: Links) void {
+    const theme = tokens.current;
+    const hairline = ds.hairline(ds.pixelScale());
+    var frame = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .id_extra = index,
+        .expand = .horizontal,
+        .border = ds.border(theme.border_width),
+        .color_border = .{ .color = theme.border_subtle },
+        .corners = dvui.CornerRect.round(theme.radius_sm),
+        .padding = dvui.Rect.all(0),
+        .margin = dvui.Rect.all(0),
+    });
+    defer frame.deinit();
+
+    const cell_padding = ds.paddingXY(theme.space_sm, theme.space_xs);
+    var rows = TableIterator.init(text);
+    var row_index: usize = 0;
+    while (rows.next()) |row| : (row_index += 1) {
+        if (row_index > 0) {
+            var divider = dvui.box(@src(), .{}, .{
+                .id_extra = row_index,
+                .expand = .horizontal,
+                .min_size_content = .{ .w = 0, .h = hairline },
+                .background = true,
+                .color_fill = .{ .color = theme.border_subtle },
+            });
+            divider.deinit();
+        }
+        const row_src = @src();
+        var line = dvui.box(row_src, .{ .dir = .horizontal, .equal_space = true }, ds.snapHeightOpts(row_src, row_index));
+        defer line.deinit();
+        const font = if (row.header) bodyFont().withWeight(.medium) else bodyFont();
+        const color = if (row.header) theme.text_primary else theme.text_secondary;
+        for (row.cells[0..row.len], 0..) |cell, column| {
+            drawRuns(@src(), column, cell, font, color, links, .{ .padding = cell_padding, .expand = .both });
+        }
+    }
+}
+
+/// An image block: the resolver's picture at its own size (one image pixel to
+/// one physical pixel), narrowed to the room the text has; or, when there is no
+/// picture, a muted line naming the target so the reader knows what is missing.
+fn drawImage(index: usize, block: Block, resolver: ?ImageResolver, room: f32) void {
+    const theme = tokens.current;
+    if (resolver) |images| {
+        if (images.resolve(images.context, block.url)) |source| {
+            const natural = ds.imageNaturalSize(source) catch missing_image_size;
+            _ = dvui.image(@src(), .{ .source = source, .shrink = .ratio }, .{
+                .id_extra = index,
+                .name = "image",
+                .min_size_content = ds.imageFitWidth(natural, room),
+                .corners = dvui.CornerRect.round(theme.radius_sm),
+                .gravity_x = 0,
+            });
+            return;
+        }
+    }
+    var row = dvui.box(@src(), .{ .dir = .horizontal, .gap = theme.space_2xs }, .{ .id_extra = index });
+    defer row.deinit();
+    ds.icon(@src(), ds.Source.namedIcon("image-off", ds.icons.image_off)).style(.muted).size(.sm).draw();
+    dvui.labelNoFmt(@src(), if (block.url.len > 0) block.url else block.text, .{}, .{
+        .font = ds.font(theme.font_size_sm),
+        .color_text = .{ .color = theme.text_muted },
+        .gravity_y = 0.5,
+        .padding = dvui.Rect.all(0),
+    });
+}
+
+/// What an image block reserves when its picture cannot be measured.
+const missing_image_size: dvui.Size = .{ .w = 160, .h = 90 };
 
 fn layoutOpts(id_extra: usize, base_font: dvui.Font, base_color: dvui.Color) dvui.Options {
     return .{
@@ -254,6 +432,15 @@ fn runOpts(style: Style, base_font: dvui.Font, base_color: dvui.Color) dvui.Opti
         color = theme.accent;
     }
     return .{ .font = font, .color_text = .{ .color = color } };
+}
+
+/// A path the caller can open: the run's own options, underlined in the accent
+/// colour like a link (a code chip keeps its mono face and fill).
+fn pathOpts(opts: dvui.Options) dvui.Options {
+    var linked = opts;
+    linked.font = (opts.font orelse bodyFont()).withUnderline(.{});
+    linked.color_text = .{ .color = tokens.current.accent };
+    return linked;
 }
 
 fn markerOpts(font: dvui.Font) dvui.Options {
@@ -298,8 +485,160 @@ fn indentPx(level: u8) f32 {
 
 // ─── Block walker ────────────────────────────────────────────────────────────
 
-pub const BlockKind = enum { paragraph, heading, bullet, ordered, code };
+/// What a block is; `Block.kind`.
+pub const BlockKind = enum { paragraph, heading, bullet, ordered, code, table, image };
 
+/// The caller's answer to "is this word a file I can open?" (`Markdown.paths`):
+/// `accepts` is handed a word `pathIn` already shaped like a path, and answers
+/// from what the caller knows (the files of its project).
+pub const PathFilter = struct {
+    context: *const anyopaque,
+    accepts: *const fn (context: *const anyopaque, word: []const u8) bool,
+};
+
+/// The caller's pictures (`Markdown.images`): `resolve` answers an image block's
+/// target with the picture to show, or null when there is none.
+pub const ImageResolver = struct {
+    context: *const anyopaque,
+    resolve: *const fn (context: *const anyopaque, target: []const u8) ?dvui.ImageSource,
+};
+
+/// The most columns a table draws; cells past them are dropped.
+pub const max_table_columns: usize = 8;
+
+/// One row of a table block: its cells as slices of the text, `len` of them —
+/// always the header's count (a short row padded with empty cells).
+pub const TableRow = struct {
+    cells: [max_table_columns][]const u8 = @splat(""),
+    len: usize = 0,
+    /// The first row, drawn as the table's header.
+    header: bool = false,
+};
+
+/// Walks a table block's rows without allocating: the header, then the body; the
+/// separator row is skipped and every cell is trimmed.
+///
+/// Usage: `var rows = TableIterator.init(block.text); while (rows.next()) |row| …`
+pub const TableIterator = struct {
+    text: []const u8,
+    pos: usize = 0,
+    rows: usize = 0,
+    columns: usize = 0,
+    separator_seen: bool = false,
+
+    /// Rows of `text`, a table block's text.
+    pub fn init(text: []const u8) TableIterator {
+        return .{ .text = text };
+    }
+
+    /// The next row, or null after the last.
+    pub fn next(self: *TableIterator) ?TableRow {
+        while (self.pos < self.text.len) {
+            const newline_at = std.mem.findScalarPos(u8, self.text, self.pos, '\n') orelse self.text.len;
+            const line = std.mem.trim(u8, self.text[self.pos..newline_at], " \t\r");
+            self.pos = @min(newline_at + 1, self.text.len);
+            if (line.len == 0) continue;
+            if (self.rows == 1 and !self.separator_seen and isSeparatorRow(line)) {
+                self.separator_seen = true;
+                continue;
+            }
+            var row: TableRow = .{ .header = self.rows == 0 };
+            const count = splitCells(line, &row.cells);
+            if (self.rows == 0) self.columns = @max(count, 1);
+            row.len = self.columns;
+            self.rows += 1;
+            return row;
+        }
+        return null;
+    }
+};
+
+/// Cells of one `| a | b |` line into `cells` (one leading and one trailing pipe
+/// dropped, every cell trimmed); answers how many there were, at most the room.
+fn splitCells(line: []const u8, cells: *[max_table_columns][]const u8) usize {
+    var inner = line;
+    if (inner.len > 0 and inner[0] == '|') inner = inner[1..];
+    if (inner.len > 0 and inner[inner.len - 1] == '|') inner = inner[0 .. inner.len - 1];
+    var count: usize = 0;
+    var parts = std.mem.splitScalar(u8, inner, '|');
+    while (parts.next()) |part| {
+        if (count == cells.len) break;
+        cells[count] = std.mem.trim(u8, part, " \t");
+        count += 1;
+    }
+    return count;
+}
+
+/// A table's separator row: every cell dashes, with an optional colon at either
+/// end (`|---|:---:|`).
+fn isSeparatorRow(line: []const u8) bool {
+    var cells: [max_table_columns][]const u8 = @splat("");
+    const count = splitCells(line, &cells);
+    if (count == 0) return false;
+    for (cells[0..count]) |cell| {
+        if (cell.len == 0) return false;
+        var dashes: usize = 0;
+        for (cell) |char| switch (char) {
+            '-' => dashes += 1,
+            ':' => {},
+            else => return false,
+        };
+        if (dashes == 0) return false;
+    }
+    return true;
+}
+
+/// The longest path a word may name.
+const max_path_length: usize = 260;
+
+const Span = struct { start: usize, end: usize };
+
+/// The file name a word names, without the punctuation around it, or null when
+/// the word is not shaped like one: letters, digits, `_ - . / \`, an extension
+/// of one to eight letters and digits (with a letter), no scheme (`://`), and a
+/// trailing `:line` dropped. A bare name with no folder needs two letters on
+/// one side of the dot, so `e.g.` and `1.5` are words.
+///
+/// `pathIn("(scripts/x.lua).")` → "scripts/x.lua"; `pathIn("DESIGN.md,")` → "DESIGN.md".
+pub fn pathIn(word: []const u8) ?[]const u8 {
+    const span = pathSpan(word) orelse return null;
+    return word[span.start..span.end];
+}
+
+fn pathSpan(word: []const u8) ?Span {
+    var start: usize = 0;
+    var end: usize = word.len;
+    while (start < end and std.mem.findScalar(u8, "([<\"'`", word[start]) != null) start += 1;
+    while (end > start and std.mem.findScalar(u8, ".,;:!?)]>\"'`", word[end - 1]) != null) end -= 1;
+    // `scripts/x.lua:12` names the file.
+    var digits_from = end;
+    while (digits_from > start and std.ascii.isDigit(word[digits_from - 1])) digits_from -= 1;
+    if (digits_from < end and digits_from > start + 1 and word[digits_from - 1] == ':') end = digits_from - 1;
+
+    const path = word[start..end];
+    if (path.len < 3 or path.len > max_path_length) return null;
+    if (std.mem.find(u8, path, "://") != null) return null;
+    for (path) |char| {
+        const allowed = std.ascii.isAlphanumeric(char) or std.mem.findScalar(u8, "_-./\\", char) != null;
+        if (!allowed) return null;
+    }
+    const base_from = if (std.mem.findLastAny(u8, path, "/\\")) |slash| slash + 1 else 0;
+    const base = path[base_from..];
+    const dot = std.mem.findScalarLast(u8, base, '.') orelse return null;
+    const stem = base[0..dot];
+    const extension = base[dot + 1 ..];
+    if (stem.len == 0 or extension.len == 0 or extension.len > 8) return null;
+    var has_letter = false;
+    for (extension) |char| {
+        if (!std.ascii.isAlphanumeric(char)) return null;
+        if (std.ascii.isAlphabetic(char)) has_letter = true;
+    }
+    if (!has_letter) return null;
+    if (base_from == 0 and stem.len < 2 and extension.len < 2) return null;
+    return .{ .start = start, .end = end };
+}
+
+/// One block of the text, as `BlockIterator` finds it.
 pub const Block = struct {
     kind: BlockKind,
     /// Heading level (1–3) for headings; nesting depth (0 = top) for list items.
@@ -311,6 +650,8 @@ pub const Block = struct {
     lang: []const u8 = "",
     /// The marker to draw before a list item: "•" or the ordered number as written.
     marker: []const u8 = "",
+    /// An image block's target (its `text` is the alt text); empty otherwise.
+    url: []const u8 = "",
 };
 
 /// Splits borrowed text into blocks without allocating. Each `next()` returns
@@ -359,20 +700,49 @@ pub const BlockIterator = struct {
                     .marker = if (line.kind == .bullet) bullet_marker else line.marker,
                 };
             },
-            .text => {
-                var end = line.end;
-                var scan = line.next;
-                while (scan < self.text.len) {
-                    const continuation = lineAt(self.text, scan);
-                    if (continuation.kind != .text) break;
-                    end = continuation.end;
-                    scan = continuation.next;
-                }
-                self.pos = scan;
-                return .{ .kind = .paragraph, .text = trimBlock(self.text[line.content_start..end]) };
+            .table_row => return self.tableOrParagraph(line),
+            .image => {
+                self.pos = line.next;
+                return .{ .kind = .image, .text = line.alt, .url = line.url };
             },
+            .text => return self.paragraph(line, line.end, line.next),
             .blank => return null,
         }
+    }
+
+    /// A paragraph from `first`, its lines so far ending at `end_so_far`, the
+    /// scan continuing at `scan_from` through every following plain line.
+    fn paragraph(self: *BlockIterator, first: Line, end_so_far: usize, scan_from: usize) Block {
+        var end = end_so_far;
+        var scan = scan_from;
+        while (scan < self.text.len) {
+            const continuation = lineAt(self.text, scan);
+            if (continuation.kind != .text) break;
+            end = continuation.end;
+            scan = continuation.next;
+        }
+        self.pos = scan;
+        return .{ .kind = .paragraph, .text = trimBlock(self.text[first.content_start..end]) };
+    }
+
+    /// Consecutive `|` lines: a table when the second is a separator row, else
+    /// the start of a paragraph (pipes are just text then).
+    fn tableOrParagraph(self: *BlockIterator, first: Line) Block {
+        var end = first.end;
+        var scan = first.next;
+        var rows: usize = 1;
+        var separated = false;
+        while (scan < self.text.len) {
+            const row = lineAt(self.text, scan);
+            if (row.kind != .table_row) break;
+            if (rows == 1) separated = isSeparatorRow(std.mem.trim(u8, self.text[row.content_start..row.end], " \t"));
+            end = row.end;
+            scan = row.next;
+            rows += 1;
+        }
+        if (!separated) return self.paragraph(first, end, scan);
+        self.pos = scan;
+        return .{ .kind = .table, .text = trimBlock(self.text[first.content_start..end]) };
     }
 
     fn fencedBlock(self: *BlockIterator, opening: Line) Block {
@@ -401,7 +771,7 @@ pub const BlockIterator = struct {
 const bullet_marker = "•";
 const max_list_depth: usize = 3;
 
-const LineKind = enum { blank, heading, bullet, ordered, fence, text };
+const LineKind = enum { blank, heading, bullet, ordered, fence, table_row, image, text };
 
 const Line = struct {
     kind: LineKind,
@@ -420,6 +790,9 @@ const Line = struct {
     lang: []const u8 = "",
     /// The marker as written for ordered items ("12.").
     marker: []const u8 = "",
+    /// An image line's alt text and target.
+    alt: []const u8 = "",
+    url: []const u8 = "",
 };
 
 fn lineAt(text: []const u8, start: usize) Line {
@@ -442,6 +815,18 @@ fn lineAt(text: []const u8, start: usize) Line {
     if (std.mem.startsWith(u8, rest, "```")) {
         info.kind = .fence;
         info.lang = std.mem.trim(u8, rest[3..], " \t`");
+        return info;
+    }
+
+    if (rest[0] == '|') {
+        info.kind = .table_row;
+        return info;
+    }
+
+    if (imageLine(rest)) |image| {
+        info.kind = .image;
+        info.alt = image.alt;
+        info.url = image.url;
         return info;
     }
 
@@ -474,6 +859,19 @@ fn lineAt(text: []const u8, start: usize) Line {
     }
 
     return info;
+}
+
+const ImageLine = struct { alt: []const u8, url: []const u8 };
+
+/// `![alt](target)` and nothing else on the line (trailing blanks aside).
+fn imageLine(rest: []const u8) ?ImageLine {
+    const line = std.mem.trimEnd(u8, rest, " \t");
+    if (!std.mem.startsWith(u8, line, "![") or line[line.len - 1] != ')') return null;
+    const close = std.mem.findScalarPos(u8, line, 2, ']') orelse return null;
+    if (close + 1 >= line.len or line[close + 1] != '(') return null;
+    const url = std.mem.trim(u8, line[close + 2 .. line.len - 1], " \t");
+    if (url.len == 0 or std.mem.findAny(u8, url, " ()") != null) return null;
+    return .{ .alt = line[2..close], .url = url };
 }
 
 /// Index of the first non-space character at or after `from`.
