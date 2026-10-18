@@ -177,27 +177,46 @@ test "a disabled filled button drops the colour instead of dimming it" {
     try std.testing.expect(ds.contrastRatio(off.label, off.fill) >= 2.5);
 }
 
-test "opts sm padding uses space_md x space_xs" {
+test "a button's label is given its whole line inside its padding, at every size and variant" {
+    // The height is the spec's (28 / 32 / 40) and the content is pinned to
+    // what the padding and the border leave of it. That was 14 or 16 at every
+    // size: a 12 px caption's 15.6 px line and a 13 px label's 16.9 px line
+    // were clipped to it, and an "Upload" lost the foot of its p.
+    const targets = [_]struct { tokens.Size, f32 }{ .{ .sm, 28 }, .{ .md, 32 }, .{ .lg, 40 } };
+    for (targets) |row| {
+        for (std.meta.tags(tokens.Variant)) |variant| {
+            const o = btn.opts(variant, row[0]);
+            const pad = o.padding.?;
+            const border = o.border orelse dvui.Rect.all(0);
+            const content = row[1] - pad.y - pad.h - border.y - border.h;
+            const line = o.font.?.size * 1.3;
+            errdefer std.debug.print("{s} {s}: {d} px of content for a {d:.1} px line\n", .{ @tagName(row[0]), @tagName(variant), content, line });
+            try std.testing.expect(content >= line);
+        }
+    }
+}
+
+test "opts sm padding uses space_md x space_2xs" {
     const o = btn.opts(.ghost, .sm);
     const p = o.padding.?;
     try std.testing.expectApproxEqAbs(@as(f32, 12), p.x, 0.001);
-    try std.testing.expectApproxEqAbs(@as(f32, 6), p.y, 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 4), p.y, 0.001);
     try std.testing.expectApproxEqAbs(@as(f32, 12), p.w, 0.001);
-    try std.testing.expectApproxEqAbs(@as(f32, 6), p.h, 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 4), p.h, 0.001);
 }
 
-test "opts md padding uses space_lg x space_sm" {
+test "opts md padding uses space_lg x space_xs" {
     const o = btn.opts(.ghost, .md);
     const p = o.padding.?;
     try std.testing.expectApproxEqAbs(@as(f32, 16), p.x, 0.001);
-    try std.testing.expectApproxEqAbs(@as(f32, 8), p.y, 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 6), p.y, 0.001);
 }
 
-test "opts lg padding uses space_xl x space_md" {
+test "opts lg padding uses space_xl x space_sm" {
     const o = btn.opts(.ghost, .lg);
     const p = o.padding.?;
     try std.testing.expectApproxEqAbs(@as(f32, 20), p.x, 0.001);
-    try std.testing.expectApproxEqAbs(@as(f32, 12), p.y, 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 8), p.y, 0.001);
 }
 
 test "opts has no gravity_y set" {

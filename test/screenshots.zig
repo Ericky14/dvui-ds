@@ -13,10 +13,20 @@ const ds = @import("dvui_ds");
 /// Where every fixture's PNG lands.
 pub const image_dir = "ds-screenshots";
 
+/// `ds.init` with the theme in force, as every app does before its first
+/// frame (`platform/runner.zig`): it also sets dvui's label padding to the one
+/// the type scale's lines fit in. Without it a fixture drew dvui's raw 6 px,
+/// and a 24 px pill cut "ready" to "readv" in `editor_chrome_175x.png` while
+/// the editor itself drew it whole.
+fn installTheme() void {
+    ds.init(ds.tokens.current);
+}
+
 /// Render `frame` once (settled) and write it to ds-screenshots/<name>.
 /// The dvui testing backend always rasterises at 2 physical pixels per logical
 /// pixel, so this is `captureAt(..., 2.0, ...)`.
 pub fn capture(name: []const u8, w: f32, h: f32, frame: dvui.App.frameFunction) !void {
+    installTheme();
     var t = try dvui.testing.init(.{
         .image_dir = image_dir,
         .window_size = .{ .w = w, .h = h },
@@ -53,6 +63,7 @@ pub fn captureDriven(
     frame: dvui.App.frameFunction,
     drive: ?*const fn () anyerror!void,
 ) !void {
+    installTheme();
     var t = try dvui.testing.init(.{
         .image_dir = image_dir,
         .window_size = .{ .w = logical_w * scale / 2, .h = logical_h * scale / 2 },

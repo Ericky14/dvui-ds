@@ -205,11 +205,11 @@ pub const TextInput = struct {
 
     /// The CSS spec's pixel table — the one set of literals this widget names.
     /// `height` is the control's border-box height; `pad_x` its horizontal
-    /// inset; `font_size` the text.
+    /// inset; `font_size` the text, a step of the type scale (`tokens.zig`).
     ///
     ///   sm: h-7 (28px), text-[12px], px-2.5 (10px)
     ///   md: h-8 (32px), text-[13px], px-3   (12px)
-    ///   lg: h-10(40px), text-[14px], px-3.5 (14px)
+    ///   lg: h-10(40px), text-[15px], px-3.5 (14px)   (was 14px, off the scale)
     ///
     /// ⚠ There is **no vertical padding in the table**. It used to hold one,
     /// derived at authoring time from "approximate line heights 12px→16,
@@ -226,9 +226,9 @@ pub const TextInput = struct {
 
     fn spec(which: tokens.Size) Spec {
         return switch (which) {
-            .sm => .{ .height = 28, .pad_x = 10, .font_size = 12 },
-            .md => .{ .height = 32, .pad_x = 12, .font_size = 13 },
-            .lg => .{ .height = 40, .pad_x = 14, .font_size = 14 },
+            .sm => .{ .height = 28, .pad_x = 10, .font_size = tokens.current.font_size_sm },
+            .md => .{ .height = 32, .pad_x = 12, .font_size = tokens.current.font_size_md },
+            .lg => .{ .height = 40, .pad_x = 14, .font_size = tokens.current.font_size_lg },
         };
     }
 

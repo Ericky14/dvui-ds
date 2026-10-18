@@ -118,6 +118,8 @@ pub const fontSemibold = @import("helpers/fonts.zig").fontSemibold;
 pub const fontBold = @import("helpers/fonts.zig").fontBold;
 pub const fontMono = @import("helpers/fonts.zig").fontMono;
 pub const fontMonoMedium = @import("helpers/fonts.zig").fontMonoMedium;
+/// The pitch between two lines of a paragraph at a size (the type scale's).
+pub const lineHeight = @import("helpers/fonts.zig").lineHeight;
 
 // ─── Color helpers ───────────────────────────────────────────────────────────
 
@@ -194,8 +196,16 @@ pub const log = @import("log.zig");
 
 /// Initialize the design system with your app's theme tokens.
 /// Must be called before any widget draws.
+///
+/// It also sets how much room a dvui label leaves round its line: 6 across
+/// (dvui's own) and `space_2xs` (4) above and below. dvui pads 6 on every
+/// side, which fitted a 10 px line in a 28 px control (13 + 12) and does not
+/// fit the body's 13 px one (16.9 + 12 = 28.9): every row of controls with a
+/// label in it grew by a pixel and its controls left the row's centre line.
+/// A label that sets its own `padding` is not touched.
 pub fn init(theme: Theme) void {
     tokens.current = theme;
+    dvui.LabelWidget.defaults.padding = .{ .x = 6, .y = theme.space_2xs, .w = 6, .h = theme.space_2xs };
 }
 
 test {

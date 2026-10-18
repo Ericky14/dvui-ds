@@ -15,6 +15,7 @@ const anim = @import("../anim/anim.zig");
 const icon_mod = @import("icon.zig");
 const loader_mod = @import("loader.zig");
 const pixels = @import("../helpers/pixels.zig");
+const fonts = @import("../helpers/fonts.zig");
 pub const Source = @import("../source.zig");
 
 const Color = dvui.Color;
@@ -201,8 +202,8 @@ pub const Button = struct {
         // caption whose line box is taller than the room left inside an
         // `outlined` button's border pushed that button 1 px taller than the
         // filled one beside it — which is what knocked a whole action row off
-        // its centre line. The glyphs are far shorter than their line box, so
-        // the cap clips nothing that is drawn.
+        // its centre line. The padding (`opts`) leaves the content a whole
+        // line box at every size, so the cap clips nothing that is drawn.
         options.max_size_content = .height(fixed.h);
 
         // Loading state: show spinner + label, no interaction
@@ -297,15 +298,20 @@ pub const Button = struct {
 /// Pinning the *content* height — target minus this button's own padding and
 /// border — fixes both at once and makes a row of mixed variants line up.
 fn contentHeight(btn_size: tokens.Size, options: dvui.Options) dvui.Size {
-    const target: f32 = switch (btn_size) {
-        .sm => 28,
-        .md => 32,
-        .lg => 40,
-    };
+    const target = targetHeight(btn_size);
     const pad = options.padding orelse dvui.Rect.all(0);
     const border = options.border orelse dvui.Rect.all(0);
     const chrome = pad.y + pad.h + border.y + border.h;
     return .{ .w = 0, .h = @max(0, target - chrome) };
+}
+
+/// The height a button of `btn_size` is, whatever it wears: sm 28, md 32, lg 40.
+pub fn targetHeight(btn_size: tokens.Size) f32 {
+    return switch (btn_size) {
+        .sm => 28,
+        .md => 32,
+        .lg => 40,
+    };
 }
 
 pub fn opts(btn_variant: tokens.Variant, btn_size: tokens.Size) dvui.Options {
@@ -315,22 +321,37 @@ pub fn opts(btn_variant: tokens.Variant, btn_size: tokens.Size) dvui.Options {
     const scale = pixels.pixelScale();
 
     // DS spec — button sizes:
-    // Small:  h-7 = 28px, 11px font
+    // Small:  h-7 = 28px, 12px font
     // Medium: h-8 = 32px, 13px font
     // Large:  h-10 = 40px, 13px font
     // Using .pixel size_mode so font sizes match CSS exactly.
-    // padding_v = (target_height - text_line_height) / 2
-    const padding = switch (btn_size) {
-        .sm => ds.paddingXY(pixels.snapPx(theme.space_md, scale), pixels.snapPx(theme.space_xs, scale)),
-        .md => ds.paddingXY(pixels.snapPx(theme.space_lg, scale), pixels.snapPx(theme.space_sm, scale)),
-        .lg => ds.paddingXY(pixels.snapPx(theme.space_xl, scale), pixels.snapPx(theme.space_md, scale)),
-    };
-
     // font-medium (500) = Geist Medium mapped as .bold in dvui
-    const font: ?dvui.Font = switch (btn_size) {
+    const font: dvui.Font = switch (btn_size) {
         .sm => ds.fontBold(theme.font_size_sm),
         .md => ds.fontBold(theme.font_size_md),
         .lg => ds.fontBold(theme.font_size_md),
+    };
+
+    // The height is pinned (`contentHeight`), so the vertical padding only
+    // decides how much of it the label may use, and dvui clips a label's
+    // letters to that. One spacing step down from the old 6 / 8 / 12 (which
+    // left 14 px and cut a 12 px caption's descenders off), and never more
+    // than leaves the label its whole line box inside an outlined button's
+    // border: a theme with a bigger caption gets a thinner inset, not a
+    // clipped word. Rounded DOWN to a physical pixel, like `inputOpts`.
+    const border_y: f32 = if (btn_variant == .outlined) 2 * theme.border_width else 0;
+    const line = font.size * fonts.line_box_em;
+    const inset_room = @max(0, (targetHeight(btn_size) - border_y - line) / 2);
+    const inset: f32 = switch (btn_size) {
+        .sm => theme.space_2xs,
+        .md => theme.space_xs,
+        .lg => theme.space_sm,
+    };
+    const pad_y = @min(pixels.snapPx(inset, scale), pixels.snapDownPx(inset_room, scale));
+    const padding = switch (btn_size) {
+        .sm => ds.paddingXY(pixels.snapPx(theme.space_md, scale), pad_y),
+        .md => ds.paddingXY(pixels.snapPx(theme.space_lg, scale), pad_y),
+        .lg => ds.paddingXY(pixels.snapPx(theme.space_xl, scale), pad_y),
     };
 
     const radius = switch (btn_size) {

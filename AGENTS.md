@@ -92,7 +92,12 @@ A widget file contains its own `opts()` / resolver functions that read
 ds.init(my_theme);   // sets tokens.current; widgets read it at draw time
 ```
 Default is the **Cosmic Teal** dark theme (`tokens.default_theme`) — no `init()`
-needed to get a working look. `tokens.dvuiTheme()` maps tokens onto a `dvui.Theme`
+needed to get the colours. ⚠ But call it before the first frame anyway: it also
+sets dvui's label padding to 6 across and `space_2xs` (4) above and below, the room
+the body's 13 px line (16.9 px) fits in a 28 px control. dvui's own 6 all round
+made every row with a label in it a pixel too tall, and a 24 px pill cut "ready"
+to "readv". The screenshot and lint harnesses call it too (`test/screenshots.zig`,
+`lintAt`), so a fixture draws what an app draws. `tokens.dvuiTheme()` maps tokens onto a `dvui.Theme`
 so dvui-native widgets match.
 
 ### Tokens
@@ -101,7 +106,13 @@ so dvui-native widgets match.
 - **Sizes:** `sm`, `md`, `lg`
 - Theme fields: surfaces (`surface_0..4`), text (`text_primary/secondary/muted/ghost`),
   `accent`/`accent_muted`, `destructive`/`destructive_muted`, borders, `space_*`,
-  `radius_*`, `icon_*`, `font_size_*`, opacity tokens. See `tokens.zig`.
+  `radius_*`, `icon_*`, `font_size_*`, `line_height_*`, opacity tokens. See `tokens.zig`.
+- **One type scale:** `font_size_xs/sm/md/lg/xl/2xl` = 11 / 12 / **13** (the body) /
+  15 / 18 / 22 CSS px, each with a `line_height_*` on the 4 px grid (16 / 16 / 20 / 20 /
+  24 / 32) that `ds.font*` turns into dvui's `line_height_factor` (`ds.lineHeight`).
+  Icons match the type: `icon_sm/md/lg` = 12 / 16 / 20. Pick the step by the text's job
+  (`tokens.zig` lists them) and set a title apart by weight (`fontMedium`) before size.
+  Never a literal size: the editor's `type_scale_tests.zig` fails on any size off it.
 - **Accent surfaces are derived, not literal:** `accentSoft()`, `accentSoftHover()`,
   `accentOnSoft()`, `accentHover()`, `accentPressed()`. Never paint the accent at a
   low alpha over `surface_0` to get a tonal fill — see "The accent, and why a hex
@@ -569,7 +580,10 @@ toolbar) — never for the gap *between* siblings in a row or column.
 `test/lint_tests.zig` runs the same four rules the engine's `zigame ui lint`
 runs over an editor pane — `snapped`, `grid`, `row_centre`, `hit_target`, at the
 same tolerances (`test/ds_lint.zig`) — over one ds widget at a time, at 1.0,
-1.75 and 2.0. It is part of `zig build test`.
+1.75 and 2.0. It is part of `zig build test`. A fifth, `line`, is the engine's
+`type_scale_tests.zig` rule: a label is given one whole line of its text (1.3 em),
+because dvui clips a label's letters to its content rect and a widget that pins its
+height (a button, a pill) cuts the descenders off when it leaves less.
 
 It exists because the engine can only see this repo through a pinned commit: a
 finding it reports against `plan_card.zig:63` has to be reproducible and fixable
@@ -619,13 +633,13 @@ control starts falling from a different height.
 
 `icon_button_ratio` (0.5) sizes the glyph inside an icon-*only* button or a chip
 as a fraction of that control: 14 px in a 28 px button. The thing being matched
-is the button, not the type beside it — `icon_sm` (11) in a 28 px button is a
-0.39 ratio, which reads as a small mark adrift in a big empty square, and modern
+is the button, not the type beside it — `icon_sm` (12) in a 28 px button is a
+0.43 ratio, which reads as a small mark adrift in a big empty square, and modern
 chrome sits at 0.5–0.6.
 
 `icon_sm` keeps its own job: a glyph standing next to caption text — a pill's
 leading icon, a status strip, and the icon inside an icon **plus label** button,
-where 11 beside 11 px type is right and 14 would tower over it. So the two paths
+where 12 beside 11–12 px type is right and 16 would tower over it. So the two paths
 are sized by different rules on purpose, and `ds.chip` and an `sm`
 `ds.iconButton` come out as the same square by construction.
 

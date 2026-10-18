@@ -26,6 +26,10 @@ const scales = [_]f32{ 1.0, 1.75, 2.0 };
 /// Draw `frame` at `scale` until it settles, then lint the widgets that came
 /// from `source_file`.
 fn lintAt(scale: f32, logical: dvui.Size, source_file: []const u8, frame: dvui.App.frameFunction) !lint.Counts {
+    // As an app does before its first frame: `ds.init` also sets dvui's label
+    // padding, which the `line` rule measures. Done here so a fixture sees the
+    // app's configuration whatever an earlier test left installed.
+    ds.init(ds.tokens.current);
     var t = try dvui.testing.init(.{
         .window_size = .{ .w = logical.w * scale / 2, .h = logical.h * scale / 2 },
         .window_init_opts = .{ .theme = ds.tokens.dvuiTheme() },
@@ -67,8 +71,8 @@ fn expectFindings(
         const want: usize = if (scale > 1.9) expected.at_200 else if (scale > 1.01) expected.at_175 else 0;
         if (counts.total() != want) {
             std.debug.print(
-                "{s} at scale {d}: {d} snapped, {d} grid, {d} row_centre, {d} hit_target (expected {d})" ++ nl,
-                .{ source_file, scale, counts.snapped, counts.grid, counts.row_centre, counts.hit_target, want },
+                "{s} at scale {d}: {d} snapped, {d} grid, {d} row_centre, {d} hit_target, {d} line (expected {d})" ++ nl,
+                .{ source_file, scale, counts.snapped, counts.grid, counts.row_centre, counts.hit_target, counts.line, want },
             );
         }
         try std.testing.expectEqual(want, counts.total());
@@ -142,7 +146,9 @@ test "a label+icon button draws on whole physical pixels" {
             return .ok;
         }
     };
-    try expectClean(.{ .w = 320, .h = 90 }, "button.zig", Local.frame);
+    // Tall enough for all three rows (8 + 28 + 8 + 32 + 8 + 40 + 8): at 90 the
+    // lg row was squeezed to nothing, which only the `line` rule noticed.
+    try expectClean(.{ .w = 320, .h = 140 }, "button.zig", Local.frame);
 }
 
 test "a plain button clears the 24px hit target however it is padded" {

@@ -21,6 +21,11 @@
 //!   row_centre a child of a horizontal row that does not fill it shares the
 //!              row's vertical centre line within 0.5 px.
 //!   hit_target anything clickable is at least 24 logical px on both axes.
+//!   line       a label is given one whole line of its text: dvui clips a
+//!              label's letters to its content rect and draws the line from
+//!              the top, so a rect shorter than the line box (1.3 em for every
+//!              embedded face) cuts the descenders off at the baseline. A
+//!              widget that pins its height has to leave its label that much.
 const std = @import("std");
 const dvui = @import("dvui");
 
@@ -30,7 +35,11 @@ pub const grid_step: f32 = 4;
 pub const min_hit_target: f32 = 24;
 pub const divider_thickness: f32 = 1.5;
 
-pub const Rule = enum { snapped, grid, row_centre, hit_target };
+pub const Rule = enum { snapped, grid, row_centre, hit_target, line };
+
+/// One line of text, in ems: the embedded faces' hhea box (`helpers/fonts.zig`
+/// reads it back from the TTF bytes).
+pub const line_box_em: f32 = 1.3;
 
 const nl = "\n";
 
@@ -39,9 +48,10 @@ pub const Counts = struct {
     grid: usize = 0,
     row_centre: usize = 0,
     hit_target: usize = 0,
+    line: usize = 0,
 
     pub fn total(self: Counts) usize {
-        return self.snapped + self.grid + self.row_centre + self.hit_target;
+        return self.snapped + self.grid + self.row_centre + self.hit_target + self.line;
     }
 };
 
@@ -59,6 +69,8 @@ pub const Node = struct {
     physical: dvui.Rect.Physical,
     parent: ?usize,
     children: usize = 0,
+    /// The largest font size the widget drew text in (logical px), 0 for none.
+    text_size: f32 = 0,
 };
 
 fn toLogical(rect: dvui.Rect.Physical, scale: f32) dvui.Rect {
@@ -172,6 +184,11 @@ fn build(allocator: std.mem.Allocator, raw: []const dvui.Debug.CapturedWidget, s
             .content = toLogical(node.rect_content, scale),
             .physical = node.rect_border,
             .parent = if (parent_id == id) null else positions.get(parent_id),
+            .text_size = tallest: {
+                var tallest: f32 = 0;
+                for (node.textSizes()) |size| tallest = @max(tallest, size);
+                break :tallest tallest;
+            },
         };
     }
     for (nodes) |node| {
@@ -241,6 +258,19 @@ pub fn run(allocator: std.mem.Allocator, scale: f32, only_file: ?[]const u8, pri
                 .{ node.src_file, node.src_line, node.name, node.border.w, node.border.h },
             );
         }
+    }
+
+    // ── line ─────────────────────────────────────────────────────────────────
+    for (nodes) |node| {
+        if (!mine(node, only_file)) continue;
+        if (node.text_size == 0 or !std.mem.eql(u8, node.name, "Label")) continue;
+        const needed = node.text_size * line_box_em;
+        if (node.content.h + tolerance >= needed) continue;
+        counts.line += 1;
+        if (print) std.debug.print(
+            "  line: {s}:{d} {s} has {d:.2} px for a {d:.2} px line of {d} px text" ++ nl,
+            .{ node.src_file, node.src_line, node.name, node.content.h, needed, node.text_size },
+        );
     }
 
     // ── grid + row_centre ────────────────────────────────────────────────────
