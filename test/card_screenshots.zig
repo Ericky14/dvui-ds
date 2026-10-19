@@ -117,7 +117,9 @@ test "chat question card" {
     selections[1].chosen[0] = true;
     selections[1].other = true;
     @memcpy(other_words[1][0..16], "A glossary, too.");
-    try shots.capture("chat_question_card.png", 420, 480, Local.frame);
+    // 520 tall: at the 13 / 20 type scale the card is 474 logical px, and in a
+    // 480 window the page squeezed its last row, Submit, from 28 px to 22.
+    try shots.capture("chat_question_card.png", 420, 520, Local.frame);
 }
 
 // The card after the agent stopped waiting: still answerable, its note above
