@@ -116,3 +116,15 @@ test "hintOpts: muted text in the given font, and the hint names all three keys"
     try std.testing.expect(std.mem.find(u8, widget.hint_text, "shift+enter") != null);
     try std.testing.expect(std.mem.find(u8, widget.hint_text, "esc") != null);
 }
+
+test "the key hint is the type scale's key-hint step, indented on the left only" {
+    // A key hint is `font_size_xs` (the scale's 11 px: a badge, a key hint, a
+    // count). At the caption's 12 px the 43 mono characters needed 326 px with
+    // 8 on either side, and the editor's chat column at interface size 1.5 is
+    // 293: the hint lost its last words. Nothing stands to its right, so the
+    // right inset bought nothing.
+    try std.testing.expectEqual(@as(f32, @floatFromInt(tokens.current.font_size_xs)), widget.hintFont().size);
+    const opts = widget.hintOpts(widget.hintFont());
+    try std.testing.expectEqual(tokens.current.space_sm, opts.padding.?.x);
+    try std.testing.expectEqual(@as(f32, 0), opts.padding.?.w);
+}
