@@ -391,3 +391,83 @@ test "a sm button is chrome_control_height whatever font the theme uses" {
         }
     }
 }
+
+// ─── a block that rounds its own height ──────────────────────────────────────
+
+/// A `ds.snapHeightBox` around a box `content` logical px tall, and a widget
+/// under it: where that widget starts is where the block ends.
+const SnapBlock = struct {
+    var content: f32 = 20.3;
+
+    fn frame() !dvui.App.Result {
+        var page = dvui.box(@src(), .{}, .{ .expand = .both, .background = true, .padding = dvui.Rect.all(8) });
+        defer page.deinit();
+        {
+            var block = ds.snapHeightBox(@src(), 0);
+            defer block.deinit();
+            var inside = dvui.box(@src(), .{}, .{ .tag = "snap.content", .min_size_content = .{ .w = 40, .h = content } });
+            inside.deinit();
+        }
+        var below = dvui.box(@src(), .{}, .{ .tag = "snap.below", .min_size_content = .{ .w = 40, .h = 4 } });
+        below.deinit();
+        return .ok;
+    }
+
+    fn check(scale: f32) !void {
+        const inside = try tagRect("snap.content");
+        const below = try tagRect("snap.below");
+        const wanted = content * scale;
+        errdefer std.debug.print(
+            "scale {d}: content of {d:.2} px drawn {d:.2} px tall at {d:.2}; the next widget starts at {d:.2}\n",
+            .{ scale, wanted, inside.h, inside.y, below.y },
+        );
+        // Nothing the content measured is cut…
+        try std.testing.expect(inside.h >= wanted - 0.02);
+        // …the block is no more than a pixel taller than its content…
+        const slack = below.y - (inside.y + inside.h);
+        try std.testing.expect(slack >= -0.02 and slack < 1);
+        // …and what follows it starts on a whole physical pixel.
+        try std.testing.expect(isWhole(below.y));
+    }
+
+    /// One window per scale, the content changed in it `heights` in turn,
+    /// settled and checked after each.
+    fn run(snap_to_pixels: bool, heights: []const f32) !void {
+        for (scales) |scale| {
+            var t = try dvui.testing.init(.{
+                .window_size = .{ .w = 200 * scale / 2, .h = 200 * scale / 2 },
+                .window_init_opts = .{ .theme = ds.tokens.dvuiTheme() },
+            });
+            defer t.deinit();
+            t.window.content_scale = scale / 2;
+            _ = dvui.snapToPixelsSet(snap_to_pixels);
+            for (heights) |height| {
+                content = height;
+                _ = try dvui.testing.step(frame);
+                try dvui.testing.settle(frame);
+                _ = try dvui.testing.step(frame);
+                try check(scale);
+            }
+        }
+    }
+};
+
+test "a snapped-height block follows its content as it grows and shrinks, and what follows it starts on a whole pixel" {
+    // `ds.snapHeightBox` is there so the widget under a measured block — a
+    // paragraph is n x a fractional line box — starts on a whole physical
+    // pixel. It used to pin the box, min and max, to what the box itself
+    // measured last frame; dvui caps what a widget measures at its max size,
+    // so the pin read back its own cap and the box kept its first frame's
+    // height for good. A Markdown body measured before its children had
+    // their sizes cut its last block to 0 px ("markdown.zig:386 Label has
+    // 0.00 px for a 15.60 px line of 12 px text"). Under `snap_to_pixels`
+    // dvui rounds the measure up itself, so the block pins nothing.
+    try SnapBlock.run(true, &.{ 20.3, 40.6, 10.4 });
+}
+
+test "without snap_to_pixels a snapped-height block rounds itself up and still grows with its content" {
+    // The fallback rounds last frame's measure UP, as a minimum only: a
+    // minimum fed back can grow but never shrink (the engine's
+    // `layout.snappedHeight` says the same), so only growth is promised.
+    try SnapBlock.run(false, &.{ 20.3, 40.6 });
+}

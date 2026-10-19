@@ -453,22 +453,31 @@ The one fraction arithmetic cannot snap is a **measured** one: a block of text
 is n × a font's line box, and the line box is fractional. Everything under it
 then starts on a fraction, and snapping the thing that inherits it cannot help.
 
-`ds.snapHeightBox(@src(), id_extra)` is a container that rounds its own height
-to whole physical pixels using the height it had last frame. Wrap a text block
-in it and what follows starts on a pixel. `ds.chat.markdown` does this for
-itself; `ds.chat.planCard` wraps its eyebrow and title the same way, which is
-what finally closed that card's inherited-fraction findings.
+`ds.snapHeightBox(@src(), id_extra)` is a container whose height ends on a whole
+physical pixel. Wrap a text block in it and what follows starts on a pixel.
+`ds.chat.markdown` does this for itself; `ds.chat.planCard` wraps its eyebrow and
+title the same way, which is what finally closed that card's inherited-fraction
+findings.
 
-Since the 2026-09-24 dvui pin the layout does this for every widget (next
-section), so the box is belt and braces rather than the only thing standing
-between a line box and the pixel grid; keep it where it is.
+**Under `snap_to_pixels` (the default) it pins nothing**: since the 2026-09-24
+dvui pin the layout rounds every widget's measured min size up to whole physical
+pixels itself (next section), so the box is already whole and follows its
+content as it grows and shrinks. Without `snap_to_pixels` it rounds last frame's
+measure UP and gives it to the box as a minimum: nothing is cut, content that
+grows is one frame late, and it does not shrink back in that mode.
+
+⚠ **Never pin a box's height to its own last measure with a max.** dvui caps what
+a widget measures at its max size (`WidgetData.minSizeSetAndRefresh`), so the pin
+reads back its own cap and the box keeps its FIRST frame's height for good. The
+box did exactly that until 2026-10-19: a Markdown body measured on a frame before
+its children had their sizes was pinned 21 px short, and its last block got 0 px
+(`test/layout_tests.zig` → "a snapped-height block follows its content as it
+grows and shrinks"). A min pin fed back the same way can only grow.
 
 Height only, never width, so it can never change how text wraps and therefore
-can never oscillate. It rounds to nearest, so it can clip by up to half a
-physical pixel — sub-pixel, invisible — and content that grows is one frame late
-before the pin catches up. ⚠ If you use `ds.snapHeightOpts` directly, pass the
+can never oscillate. ⚠ If you use `ds.snapHeightOpts` directly, pass the
 **same** `@src()` you create the box with, or the id is not the box's and the
-pin silently does nothing; `snapHeightBox` cannot be called wrong.
+rounding silently does nothing; `snapHeightBox` cannot be called wrong.
 
 ### Where a `snapped` finding actually comes from
 

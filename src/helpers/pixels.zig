@@ -136,12 +136,22 @@ test "a thin line is one physical pixel at every scale, a hairline is at least o
 /// a block of text is n × a font's line box, the line box is fractional, and
 /// everything laid out under it then starts on a fraction — which is what a
 /// chat card's action row inherited, and no amount of snapping the row could
-/// move. dvui already remembers what a widget measured last frame, so the block
-/// can round *itself*: read that, snap it, and pin the height to it.
+/// move.
 ///
-/// Rounding to nearest can clip by up to half a physical pixel — sub-pixel, so
-/// nothing visible — and content that grows is one frame late before the pin
-/// catches up. Height only, never width, so it can never change how text wraps
+/// **Under dvui's `snap_to_pixels` (the default) it pins nothing**: dvui then
+/// rounds every widget's measured min size UP to whole physical pixels itself
+/// (`WidgetData.minSizeSetAndRefresh`), so the box already ends on a pixel and
+/// follows its content as it grows and shrinks. Feeding the box's own measure
+/// back cannot work: that measure includes the pin. A max pin is read back as
+/// its own cap — dvui caps what a widget measures at its max size — so the box
+/// kept its first frame's height for good (a Markdown body measured before its
+/// children had their sizes cut its last block to 0 px); a min pin can only
+/// grow (the engine's `layout.snappedHeight` found the same).
+///
+/// Without `snap_to_pixels` the block rounds *itself*: last frame's measure,
+/// rounded UP to a whole physical pixel, as a minimum — nothing measured is
+/// cut, and content that grows is one frame late. It does not shrink back in
+/// that mode. Height only, never width, so it can never change how text wraps
 /// and therefore can never oscillate.
 ///
 /// ⚠ The `src` here must be the **same** `@src()` the box is created with, or
@@ -160,13 +170,16 @@ pub fn snapHeightOpts(src: std.builtin.SourceLocation, id_extra: usize) dvui.Opt
         .margin = dvui.Rect.all(0),
         .border = dvui.Rect.all(0),
     };
-    if (dvui.current_window == null) return options;
+    if (dvui.current_window == null or dvui.snapToPixels()) return options;
     const id = dvui.parentGet().extendId(src, id_extra);
     const measured = dvui.minSizeGet(id) orelse return options;
-    const snapped = snapPx(measured.h, pixelScale());
+    const scale = pixelScale();
+    if (!(scale > 0) or !std.math.isFinite(measured.h)) return options;
+    // Up, with a thousandth of a pixel's slack so a whole height that f32 left
+    // a hair over is not pushed a pixel taller every frame.
+    const snapped = @ceil(measured.h * scale - 0.001) / scale;
     if (!(snapped > 0)) return options;
     options.min_size_content = .{ .w = 0, .h = snapped };
-    options.max_size_content = .height(snapped);
     return options;
 }
 
