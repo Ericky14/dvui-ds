@@ -97,9 +97,17 @@ pub const Theme = struct {
     radius_xl: f32 = 16,
 
     // ── Icon sizes ───────────────────────────────────────────────────────────
-    icon_sm: f32 = 11,
-    icon_md: f32 = 14,
-    icon_lg: f32 = 18,
+    // **On the 4 px grid, matched to the type beside them**: 12 beside a
+    // caption (11 / 12), 16 beside the body (13), 20 beside a title (15 / 18) —
+    // the browser's 16 px icon in a 13 px UI. An icon is a LEAF that draws an
+    // edge, so its size is its own two edges: the old 11 / 14 were 19.25 and
+    // 24.5 physical pixels at 175 %, which no position can put back on the
+    // grid, and an 11 px icon centred in a 28 px row landed on a half pixel as
+    // well (28 − 11 is odd). 12 / 16 / 20 are whole physical pixels at 1.0,
+    // 1.25, 1.5, 1.75 and 2.0 and share their parity with a 28 px row.
+    icon_sm: f32 = 12,
+    icon_md: f32 = 16,
+    icon_lg: f32 = 20,
 
     // ── Spinner sizes ────────────────────────────────────────────────────────
     spinner_sm: f32 = 12,
@@ -116,10 +124,39 @@ pub const Theme = struct {
     font_family_mono: [:0]const u8 = "Geist Mono",
 
     // ── Font sizes (pixel) ───────────────────────────────────────────────────
-    font_size_sm: u16 = 11,
+    // **One type scale**, CSS pixels (`ds.font` asks dvui for `.pixel` size,
+    // the em in logical pixels): 13 is the body — what a desktop app built on
+    // the web sets its UI in (VS Code, Figma, Linear) — and every other step is
+    // a reason to differ from it:
+    //   xs 11  a badge, a key hint, a count: text you glance at, never read;
+    //   sm 12  a caption or a meta line under a title (time, size, path);
+    //   md 13  the body: labels, fields, buttons, menus, a card's title in
+    //          `fontMedium` (weight, not size, makes a title in a dense UI);
+    //   lg 15  a sheet's or a section's title;
+    //   xl 18  a page's heading (a modal, the welcome sheet's sections);
+    //   2xl 22 the one display line (the welcome sheet's wordmark).
+    // Above the body the steps grow by about a fifth (13 → 15 → 18 → 22), which
+    // reads as a hierarchy without a jump; below it they move by a pixel,
+    // because small text only needs to be quieter, not much smaller.
+    font_size_xs: u16 = 11,
+    font_size_sm: u16 = 12,
     font_size_md: u16 = 13,
-    font_size_lg: u16 = 16,
-    font_size_xl: u16 = 20,
+    font_size_lg: u16 = 15,
+    font_size_xl: u16 = 18,
+    font_size_2xl: u16 = 22,
+
+    // ── Line heights (pixel) ─────────────────────────────────────────────────
+    // The pitch between two lines of a paragraph at each step, on the 4 px grid
+    // (whole physical pixels at 1.25, 1.5, 1.75 and 2.0) and never under the
+    // face's own line box (ascender + descender, 1.3 em for Geist): about 1.5
+    // for the body, 1.3 for the steps either side. The font helpers set dvui's
+    // `line_height_factor` from these (`ds.lineHeight`).
+    line_height_xs: f32 = 16,
+    line_height_sm: f32 = 16,
+    line_height_md: f32 = 20,
+    line_height_lg: f32 = 20,
+    line_height_xl: f32 = 24,
+    line_height_2xl: f32 = 32,
 
     // ── Opacity ──────────────────────────────────────────────────────────────
     opacity_disabled: f32 = 0.4,
@@ -253,8 +290,8 @@ pub const Theme = struct {
     /// *button*, not the type beside it. The old value — `icon_sm`, 11 px in a
     /// 28 px button — is a 0.39 ratio, which reads as a small mark adrift in a
     /// big empty square; modern chrome sits at 0.5–0.6. `icon_sm` keeps its own
-    /// job: a glyph standing next to caption text, where 11 next to 11 is
-    /// right and 14 would tower over it.
+    /// job: a glyph standing next to caption text, where 12 next to 11–12 is
+    /// right and 16 would tower over it.
     icon_button_ratio: f32 = 0.5,
 
     // ── Sidebar ──────────────────────────────────────────────────────────────
@@ -459,8 +496,8 @@ pub fn dvuiTheme() dvui.Theme {
         .text = t.text_primary,
     };
     // Geist (sans) + Geist Mono — using .pixel size_mode for CSS/iced-compatible sizing.
-    // Values match the Desktop text styles:
-    // body = body-sm (13px/18px), heading = heading-sm (16px/24px), title = heading-md (20px/28px)
+    // From the type scale: body = md (13/20), heading = lg bold (15/20),
+    // title = xl bold (18/24).
     theme.embedded_fonts = &geist_fonts;
     theme.font_body = ds.font(current.font_size_md);
     theme.font_heading = ds.fontBold(current.font_size_lg);

@@ -230,11 +230,12 @@ test "inputOpts md font size is 13px" {
     try std.testing.expectEqual(@as(u16, 13), o.font.?.size);
 }
 
-test "inputOpts lg font size is 14px" {
+test "inputOpts lg font size is the type scale's lg, 15px: 14 is not a step" {
     var buf: [64]u8 = @splat(0);
     const t = ti.textInput(@src(), &buf).size(.lg);
     const o = t.inputOpts(tokens.current.border_input);
-    try std.testing.expectEqual(@as(u16, 14), o.font.?.size);
+    try std.testing.expectEqual(tokens.current.font_size_lg, o.font.?.size);
+    try std.testing.expectEqual(@as(u16, 15), o.font.?.size);
 }
 
 // ─── textInputAdvanced constructor ───────────────────────────────────────────

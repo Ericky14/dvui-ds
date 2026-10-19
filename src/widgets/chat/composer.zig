@@ -352,27 +352,30 @@ pub fn entryOpts(font: dvui.Font, metrics: Metrics) dvui.Options {
     };
 }
 
-/// The key hint under the box: muted mono caption, its own line box pinned to a
-/// whole number of physical pixels and indented to the frame's inner edge.
+/// The key hint under the box: a muted mono key hint (`font_size_xs`), its own
+/// line box pinned to a whole number of physical pixels and indented to the
+/// frame's inner edge on the left only — nothing stands to its right, and the
+/// 8 px there cut its last words off in a 293 px chat column.
 pub fn hintOpts(font: dvui.Font) dvui.Options {
     const theme = tokens.current;
     const scale = ds.pixelScale();
     const line = if (dvui.current_window == null)
-        ds.snapPx(@as(f32, @floatFromInt(theme.font_size_sm)) * 1.3, scale)
+        ds.snapPx(@as(f32, @floatFromInt(theme.font_size_xs)) * 1.3, scale)
     else
         ds.snapPx(font.textHeight(), scale);
     return .{
         .font = font,
         .color_text = .{ .color = theme.text_muted },
-        .padding = ds.paddingXY(theme.space_sm, 0),
+        .padding = .{ .x = theme.space_sm, .y = 0, .w = 0, .h = 0 },
         .margin = dvui.Rect.all(0),
         .min_size_content = .{ .w = 0, .h = line },
         .max_size_content = .height(line),
     };
 }
 
-fn hintFont() dvui.Font {
-    return dvui.Font.theme(.mono).withSize(@floatFromInt(tokens.current.font_size_sm));
+/// The key hint's font: Geist Mono at the type scale's key-hint step.
+pub fn hintFont() dvui.Font {
+    return ds.fontMono(tokens.current.font_size_xs);
 }
 
 test {

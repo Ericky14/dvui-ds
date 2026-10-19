@@ -6,8 +6,8 @@
 
     .dependencies = .{
         .dvui = .{
-            .url = "git+https://github.com/Ericky14/dvui.git#d0e4c1fe195ff380d29122519b4d638fec732c95",
-            .hash = "dvui-0.5.0-dev-AQFJmbb3DQGTC-YN0GHeSw1NLI9u4Ssz9_ajju5x1IJo",
+            .url = "git+https://github.com/Ericky14/dvui.git#00d799fd22f31ecc01a7b0689b3645f5e8c6a368",
+            .hash = "dvui-0.5.0-dev-AQFJmfslDwHyRQohFDRPXY-rYaO0huE7chRMuKBo07ZJ",
         },
         .sdl3 = .{
             .url = "git+https://github.com/Ericky14/zig-sdl3.git#45d398c76c0f05aa2ae035eff18a4d59b5cf2f35",
